@@ -1846,7 +1846,7 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 <<std::endl;
 			}
 */
-			if (total_level == LIQUID_LEVEL_SOURCE * can_liquid_same_level - 1 && can_liquid_same_level > 2) {
+			if (total_level == LIQUID_LEVEL_SOURCE * can_liquid_same_level - 1 && can_liquid_same_level >= 1) { //relax up
 //infostream << "relax1 "<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
 			    total_level = LIQUID_LEVEL_SOURCE * can_liquid_same_level; 
 			}
@@ -1858,7 +1858,7 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 			//if (total_level + 1 == can_liquid_same_level * )
 			
 			total_level -= want_level * can_liquid_same_level;
-			if (want_level == LIQUID_LEVEL_SOURCE && total_level == 1 && can_liquid_same_level > 2) { //
+			if (want_level == LIQUID_LEVEL_SOURCE && total_level == 1 && can_liquid_same_level >= 2) { // relax down if 3 around full
 //infostream << "relax2 w=" <<  (int)want_level<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
 			    total_level = 0; 
 			}
