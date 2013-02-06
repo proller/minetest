@@ -1760,7 +1760,7 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 						//}
 						liquid_levels[i] = 0;
 						nb.l = 1;
-						if (nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
+						//if (nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
 					//} else {
 //						neutrals[num_neutrals++] = nb;
 					}
@@ -1772,16 +1772,16 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 					if (liquid_kind == CONTENT_IGNORE)
 						liquid_kind = nb.n.getContent();
 					//if (nodemgr->getId(nodemgr->get(nb.n).liquid_alternative_flowing) != liquid_kind) {
-					if (nb.n.getContent() != liquid_kind) {
+					if (nb.n.getContent() == liquid_kind) {
 //						neutrals[num_neutrals++] = nb;
-					} else {
+					//} else {
 						liquid_levels[i] = LIQUID_LEVEL_SOURCE;
-						total_level += liquid_levels[i];
+						//total_level += liquid_levels[i];
 						// Do not count bottom source, it will screw things up
 //						if(dirs[i].Y != -1)
 //							sources[num_sources++] = nb;
 						nb.l = 1;
-						if (nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
+						//if (nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
 					}
 					break;
 				case LIQUID_FLOWING:
@@ -1797,20 +1797,23 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 					}
 					*/
 					//if (nodemgr->getId(nodemgr->get(nb.n).liquid_alternative_flowing) != liquid_kind_flowing) {
-					if (nb.n.getContent() != liquid_kind_flowing) {
+					if (nb.n.getContent() == liquid_kind_flowing) {
 					//infostream << " [NOTFLOW "<< (int)nb.n.getContent() << "!="<< (int)liquid_kind_flowing<<"] ";
 //						neutrals[num_neutrals++] = nb;
-					} else {
+					//} else {
 //						flows[num_flows++] = nb;
 						liquid_levels[i] = (nb.n.param2 & LIQUID_LEVEL_MASK);
-						total_level += liquid_levels[i];
+						//total_level += liquid_levels[i];
 //						if (nb.t == NEIGHBOR_LOWER)
 //							flowing_down = true;
 					nb.l = 1;
-					if (nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
+					//if (nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
 					}
 					break;
 			}
+			if (nb.l && nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
+			if (liquid_levels[i] > 0) total_level += liquid_levels[i];
+
 			/*
 			infostream <<i<< " nlevel=" <<  (int)liquid_levels[i] << " tlevel=" << (int)total_level
 			<< " cansame="<<(int)can_liquid_same_level
@@ -1842,21 +1845,43 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 <<" can="<< (int)can_liquid_same_level
 <<std::endl;
 			}
-*/		 	u8 want_level = total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level 
+*/
+			if (total_level == LIQUID_LEVEL_SOURCE * can_liquid_same_level - 1 && can_liquid_same_level > 2) {
+//infostream << "relax1 "<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
+			    total_level = LIQUID_LEVEL_SOURCE * can_liquid_same_level; 
+			}
+
+		 	u8 want_level = total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level 
 			    ? LIQUID_LEVEL_SOURCE :
 			    total_level / can_liquid_same_level
 			    ;
-
+			//if (total_level + 1 == can_liquid_same_level * )
+			
 			total_level -= want_level * can_liquid_same_level;
+			if (want_level == LIQUID_LEVEL_SOURCE && total_level == 1 && can_liquid_same_level > 2) { //
+//infostream << "relax2 w=" <<  (int)want_level<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
+			    total_level = 0; 
+			}
 				for (u16 ii = 0; ii < 7; ii++) {
 					if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || !neighbors[ii].l) continue;
 					liquid_levels_want[ii] = want_level;
-					if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 ) {
+
+					if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 && liquid_levels[ii]>liquid_levels_want[ii] ) {
 						++liquid_levels_want[ii];
 						--total_level;
-						}
+					}
 //			infostream << " f"<<(int)ii<<"="<<(int)liquid_levels_want[ii];
 				}
+			for (u16 ii = 0; ii < 7; ii++) {
+				if (total_level < 1) break;
+
+				if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 ) {
+					++liquid_levels_want[ii];
+					--total_level;
+				}
+
+
+			}
 			if (neighbors[D_TOP].l) {
 
 //			infostream  <<" ttop=" << (int)total_level;
