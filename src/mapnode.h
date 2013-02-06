@@ -71,6 +71,9 @@ enum LightBank
 #define LIQUID_LEVEL_MAX LIQUID_LEVEL_MASK
 #define LIQUID_LEVEL_SOURCE (LIQUID_LEVEL_MAX+1)
 
+#define LIQUID_PRESSURE_MASK 0xff
+#define LIQUID_PRESSURE_MAX LIQUID_PRESSURE_MASK
+
 /*
 	This is the stuff what the whole world consists of.
 */

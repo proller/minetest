@@ -1625,11 +1625,12 @@ const v3s16 g_7dirs[7] =
 	v3s16( 1, 0, 0), // right
 	v3s16( 0, 0,-1), // front
 	v3s16( 0,-1, 0), // bottom
-	v3s16(-1, 0, 0) // left
+	v3s16(-1, 0, 0)  // left
 };
 
 #define D_BOTTOM 5
 #define D_TOP 2
+#define D_SELF 0
 
 void Map::transformLiquids(core::map<v3s16, MapBlock*> & modified_blocks)
 {
@@ -1660,13 +1661,14 @@ void Map::transformLiquids(core::map<v3s16, MapBlock*> & modified_blocks)
 			Get a queued transforming liquid node
 		*/
 		v3s16 p0 = m_transforming_liquid.pop_front();
-		MapNode n0 = getNodeNoEx(p0);
+		//MapNode n0 = getNodeNoEx(p0);
 		u16 total_level = 0;
 		NodeNeighbor neighbors[7]; // surrounding flowing liquid nodes
-		NodeNeighbor nbs = {n0, NEIGHBOR_SAME_LEVEL, p0, 1}; // self
-		neighbors[6] = nbs;
+		//NodeNeighbor nbs = {n0, NEIGHBOR_SAME_LEVEL, p0, 1}; // self
+		//neighbors[6] = nbs;
 		s8 liquid_levels[7]      = {-1, -1, -1, -1, -1, -1, -1}; // level of every block
 		s8 liquid_levels_want[7] = {-1, -1, -1, -1, -1, -1, -1}; // target levels
+		s8 pressures[7] = {}; // target levels
 		s8 can_liquid_same_level = 0;
 		/*
 			Collect information about current node
@@ -1677,7 +1679,6 @@ void Map::transformLiquids(core::map<v3s16, MapBlock*> & modified_blocks)
 			Collect information about the environment
 		 */
 		const v3s16 *dirs = g_7dirs;
-		//bool flowing_down = false;
 		for (u16 i = 0; i < 7; i++) {
 			NeighborType nt = NEIGHBOR_SAME_LEVEL;
 			switch (i) {
@@ -1719,6 +1720,10 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 					if (nb.n.getContent() == liquid_kind) {
 						liquid_levels[i] = LIQUID_LEVEL_SOURCE;
 						nb.l = 1;
+//infostream << " pget was="<< (int)pressures[i];
+						pressures[i] = (nb.n.param2 & LIQUID_PRESSURE_MASK);
+//infostream << " now="<< (int)pressures[i];
+//<<std::endl;
 					}
 					break;
 				case LIQUID_FLOWING:
@@ -1750,7 +1755,7 @@ infostream << "go flow; l="<< (int)total_level << " src="<< (int)LIQUID_LEVEL_SO
 			infostream << "afterflow ";
 */
 		if (neighbors[D_BOTTOM].l) {
-			liquid_levels_want[D_BOTTOM] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level ;
+			liquid_levels_want[D_BOTTOM] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level;
 			total_level -= liquid_levels_want[D_BOTTOM];
 		}
 /*
@@ -1762,10 +1767,9 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 //infostream << "relax1 "<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
 			total_level = LIQUID_LEVEL_SOURCE * can_liquid_same_level; 
 		}
-		u8 want_level = total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level 
-			    ? LIQUID_LEVEL_SOURCE :
-			    total_level / can_liquid_same_level
-			    ;
+		u8 want_level = 
+			  total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level
+			? LIQUID_LEVEL_SOURCE : total_level / can_liquid_same_level;
 		total_level -= want_level * can_liquid_same_level;
 		if (want_level == LIQUID_LEVEL_SOURCE && total_level == 1 && can_liquid_same_level >= 2) { // relax down if 3 around full
 //infostream << "relax2 w=" <<  (int)want_level<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
@@ -1774,7 +1778,7 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 		for (u16 ii = 0; ii < 7; ii++) {
 			if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || !neighbors[ii].l) continue;
 			liquid_levels_want[ii] = want_level;
-			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 && liquid_levels[ii]>liquid_levels_want[ii] ) {
+			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 && liquid_levels[ii]>liquid_levels_want[ii]) {
 				++liquid_levels_want[ii];
 				--total_level;
 			}
@@ -1790,8 +1794,31 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 		if (neighbors[D_TOP].l) {
 //infostream  <<" ttop=" << (int)total_level;
 			liquid_levels_want[D_TOP] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level ;
-			total_level -= liquid_levels_want[D_TOP];// - liquid_levels[i];
+			total_level -= liquid_levels_want[D_TOP];
 		}
+
+		if (liquid_levels_want[D_TOP] == LIQUID_LEVEL_SOURCE) {
+			if (pressures[D_SELF] <= pressures[D_TOP]) 
+				pressures[D_SELF] = pressures[D_TOP] + 1;
+			else if (pressures[D_SELF] > pressures[D_TOP])
+				pressures[D_TOP] = pressures[D_SELF] - 1;
+			
+//infostream << " pme=" << (int)pressures[D_SELF];
+		
+		}
+		for (u16 ii = 0; ii < 7; ii++) {
+			if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || liquid_levels_want[ii] != LIQUID_LEVEL_SOURCE) continue;
+			if (pressures[ii] > pressures[D_SELF]) pressures[D_SELF] = pressures[ii];
+			if (pressures[D_SELF] > pressures[ii]) pressures[ii] = pressures[D_SELF];
+		}
+		if (liquid_levels_want[D_BOTTOM] == LIQUID_LEVEL_SOURCE) {
+			if (pressures[D_SELF] < pressures[D_BOTTOM]-1) 
+				pressures[D_SELF] = pressures[D_BOTTOM] - 1;
+			else if (pressures[D_SELF] >= pressures[D_BOTTOM])
+				pressures[D_BOTTOM] = pressures[D_SELF] + 1;
+//infostream << " pbo=" << (int)pressures[D_BOTTOM];
+		}
+//infostream << std::endl;
 /*
 			infostream  
 			<<" level=" << (int)total_level
@@ -1803,7 +1830,8 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 
 		for (u16 i = 0; i < 7; i++) {
 			if (liquid_levels_want[i] < 0 || !neighbors[i].l) continue;
-			n0 = neighbors[i].n;
+			if (pressures[i] > LIQUID_PRESSURE_MAX) pressures[i] = LIQUID_PRESSURE_MAX;
+			MapNode & n0 = neighbors[i].n;
 			p0 = neighbors[i].p;
 		/*
 			decide on the type (and possibly level) of the current node
@@ -1832,7 +1860,7 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 			else
 				new_node_content = CONTENT_AIR;
 
-			if (new_node_level != liquid_levels_want[i]) {
+//			if (new_node_level != liquid_levels_want[i]) {
 				//!must_reflow.push_back(p0);
 /*
 infostream << "will repl v=" << (int)viscosity<<" want="<< (int)liquid_levels_want[i] << " now=" << (int)liquid_levels[i] 
@@ -1840,8 +1868,7 @@ infostream << "will repl v=" << (int)viscosity<<" want="<< (int)liquid_levels_wa
 << " nc="<<(int)new_node_content
 <<std::endl;
 */
-			}
-		//}
+//			}
 		/*
 			check if anything has changed. if not, just continue with the next node.
 		 */
@@ -1860,9 +1887,10 @@ infostream << "will repl v=" << (int)viscosity<<" want="<< (int)liquid_levels_wa
 			if (nodemgr->get(new_node_content).liquid_type == LIQUID_FLOWING) {
 			// set level to last 3 bits, flowing down bit to 4th bit
 				n0.param2 = (new_node_level & LIQUID_LEVEL_MASK);
-			} else {
-			// set the liquid level and flow bit to 0
+			} else if (nodemgr->get(new_node_content).liquid_type == LIQUID_SOURCE) {
 			//n0.param2 = ~(LIQUID_LEVEL_MASK | LIQUID_FLOW_DOWN_MASK);
+				n0.param2 = (pressures[i] & LIQUID_PRESSURE_MASK);
+infostream << " set="<< (int)pressures[i];
 			}
 //infostream << "set node" <<(int)i<<" "<< PP(p0)<< " nc="<<new_node_content<< " p2="<<(int)n0.param2<< " nl="<<(int)new_node_level<<std::endl;
 
