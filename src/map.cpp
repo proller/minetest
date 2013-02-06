@@ -1656,69 +1656,28 @@ void Map::transformLiquids(core::map<v3s16, MapBlock*> & modified_blocks)
 		if(loopcount >= initial_size || loopcount >= 10000)
 			break;
 		loopcount++;
-
 		/*
 			Get a queued transforming liquid node
 		*/
 		v3s16 p0 = m_transforming_liquid.pop_front();
-
 		MapNode n0 = getNodeNoEx(p0);
-		//MapNode & ns = n0; 
 		u16 total_level = 0;
-
 		NodeNeighbor neighbors[7]; // surrounding flowing liquid nodes
-			NodeNeighbor nbs = {n0, NEIGHBOR_SAME_LEVEL, p0, 1}; // self
-			neighbors[6] = nbs;
+		NodeNeighbor nbs = {n0, NEIGHBOR_SAME_LEVEL, p0, 1}; // self
+		neighbors[6] = nbs;
 		s8 liquid_levels[7]      = {-1, -1, -1, -1, -1, -1, -1}; // level of every block
 		s8 liquid_levels_want[7] = {-1, -1, -1, -1, -1, -1, -1}; // target levels
 		s8 can_liquid_same_level = 0;
-
 		/*
 			Collect information about current node
 		 */
-		//s8 liquid_level = -1;
 		content_t liquid_kind = CONTENT_IGNORE;
 		content_t liquid_kind_flowing = CONTENT_IGNORE;
-/*
-		LiquidType liquid_type = nodemgr->get(n0).liquid_type;
-		switch (liquid_type) {
-			case LIQUID_SOURCE:
-				liquid_levels[6] = liquid_level = LIQUID_LEVEL_SOURCE;
-				total_level += liquid_level;
-				liquid_kind = nodemgr->getId(nodemgr->get(n0).liquid_alternative_flowing);
-				break;
-			case LIQUID_FLOWING:
-				liquid_levels[6] = liquid_level = (n0.param2 & LIQUID_LEVEL_MASK);
-				total_level += liquid_level;
-				liquid_kind = n0.getContent();
-				break;
-			case LIQUID_NONE:
-				// if this is an air node, it *could* be transformed into a liquid. otherwise,
-				// continue with the next node.
-				if (n0.getContent() != CONTENT_AIR)
-					continue;
-				liquid_kind = CONTENT_AIR;
-				liquid_levels[6] = 0;
-				break;
-		}
-*/
-//infostream
-                            
 		/*
 			Collect information about the environment
 		 */
 		const v3s16 *dirs = g_7dirs;
-		/*NodeNeighbor sources[6]; // surrounding sources
-		int num_sources = 0;
-		NodeNeighbor flows[6]; // surrounding flowing liquid nodes
-		int num_flows = 0;
-		NodeNeighbor airs[6]; // surrounding air
-		int num_airs = 0;
-		NodeNeighbor neutrals[6]; // nodes that are solid or another kind of liquid
-		int num_neutrals = 0;*/
-
-
-		bool flowing_down = false;
+		//bool flowing_down = false;
 		for (u16 i = 0; i < 7; i++) {
 			NeighborType nt = NEIGHBOR_SAME_LEVEL;
 			switch (i) {
@@ -1732,7 +1691,6 @@ void Map::transformLiquids(core::map<v3s16, MapBlock*> & modified_blocks)
 			v3s16 npos = p0 + dirs[i];
 //infostream << "get node" << PP(npos)<< " i="<<i;
 			
-			//neighbors[i] = {getNodeNoEx(npos), nt, npos};
 			neighbors[i].n = getNodeNoEx(npos);
 			neighbors[i].t = nt;
 			neighbors[i].p = npos;
@@ -1748,21 +1706,8 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 			switch (nodemgr->get(nb.n.getContent()).liquid_type) {
 				case LIQUID_NONE:
 					if (nb.n.getContent() == CONTENT_AIR) {
-//						airs[num_airs++] = nb;
-						// if the current node is a water source the neighbor
-						// should be enqueded for transformation regardless of whether the
-						// current node changes or not.
-						//if (nb.t != NEIGHBOR_UPPER && liquid_type != LIQUID_NONE)
-						//	m_transforming_liquid.push_back(npos);
-						// if the current node happens to be a flowing node, it will start to flow down here.
-						//if (nb.t == NEIGHBOR_LOWER) {
-//							flowing_down = true;
-						//}
 						liquid_levels[i] = 0;
 						nb.l = 1;
-						//if (nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
-					//} else {
-//						neutrals[num_neutrals++] = nb;
 					}
 					break;
 				case LIQUID_SOURCE:
@@ -1771,17 +1716,9 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 						liquid_kind_flowing = nodemgr->getId(nodemgr->get(nb.n).liquid_alternative_flowing);
 					if (liquid_kind == CONTENT_IGNORE)
 						liquid_kind = nb.n.getContent();
-					//if (nodemgr->getId(nodemgr->get(nb.n).liquid_alternative_flowing) != liquid_kind) {
 					if (nb.n.getContent() == liquid_kind) {
-//						neutrals[num_neutrals++] = nb;
-					//} else {
 						liquid_levels[i] = LIQUID_LEVEL_SOURCE;
-						//total_level += liquid_levels[i];
-						// Do not count bottom source, it will screw things up
-//						if(dirs[i].Y != -1)
-//							sources[num_sources++] = nb;
 						nb.l = 1;
-						//if (nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
 					}
 					break;
 				case LIQUID_FLOWING:
@@ -1790,24 +1727,9 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 						liquid_kind_flowing = nb.n.getContent();
 					if (liquid_kind == CONTENT_IGNORE)
 						liquid_kind = nodemgr->getId(nodemgr->get(nb.n).liquid_alternative_source);
-
-					/*if (liquid_kind == CONTENT_AIR) {
-						liquid_kind = nodemgr->getId(nodemgr->get(nb.n).liquid_alternative_flowing);
-						liquid_levels[i] = 0;
-					}
-					*/
-					//if (nodemgr->getId(nodemgr->get(nb.n).liquid_alternative_flowing) != liquid_kind_flowing) {
 					if (nb.n.getContent() == liquid_kind_flowing) {
-					//infostream << " [NOTFLOW "<< (int)nb.n.getContent() << "!="<< (int)liquid_kind_flowing<<"] ";
-//						neutrals[num_neutrals++] = nb;
-					//} else {
-//						flows[num_flows++] = nb;
 						liquid_levels[i] = (nb.n.param2 & LIQUID_LEVEL_MASK);
-						//total_level += liquid_levels[i];
-//						if (nb.t == NEIGHBOR_LOWER)
-//							flowing_down = true;
-					nb.l = 1;
-					//if (nb.t == NEIGHBOR_SAME_LEVEL) ++can_liquid_same_level;
+						nb.l = 1;
 					}
 					break;
 			}
@@ -1820,74 +1742,56 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 			<< " l=" << (int)nb.l
 			<<std::endl;
 			*/
-//if (nb.l) {
-//	m_transforming_liquid.push_back(npos);
-//}
 		}
 /*
 infostream << "go flow; l="<< (int)total_level << " src="<< (int)LIQUID_LEVEL_SOURCE
 <<" down.l="<<neighbors[D_BOTTOM].l
 <<std::endl;
-
 			infostream << "afterflow ";
 */
-			if (neighbors[D_BOTTOM].l) {
-				liquid_levels_want[D_BOTTOM] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level ;
-				total_level -= liquid_levels_want[D_BOTTOM];// - liquid_levels[i];
-			}
-
-		//if (total_level >= LIQUID_LEVEL_SOURCE) {
-//		if (total_level >= ) {
-/*			if (neighbors[D_BOTTOM].l) {
-				liquid_levels_want[D_BOTTOM] = LIQUID_LEVEL_SOURCE; // - liquid_levels[i];
-				total_level -= LIQUID_LEVEL_SOURCE;// - liquid_levels[i];
+		if (neighbors[D_BOTTOM].l) {
+			liquid_levels_want[D_BOTTOM] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level ;
+			total_level -= liquid_levels_want[D_BOTTOM];
+		}
+/*
 infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_levels_want[D_BOTTOM]
 <<" can="<< (int)can_liquid_same_level
 <<std::endl;
-			}
 */
-			if (total_level == LIQUID_LEVEL_SOURCE * can_liquid_same_level - 1 && can_liquid_same_level >= 1) { //relax up
+		if (total_level == LIQUID_LEVEL_SOURCE * can_liquid_same_level - 1 && can_liquid_same_level >= 1) { //relax up
 //infostream << "relax1 "<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
-			    total_level = LIQUID_LEVEL_SOURCE * can_liquid_same_level; 
-			}
-
-		 	u8 want_level = total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level 
+			total_level = LIQUID_LEVEL_SOURCE * can_liquid_same_level; 
+		}
+		u8 want_level = total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level 
 			    ? LIQUID_LEVEL_SOURCE :
 			    total_level / can_liquid_same_level
 			    ;
-			//if (total_level + 1 == can_liquid_same_level * )
-			
-			total_level -= want_level * can_liquid_same_level;
-			if (want_level == LIQUID_LEVEL_SOURCE && total_level == 1 && can_liquid_same_level >= 2) { // relax down if 3 around full
+		total_level -= want_level * can_liquid_same_level;
+		if (want_level == LIQUID_LEVEL_SOURCE && total_level == 1 && can_liquid_same_level >= 2) { // relax down if 3 around full
 //infostream << "relax2 w=" <<  (int)want_level<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
-			    total_level = 0; 
+			total_level = 0; 
+		}
+		for (u16 ii = 0; ii < 7; ii++) {
+			if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || !neighbors[ii].l) continue;
+			liquid_levels_want[ii] = want_level;
+			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 && liquid_levels[ii]>liquid_levels_want[ii] ) {
+				++liquid_levels_want[ii];
+				--total_level;
 			}
-				for (u16 ii = 0; ii < 7; ii++) {
-					if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || !neighbors[ii].l) continue;
-					liquid_levels_want[ii] = want_level;
-
-					if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 && liquid_levels[ii]>liquid_levels_want[ii] ) {
-						++liquid_levels_want[ii];
-						--total_level;
-					}
-//			infostream << " f"<<(int)ii<<"="<<(int)liquid_levels_want[ii];
-				}
-			for (u16 ii = 0; ii < 7; ii++) {
-				if (total_level < 1) break;
-
-				if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 ) {
-					++liquid_levels_want[ii];
-					--total_level;
-				}
-
-
+//infostream << " f"<<(int)ii<<"="<<(int)liquid_levels_want[ii];
+		}
+		for (u16 ii = 0; ii < 7; ii++) {
+			if (total_level < 1) break;
+			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 ) {
+				++liquid_levels_want[ii];
+				--total_level;
 			}
-			if (neighbors[D_TOP].l) {
-
-//			infostream  <<" ttop=" << (int)total_level;
-				liquid_levels_want[D_TOP] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level ;
-				total_level -= liquid_levels_want[D_TOP];// - liquid_levels[i];
-			}
+		}
+		if (neighbors[D_TOP].l) {
+//infostream  <<" ttop=" << (int)total_level;
+			liquid_levels_want[D_TOP] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level ;
+			total_level -= liquid_levels_want[D_TOP];// - liquid_levels[i];
+		}
 /*
 			infostream  
 			<<" level=" << (int)total_level
@@ -1895,94 +1799,18 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 			<< " top="<< (int)liquid_levels_want[D_TOP]
 			<< " bot="<< (int)liquid_levels_want[D_BOTTOM]
 			<<std::endl;
-  */      
-
-                        /*
-			if (total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level) {
-				for (u16 i = 0; i < 7; i++) {
-					if (neighbors[i].t != NEIGHBOR_SAME_LEVEL || !neighbors[i].l) continue;
-					liquid_levels_want[i] = LIQUID_LEVEL_SOURCE;
-				}
-				//liquid_levels_want[0] = liquid_levels_want[2] = liquid_levels_want[3] = liquid_levels_want[5] = liquid_levels_want[6] =
-				//	LIQUID_LEVEL_SOURCE;
-				total_level -= LIQUID_LEVEL_SOURCE * can_liquid_same_level;
-				liquid_levels_want[1] = total_level;
-			} else {
-				liquid_levels_want[1] = 0;
-				for (u16 i = 0; i < 7; i++) {
-					if (neighbors[i].t != NEIGHBOR_SAME_LEVEL || !neighbors[i].l) continue;
-					liquid_levels_want[i] = total_level / can_liquid_same_level;
-				}
-				//liquid_levels_want[0] = liquid_levels_want[2] = liquid_levels_want[3] = liquid_levels_want[5] = liquid_levels_want[6] =
-				//	total_level / can_liquid_same_level; //todo! floatfix
-			}
-			*/
-
-//		} else { // fill only down 
-			/*if (neighbors[D_BOTTOM].l) {
-				liquid_levels_want[D_BOTTOM] = total_level;
-				total_level -= LIQUID_LEVEL_SOURCE;
-			}*/
-/*
-			for (u16 i = 0; i < 7; i++) {
-				if (neighbors[i].t != NEIGHBOR_SAME_LEVEL || !neighbors[i].l) continue;
-				liquid_levels_want[i] = 0;
-			}
 */
-			//liquid_levels_want[0] = liquid_levels_want[1] = liquid_levels_want[2] = liquid_levels_want[3] = liquid_levels_want[5] = liquid_levels_want[6] =
-			//    0;
-//		}               
-  
+
 		for (u16 i = 0; i < 7; i++) {
-		if (liquid_levels_want[i] < 0 || !neighbors[i].l)
-			continue;
+			if (liquid_levels_want[i] < 0 || !neighbors[i].l) continue;
 			n0 = neighbors[i].n;
 			p0 = neighbors[i].p;
-			//liquid_level = liquid_levels[i];
-			//auto liquid_kindi = liquid_kind;
 		/*
 			decide on the type (and possibly level) of the current node
 		 */
-		content_t new_node_content;
-		s8 new_node_level = -1;
-		//s8 max_node_level = liquid_levels_want[i];
-/*
-		if ((num_sources >= 2 && nodemgr->get(liquid_kind).liquid_renewable) || liquid_type == LIQUID_SOURCE) {
-			// liquid_kind will be set to either the flowing alternative of the node (if it's a liquid)
-			// or the flowing alternative of the first of the surrounding sources (if it's air), so
-			// it's perfectly safe to use liquid_kind here to determine the new node content.
-			new_node_content = nodemgr->getId(nodemgr->get(liquid_kind).liquid_alternative_source);
-		} else if (num_sources >= 1 && sources[0].t != NEIGHBOR_LOWER) {
-			// liquid_kind is set properly, see above
-			new_node_content = liquid_kind;
-			max_node_level = new_node_level = LIQUID_LEVEL_MAX;
-		} else {
-			// no surrounding sources, so get the maximum level that can flow into this node
-			for (u16 i = 0; i < num_flows; i++) {
-				u8 nb_liquid_level = (flows[i].n.param2 & LIQUID_LEVEL_MASK);
-				switch (flows[i].t) {
-					case NEIGHBOR_UPPER:
-						if (nb_liquid_level + WATER_DROP_BOOST > max_node_level) {
-							max_node_level = LIQUID_LEVEL_MAX;
-							if (nb_liquid_level + WATER_DROP_BOOST < LIQUID_LEVEL_MAX)
-								max_node_level = nb_liquid_level + WATER_DROP_BOOST;
-						} else if (nb_liquid_level > max_node_level)
-							max_node_level = nb_liquid_level;
-						break;
-					case NEIGHBOR_LOWER:
-						break;
-					case NEIGHBOR_SAME_LEVEL:
-						if ((flows[i].n.param2 & LIQUID_FLOW_DOWN_MASK) != LIQUID_FLOW_DOWN_MASK &&
-							nb_liquid_level > 0 && nb_liquid_level - 1 > max_node_level) {
-							max_node_level = nb_liquid_level - 1;
-						}
-						break;
-				}
-			}
-*/
-{
+			content_t new_node_content;
+			s8 new_node_level = -1;
 			u8 viscosity = nodemgr->get(liquid_kind).liquid_viscosity;
-
 			if (viscosity > 1 && liquid_levels_want[i] != liquid_levels[i]) {
 				// amount to gain, limited by viscosity
 				// must be at least 1 in absolute value
@@ -1997,117 +1825,92 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 				//	must_reflow.push_back(p0);
 			} else
 				new_node_level = liquid_levels_want[i];
-
 			if (new_node_level >= LIQUID_LEVEL_SOURCE)
 				new_node_content = liquid_kind;
 			else if (new_node_level > 0)
-				new_node_content = liquid_kind_flowing;//nodemgr->getId(nodemgr->get(ns).liquid_alternative_flowing);
-				//new_node_content = 2;
+				new_node_content = liquid_kind_flowing;
 			else
 				new_node_content = CONTENT_AIR;
 
-				if (new_node_level != liquid_levels_want[i]) {
-					must_reflow.push_back(p0);
+			if (new_node_level != liquid_levels_want[i]) {
+				//!must_reflow.push_back(p0);
 /*
 infostream << "will repl v=" << (int)viscosity<<" want="<< (int)liquid_levels_want[i] << " now=" << (int)liquid_levels[i] 
 <<" new="<<(int)new_node_level
 << " nc="<<(int)new_node_content
 <<std::endl;
 */
-					}
-
-
-		}
-
+			}
+		//}
 		/*
 			check if anything has changed. if not, just continue with the next node.
 		 */
-		if (new_node_content == n0.getContent() && (nodemgr->get(n0.getContent()).liquid_type != LIQUID_FLOWING ||
-										 ((n0.param2 & LIQUID_LEVEL_MASK) == (u8)new_node_level &&
-										 ((n0.param2 & LIQUID_FLOW_DOWN_MASK) == LIQUID_FLOW_DOWN_MASK)
-										 == flowing_down)))
-			continue;
+			if (new_node_content == n0.getContent() && (nodemgr->get(n0.getContent()).liquid_type != LIQUID_FLOWING ||
+										 ((n0.param2 & LIQUID_LEVEL_MASK) == (u8)new_node_level 
+										 //&&
+										 //((n0.param2 & LIQUID_FLOW_DOWN_MASK) == LIQUID_FLOW_DOWN_MASK)
+										 //== flowing_down
+										 )))
+				continue;
 
 
 		/*
 			update the current node
 		 */
-		//bool flow_down_enabled = (flowing_down && ((n0.param2 & LIQUID_FLOW_DOWN_MASK) != LIQUID_FLOW_DOWN_MASK));
-		if (nodemgr->get(new_node_content).liquid_type == LIQUID_FLOWING) {
+			if (nodemgr->get(new_node_content).liquid_type == LIQUID_FLOWING) {
 			// set level to last 3 bits, flowing down bit to 4th bit
-			n0.param2 = (flowing_down ? LIQUID_FLOW_DOWN_MASK : 0x00) | (new_node_level & LIQUID_LEVEL_MASK);
-		} else {
+				n0.param2 = (new_node_level & LIQUID_LEVEL_MASK);
+			} else {
 			// set the liquid level and flow bit to 0
-			n0.param2 = ~(LIQUID_LEVEL_MASK | LIQUID_FLOW_DOWN_MASK);
-		}
+			//n0.param2 = ~(LIQUID_LEVEL_MASK | LIQUID_FLOW_DOWN_MASK);
+			}
 //infostream << "set node" <<(int)i<<" "<< PP(p0)<< " nc="<<new_node_content<< " p2="<<(int)n0.param2<< " nl="<<(int)new_node_level<<std::endl;
 
-		n0.setContent(new_node_content);
+			n0.setContent(new_node_content);
 
 		// Find out whether there is a suspect for this action
-		std::string suspect;
-		if(m_gamedef->rollback()){
-			suspect = m_gamedef->rollback()->getSuspect(p0, 83, 1);
-		}
+			std::string suspect;
+			if(m_gamedef->rollback()){
+				suspect = m_gamedef->rollback()->getSuspect(p0, 83, 1);
+			}
 
-		if(!suspect.empty()){
+			if(!suspect.empty()){
 			// Blame suspect
-			RollbackScopeActor rollback_scope(m_gamedef->rollback(), suspect, true);
+				RollbackScopeActor rollback_scope(m_gamedef->rollback(), suspect, true);
 			// Get old node for rollback
-			RollbackNode rollback_oldnode(this, p0, m_gamedef);
+				RollbackNode rollback_oldnode(this, p0, m_gamedef);
 			// Set node
-			setNode(p0, n0);
+				setNode(p0, n0);
 			// Report
-			RollbackNode rollback_newnode(this, p0, m_gamedef);
-			RollbackAction action;
-			action.setSetNode(p0, rollback_oldnode, rollback_newnode);
-			m_gamedef->rollback()->reportAction(action);
-		} else {
+				RollbackNode rollback_newnode(this, p0, m_gamedef);
+				RollbackAction action;
+				action.setSetNode(p0, rollback_oldnode, rollback_newnode);
+				m_gamedef->rollback()->reportAction(action);
+			} else {
 			// Set node
-			setNode(p0, n0);
-		}
+				setNode(p0, n0);
+			}
 
-		v3s16 blockpos = getNodeBlockPos(p0);
-		MapBlock *block = getBlockNoCreateNoEx(blockpos);
-		if(block != NULL) {
-			modified_blocks.insert(blockpos, block);
+			v3s16 blockpos = getNodeBlockPos(p0);
+			MapBlock *block = getBlockNoCreateNoEx(blockpos);
+			if(block != NULL) {
+				modified_blocks.insert(blockpos, block);
 			// If node emits light, MapBlock requires lighting update
-			if(nodemgr->get(n0).light_source != 0)
-				lighting_modified_blocks[block->getPos()] = block;
-		}
+				if(nodemgr->get(n0).light_source != 0)
+					lighting_modified_blocks[block->getPos()] = block;
+			}
 
 		/*
 			enqueue neighbors for update if neccessary
 		 */
-		switch (nodemgr->get(n0.getContent()).liquid_type) {
-			case LIQUID_SOURCE:
-			case LIQUID_FLOWING:
-			case LIQUID_NONE:
+			switch (nodemgr->get(n0.getContent()).liquid_type) {
+				case LIQUID_SOURCE:
+				case LIQUID_FLOWING:
+				case LIQUID_NONE:
 				// make sure source flows into all neighboring nodes
-			must_reflow.push_back(neighbors[i].p);
-
-/*		for (u16 ii = 0; ii < 6; ii++) {
-			if (!neighbors[ii].l) continue;
-			m_transforming_liquid.push_back(neighbors[ii].p);
-		}*/
-
-/*
-				for (u16 i = 0; i < num_flows; i++)
-					if (flows[i].t != NEIGHBOR_UPPER)
-						m_transforming_liquid.push_back(flows[i].p);
-				for (u16 i = 0; i < num_airs; i++)
-					if (airs[i].t != NEIGHBOR_UPPER)
-						m_transforming_liquid.push_back(airs[i].p);
-*/
+				must_reflow.push_back(neighbors[i].p);
 				break;
-/*
-			case LIQUID_NONE:
-				// this flow has turned to air; neighboring flows might need to do the same
-				for (u16 i = 0; i < num_flows; i++)
-					m_transforming_liquid.push_back(flows[i].p);
-				break;
-*/
-}
+			}
 		}
 	}
 	infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<std::endl;
