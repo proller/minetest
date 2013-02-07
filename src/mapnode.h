@@ -65,14 +65,15 @@ enum LightBank
 	Masks for MapNode.param2 of flowing liquids
  */
 #define LIQUID_LEVEL_MASK 0x07
-#define LIQUID_FLOW_DOWN_MASK 0x08
+//#define LIQUID_FLOW_DOWN_MASK 0x08
 
 /* maximum amount of liquid in a block */
 #define LIQUID_LEVEL_MAX LIQUID_LEVEL_MASK
 #define LIQUID_LEVEL_SOURCE (LIQUID_LEVEL_MAX+1)
 
-#define LIQUID_PRESSURE_MASK 0xff
-#define LIQUID_PRESSURE_MAX LIQUID_PRESSURE_MASK
+#define LIQUID_INFINITY_MASK 0x80 //0b10000000
+//#define LIQUID_PRESSURE_MASK 0x7f //0b01111111
+//#define LIQUID_PRESSURE_MAX LIQUID_PRESSURE_MASK
 
 /*
 	This is the stuff what the whole world consists of.
