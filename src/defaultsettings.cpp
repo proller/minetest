@@ -176,6 +176,7 @@ void set_default_settings(Settings *settings)
 	//mapgen related things
 	settings->setDefault("mg_name", "v6");
 	settings->setDefault("water_level", "1");
+	settings->setDefault("water_finite", "true");
 	settings->setDefault("chunksize", "5");
 	settings->setDefault("mg_flags", "19");
 	settings->setDefault("mgv6_freq_desert", "0.45");
