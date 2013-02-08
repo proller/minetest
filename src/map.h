@@ -300,6 +300,7 @@ public:
 	virtual void PrintInfo(std::ostream &out);
 
 	void transformLiquids(core::map<v3s16, MapBlock*> & modified_blocks);
+	void transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks);
 
 	/*
 		Node metadata
