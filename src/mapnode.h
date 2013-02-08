@@ -64,8 +64,11 @@ enum LightBank
 /*
 	Masks for MapNode.param2 of flowing liquids
  */
-#define LIQUID_LEVEL_MASK 0x07
-#define LIQUID_FLOW_DOWN_MASK 0x08 // not used when finite water
+//#define LIQUID_LEVEL_MASK 0x07
+//#define LIQUID_FLOW_DOWN_MASK 0x08
+
+#define LIQUID_LEVEL_MASK 0x3f
+#define LIQUID_FLOW_DOWN_MASK 0x40 // not used when finite water
 
 /* maximum amount of liquid in a block */
 #define LIQUID_LEVEL_MAX LIQUID_LEVEL_MASK
