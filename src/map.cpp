@@ -1691,6 +1691,7 @@ void Map::transformLiquids(core::map<v3s16, MapBlock*> & modified_blocks)
 		//neighbors[6] = nbs;
 		s8 liquid_levels[7]      = {-1, -1, -1, -1, -1, -1, -1}; // level of every block
 		s8 liquid_levels_want[7] = {-1, -1, -1, -1, -1, -1, -1}; // target levels
+		//u8 pressures[7] = {};
 		s8 can_liquid_same_level = 0;
 		/*
 			Collect information about current node
@@ -1742,7 +1743,11 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 					if (nb.n.getContent() == liquid_kind) {
 						liquid_levels[i] = LIQUID_LEVEL_SOURCE;
 						nb.l = 1;
+//infostream << " pget was="<< (int)pressures[i];
+						//pressures[i] = (nb.n.param2 & LIQUID_PRESSURE_MASK);
 						nb.i = (nb.n.param2 & LIQUID_INFINITY_MASK);
+//infostream << " now="<< (int)pressures[i];
+//<<std::endl;
 					}
 					break;
 				case LIQUID_FLOWING:
@@ -1771,7 +1776,38 @@ infostream << " c="<<nb.n.getContent() <<" p0="<< (int)nb.n.param0 <<" p1="<< (i
 infostream << "go flow; l="<< (int)total_level << " src="<< (int)LIQUID_LEVEL_SOURCE
 <<" down.l="<<neighbors[D_BOTTOM].l
 <<std::endl;
+			infostream << "afterflow ";
 */
+
+/*
+		if (liquid_levels_want[D_TOP] == LIQUID_LEVEL_SOURCE) {
+			if (pressures[D_SELF] <= pressures[D_TOP]) 
+				pressures[D_SELF] = pressures[D_TOP] + 1;
+			else if (pressures[D_SELF] > pressures[D_TOP])
+				pressures[D_TOP] = pressures[D_SELF] - 1;
+			
+infostream << " ptop=" << (int)pressures[D_TOP];
+		
+		}
+		for (u16 ii = 0; ii < 7; ii++) {
+			if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || liquid_levels_want[ii] != LIQUID_LEVEL_SOURCE) continue;
+			if (pressures[ii] > pressures[D_SELF]) pressures[D_SELF] = pressures[ii];
+			if (pressures[D_SELF] > pressures[ii]) pressures[ii] = pressures[D_SELF];
+infostream << " pi"<<(int)ii<<"=" << (int)pressures[ii];
+		}
+		if (liquid_levels_want[D_BOTTOM] == LIQUID_LEVEL_SOURCE) {
+			if (pressures[D_SELF] < pressures[D_BOTTOM]-1) 
+				pressures[D_SELF] = pressures[D_BOTTOM] - 1;
+			else if (pressures[D_SELF] >= pressures[D_BOTTOM])
+				pressures[D_BOTTOM] = pressures[D_SELF] + 1;
+infostream << " pbo=" << (int)pressures[D_BOTTOM];
+		}
+if (pressures[D_SELF]) {		
+infostream << " pme=" << (int)pressures[D_SELF];
+infostream << std::endl;
+}
+*/
+
 
 		if (neighbors[D_BOTTOM].l) {
 			liquid_levels_want[D_BOTTOM] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level;
@@ -1830,6 +1866,7 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
                 u8 changed = 0;
 		for (u16 i = 0; i < 7; i++) {
 			if (liquid_levels_want[i] < 0 || !neighbors[i].l) continue;
+			//if (pressures[i] > LIQUID_PRESSURE_MAX) pressures[i] = LIQUID_PRESSURE_MAX;
 			MapNode & n0 = neighbors[i].n;
 			p0 = neighbors[i].p;
 		/*
@@ -1879,7 +1916,9 @@ infostream << "will repl v=" << (int)viscosity<<" want="<< (int)liquid_levels_wa
 										 ))
 										 &&
 										 (nodemgr->get(n0.getContent()).liquid_type != LIQUID_SOURCE ||
-										 (((n0.param2 & LIQUID_INFINITY_MASK) == LIQUID_INFINITY_MASK)
+										 (//(n0.param2 & LIQUID_PRESSURE_MASK) == (u8)pressures[i] 
+										 //&&
+										 ((n0.param2 & LIQUID_INFINITY_MASK) == LIQUID_INFINITY_MASK)
 										 == neighbors[i].i
 										 ))										 
 										 
@@ -1904,7 +1943,9 @@ infostream << "will repl v=" << (int)viscosity<<" want="<< (int)liquid_levels_wa
 			} else if (nodemgr->get(new_node_content).liquid_type == LIQUID_SOURCE) {
 			//n0.param2 = ~(LIQUID_LEVEL_MASK | LIQUID_FLOW_DOWN_MASK);
 				n0.param2 = (neighbors[i].i & LIQUID_INFINITY_MASK) 
+				//(pressures[i] & LIQUID_PRESSURE_MASK)
 				;
+//infostream << " set="<< (int)pressures[i] << " inf="<< (int)neighbors[i].i << " p2=" << (int)n0.param2;
 			}
 //infostream << "set node" <<(int)i<<" "<< PP(p0)<< " nc="<<new_node_content<< " p2="<<(int)n0.param2<< " nl="<<(int)new_node_level<<std::endl;
 
