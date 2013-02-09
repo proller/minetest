@@ -1613,7 +1613,7 @@ struct NodeNeighbor {
 	MapNode n;
 	NeighborType t;
 	v3s16 p;
-	bool l;
+	bool l; //can liquid 
 	bool i; //infinity
 };
 
@@ -2010,7 +2010,7 @@ infostream << "will repl v=" << (int)viscosity<<" want="<< (int)liquid_levels_wa
     				//must_reflow.push_back(p0 + g_8wave[i]);
 			}*/
 	}
-	infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<std::endl;
+	infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<" reflow="<<must_reflow.size()<<" queue="<< m_transforming_liquid.size()<<std::endl;
 	while (must_reflow.size() > 0)
 		m_transforming_liquid.push_back(must_reflow.pop_front());
 	updateLighting(lighting_modified_blocks, modified_blocks);
