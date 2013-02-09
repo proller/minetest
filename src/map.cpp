@@ -1613,7 +1613,7 @@ struct NodeNeighbor {
 	MapNode n;
 	NeighborType t;
 	v3s16 p;
-	bool l;
+	bool l; //can liquid 
 	bool i; //infinity
 };
 
