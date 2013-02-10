@@ -1793,24 +1793,26 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 				--total_level;
 			}
 		}
+
 		for (u16 ii = 0; ii < 7; ii++) {
 			if (total_level < 1) break;
-			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 ) {
+			if (neighbors[ii].l && liquid_levels_want[ii] > 0 && liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 ) {
 				++liquid_levels_want[ii];
 				--total_level;
 			}
 		}
+
 		if (neighbors[D_TOP].l) {
 			liquid_levels_want[D_TOP] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level ;
 			total_level -= liquid_levels_want[D_TOP];
 		}
-
-		for (u16 ii = 0; ii < 7; ii++) { // infinity
-			if (neighbors[ii].i) {
+		
+		for (u16 ii = 0; ii < 7; ii++) { 
+			if (neighbors[ii].i) {// infinity
 				liquid_levels_want[ii] = LIQUID_LEVEL_SOURCE;
 			}
 		}
-		//infostream <<" level=" << (int)total_level << " wantsame="<<(int)want_level<< " top="<< (int)liquid_levels_want[D_TOP]<< " bot="<< (int)liquid_levels_want[D_BOTTOM]<<std::endl;
+		//infostream <<" AFTER level=" << (int)total_level << " flowed=" << flowed << " wantsame="<<(int)want_level<< " top="<< (int)liquid_levels_want[D_TOP]<< " bot="<< (int)liquid_levels_want[D_BOTTOM]<<std::endl;
 
 		u8 changed = 0;
 		for (u16 i = 0; i < 7; i++) {
