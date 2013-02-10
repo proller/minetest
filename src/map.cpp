@@ -1785,7 +1785,7 @@ infostream << "go flow; l="<< (int)total_level << " src="<< (int)LIQUID_LEVEL_SO
 			continue;
 
 
-		if (liquid_levels[D_TOP] == LIQUID_LEVEL_SOURCE) {
+		if (liquid_levels[D_TOP] > 0 /*== LIQUID_LEVEL_SOURCE*/) {
 			if (pressures[D_SELF] <= pressures[D_TOP]) 
 				pressures[D_SELF] = pressures[D_TOP] + 1;
 			else if (pressures[D_SELF] > pressures[D_TOP])
@@ -1795,13 +1795,13 @@ infostream << "go flow; l="<< (int)total_level << " src="<< (int)LIQUID_LEVEL_SO
 		
 		}
 		for (u16 ii = 0; ii < 7; ii++) {
-			if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || liquid_levels[ii] != LIQUID_LEVEL_SOURCE) continue;
+			if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || liquid_levels[ii] <= 0 /* != LIQUID_LEVEL_SOURCE*/) continue;
 			if (pressures[ii] > pressures[D_SELF]) pressures[D_SELF] = pressures[ii];
 			if (pressures[D_SELF] > pressures[ii]) pressures[ii] = pressures[D_SELF];
 			//if (pressures[ii] > 1) {			}
 //infostream << " pi"<<(int)ii<<"=" << (int)pressures[ii];
 		}
-		if (liquid_levels[D_BOTTOM] == LIQUID_LEVEL_SOURCE) {
+		if (liquid_levels[D_BOTTOM] > 0 /*== LIQUID_LEVEL_SOURCE*/) {
 			if (pressures[D_SELF] < pressures[D_BOTTOM]-1) 
 				pressures[D_SELF] = pressures[D_BOTTOM] - 1;
 			else if (pressures[D_SELF] >= pressures[D_BOTTOM])
@@ -1869,9 +1869,23 @@ infostream<<"flowdown to="<< (int)liquid_levels[D_BOTTOM]<<" n="<< (int)liquid_l
 		}
 
 		if (neighbors[D_SELF].l && neighbors[D_TOP].l && pressures[D_SELF] > pressures[D_TOP] + 1) { 
+infostream << "pressure swap top="<<  (int)liquid_levels_want[D_TOP]  << " ptop=" << (int)pressures[D_TOP]
+<< "self="<<  (int)liquid_levels_want[D_SELF]  << " pself=" << (int)pressures[D_SELF]
+;
 			u8 t = liquid_levels_want[D_TOP];
 			liquid_levels_want[D_TOP] = liquid_levels_want[D_SELF];
 			liquid_levels_want[D_SELF] = t;
+                        pressures[D_TOP] = pressures[D_SELF] - 1;
+			--pressures[D_SELF];
+			if ( neighbors[D_BOTTOM].l && pressures[D_BOTTOM] > pressures[D_SELF] + 1) {
+			    u8 t = liquid_levels_want[D_TOP];
+			    liquid_levels_want[] = liquid_levels_want[D_SELF];
+			    liquid_levels_want[D_SELF] = t;
+                    	    pressures[D_SELF] = pressures[D_] - 1;
+			    --pressures[D_];
+
+
+			} 
 		}
 
 		if (total_level > 0) {
@@ -1984,7 +1998,7 @@ infostream << "will repl v=" << (int)viscosity<<" want="<< (int)liquid_levels_wa
 				n0.param2 = (neighbors[i].i ? LIQUID_INFINITY_MASK : 0x00)
 				| (pressures[i] & LIQUID_PRESSURE_MASK)
 				;
-infostream << " set="<< (int)pressures[i] << " inf="<< (int)neighbors[i].i << " p2=" << (int)n0.param2 << std::endl;
+//infostream << " set="<< (int)pressures[i] << " inf="<< (int)neighbors[i].i << " p2=" << (int)n0.param2 << std::endl;
 			}
 //infostream << " set node i=" <<(int)i<<" "<< PP(p0)<< " nc="<<new_node_content<< " p2="<<(int)n0.param2<< " nl="<<(int)new_node_level<<std::endl;
 
