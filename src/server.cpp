@@ -960,6 +960,7 @@ Server::Server(
 	m_ignore_map_edit_events_peer_id(0)
 {
 	m_liquid_transform_timer = 0.0;
+	m_liquid_transform_every = 1.0;
 	m_print_info_timer = 0.0;
 	m_objectdata_timer = 0.0;
 	m_emergethread_trigger_timer = 0.0;
@@ -1127,6 +1128,8 @@ Server::Server(
 		Add some test ActiveBlockModifiers to environment
 	*/
 	add_legacy_abms(m_env, m_nodedef);
+
+	m_liquid_transform_every = g_settings->getFloat("liquid_update");
 }
 
 Server::~Server()
@@ -1443,9 +1446,9 @@ void Server::AsyncRunStep()
 
 	/* Transform liquids */
 	m_liquid_transform_timer += dtime;
-	if(m_liquid_transform_timer >= 1.00)
+	if(m_liquid_transform_timer >= m_liquid_transform_every)
 	{
-		m_liquid_transform_timer -= 1.00;
+		m_liquid_transform_timer -= m_liquid_transform_every;
 
 		JMutexAutoLock lock(m_env_mutex);
 

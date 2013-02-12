@@ -1,21 +1,21 @@
-# Italian translations for minetest package.
-# Copyright (C) 2011 THE minetest'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the minetest package.
-# Giuseppe Bilotta <giuseppe.bilotta@gmail.com>, 2011.
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: minetest\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-23 18:24+0200\n"
-"PO-Revision-Date: 2013-02-09 22:18+0200\n"
-"Last-Translator: Pilz Adam <PilzAdam@gmx.de>\n"
-"Language-Team: Italian\n"
-"Language: it\n"
+"POT-Creation-Date: 2013-01-30 20:25+0100\n"
+"PO-Revision-Date: 2013-02-07 17:38+0200\n"
+"Last-Translator: Mitori Itoshiki <mito551@gmail.com>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Weblate 1.4-dev\n"
 
 #: src/guiConfigureWorld.cpp:125
@@ -23,8 +23,6 @@ msgid ""
 "Warning: Some mods are not configured yet.\n"
 "They will be enabled by default when you save the configuration.  "
 msgstr ""
-"Attenzione: Alcuni mods non sono ancora configurati.\n"
-"Saranno attivati, in modo predefinito, al salvataggio delle impostazioni.  "
 
 #: src/guiConfigureWorld.cpp:144
 msgid ""
@@ -34,16 +32,15 @@ msgstr ""
 
 #: src/guiConfigureWorld.cpp:208
 msgid "enabled"
-msgstr ""
+msgstr "有効しました"
 
 #: src/guiConfigureWorld.cpp:215
-#, fuzzy
 msgid "Enable All"
-msgstr "Attiva Danno"
+msgstr "全部を有効する"
 
 #: src/guiConfigureWorld.cpp:222
 msgid "Disable All"
-msgstr ""
+msgstr "全部を無効する"
 
 #: src/guiConfigureWorld.cpp:228
 msgid "depends on:"
@@ -56,11 +53,11 @@ msgstr ""
 #: src/guiConfigureWorld.cpp:262 src/guiCreateWorld.cpp:165
 #: src/guiKeyChangeMenu.cpp:179 src/keycode.cpp:223
 msgid "Cancel"
-msgstr "Annulla"
+msgstr "キャンセル"
 
 #: src/guiConfigureWorld.cpp:268 src/guiKeyChangeMenu.cpp:173
 msgid "Save"
-msgstr "Salva"
+msgstr "保存"
 
 #: src/guiConfigureWorld.cpp:394
 msgid "Configuration saved.  "
@@ -72,32 +69,31 @@ msgstr ""
 
 #: src/guiConfirmMenu.cpp:120
 msgid "Yes"
-msgstr ""
+msgstr "はい"
 
 #: src/guiConfirmMenu.cpp:126
 msgid "No"
-msgstr ""
+msgstr "いいえ"
 
 #: src/guiCreateWorld.cpp:116
 msgid "World name"
-msgstr ""
+msgstr "ワールド名"
 
 #: src/guiCreateWorld.cpp:135
 msgid "Game"
-msgstr ""
+msgstr "ゲーム"
 
 #: src/guiCreateWorld.cpp:159
-#, fuzzy
 msgid "Create"
-msgstr "Modalità creativa"
+msgstr "設ける"
 
 #: src/guiDeathScreen.cpp:96
 msgid "You died."
-msgstr ""
+msgstr "死んでしまいました。"
 
 #: src/guiDeathScreen.cpp:104
 msgid "Respawn"
-msgstr ""
+msgstr "生まれて帰る"
 
 #: src/guiFormSpecMenu.cpp:572
 msgid "Left click: Move all items, Right click: Move single item"
@@ -106,7 +102,7 @@ msgstr ""
 #: src/guiFormSpecMenu.cpp:597 src/guiMessageMenu.cpp:109
 #: src/guiTextInputMenu.cpp:123
 msgid "Proceed"
-msgstr "Procedi"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:114
 msgid "Keybindings. (If this menu screws up, remove stuff from minetest.conf)"
@@ -125,33 +121,32 @@ msgid "Key already in use"
 msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:347
-#, fuzzy
 msgid "press key"
-msgstr "premi tasto"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:372
 msgid "Forward"
-msgstr "Avanti"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:373
 msgid "Backward"
-msgstr "Indietro"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:374 src/keycode.cpp:228
 msgid "Left"
-msgstr "Sinistra"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:375 src/keycode.cpp:228
 msgid "Right"
-msgstr "Destra"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:376
 msgid "Use"
-msgstr "Usa"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:377
 msgid "Jump"
-msgstr "Salta"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:378
 msgid "Sneak"
@@ -163,11 +158,11 @@ msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:380
 msgid "Inventory"
-msgstr "Invetario"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:381
 msgid "Chat"
-msgstr "Parla"
+msgstr ""
 
 #: src/guiKeyChangeMenu.cpp:382
 msgid "Command"
@@ -231,7 +226,7 @@ msgstr ""
 
 #: src/guiMainMenu.cpp:302 src/guiMainMenu.cpp:449 src/keycode.cpp:229
 msgid "Delete"
-msgstr "Cancella"
+msgstr ""
 
 #: src/guiMainMenu.cpp:309
 msgid "New"
@@ -247,19 +242,19 @@ msgstr ""
 
 #: src/guiMainMenu.cpp:343 src/guiMainMenu.cpp:557
 msgid "Creative Mode"
-msgstr "Modalità creativa"
+msgstr ""
 
 #: src/guiMainMenu.cpp:349 src/guiMainMenu.cpp:563
 msgid "Enable Damage"
-msgstr "Attiva Danno"
+msgstr ""
 
 #: src/guiMainMenu.cpp:369 src/guiMainMenu.cpp:479
 msgid "Name/Password"
-msgstr "Nome/Password"
+msgstr ""
 
 #: src/guiMainMenu.cpp:408 src/guiMainMenu.cpp:506
 msgid "Address/Port"
-msgstr "Indirizzo/Porta"
+msgstr ""
 
 #: src/guiMainMenu.cpp:435 src/guiMainMenu.cpp:1075
 msgid "Show Public"
@@ -270,31 +265,28 @@ msgid "Show Favorites"
 msgstr ""
 
 #: src/guiMainMenu.cpp:459
-#, fuzzy
 msgid "Connect"
-msgstr "Disconnetti"
+msgstr ""
 
 #: src/guiMainMenu.cpp:529
 msgid "Leave address blank to start a local server."
-msgstr "Lascia vuoto l'indirizzo per avviare un server locale."
+msgstr ""
 
 #: src/guiMainMenu.cpp:538
 msgid "Start Game / Connect"
-msgstr "Avvia Gioco / Connetti"
+msgstr ""
 
 #: src/guiMainMenu.cpp:570 src/guiMainMenu.cpp:1006
-#, fuzzy
 msgid "Delete world"
-msgstr "Cancella"
+msgstr ""
 
 #: src/guiMainMenu.cpp:577
-#, fuzzy
 msgid "Create world"
-msgstr "Modalità creativa"
+msgstr ""
 
 #: src/guiMainMenu.cpp:611
 msgid "Fancy trees"
-msgstr "Alberi strani"
+msgstr ""
 
 #: src/guiMainMenu.cpp:617
 msgid "Smooth Lighting"
@@ -333,13 +325,12 @@ msgid "Preload item visuals"
 msgstr ""
 
 #: src/guiMainMenu.cpp:682
-#, fuzzy
 msgid "Enable Particles"
-msgstr "Attiva Danno"
+msgstr ""
 
 #: src/guiMainMenu.cpp:692
 msgid "Change keys"
-msgstr "Modifica tasti"
+msgstr ""
 
 #: src/guiMainMenu.cpp:977
 msgid "Address required."
@@ -367,43 +358,41 @@ msgstr ""
 
 #: src/guiPasswordChange.cpp:108
 msgid "Old Password"
-msgstr "Vecchia password"
+msgstr ""
 
 #: src/guiPasswordChange.cpp:125
 msgid "New Password"
-msgstr "Nuova password"
+msgstr ""
 
 #: src/guiPasswordChange.cpp:141
 msgid "Confirm Password"
-msgstr "Conferma password"
+msgstr ""
 
 #: src/guiPasswordChange.cpp:158
 msgid "Change"
-msgstr "Modifica"
+msgstr ""
 
 #: src/guiPasswordChange.cpp:167
 msgid "Passwords do not match!"
-msgstr "Le password non corrispondono!"
+msgstr ""
 
 #: src/guiPauseMenu.cpp:118
 msgid "Continue"
-msgstr "Continua"
+msgstr ""
 
 #: src/guiPauseMenu.cpp:127
 msgid "Change Password"
-msgstr "Cambia password"
+msgstr ""
 
 #: src/guiPauseMenu.cpp:135
-#, fuzzy
 msgid "Exit to Menu"
-msgstr "Esci al S.O."
+msgstr ""
 
 #: src/guiPauseMenu.cpp:142
 msgid "Exit to OS"
-msgstr "Esci al S.O."
+msgstr ""
 
 #: src/guiPauseMenu.cpp:149
-#, fuzzy
 msgid ""
 "Default Controls:\n"
 "- WASD: Walk\n"
@@ -417,29 +406,18 @@ msgid ""
 "- ESC: This menu\n"
 "- T: Chat\n"
 msgstr ""
-"Tasti:\n"
-"- WASD: Cammina\n"
-"- Mouse left: scava blocchi\n"
-"- Mouse right: piazza blocchi\n"
-"- Mouse wheel: seleziona oggetto\n"
-"- 0...9: seleziona oggetto\n"
-"- Shift: furtivo\n"
-"- R: (Dis)attiva motra tutti i blocchi caricati\n"
-"- I: Inventario\n"
-"- ESC: Questo menu\n"
-"- T: Parla\n"
 
 #: src/keycode.cpp:223
 msgid "Left Button"
-msgstr "Tasto sinistro"
+msgstr ""
 
 #: src/keycode.cpp:223
 msgid "Middle Button"
-msgstr "Tasto centrale"
+msgstr ""
 
 #: src/keycode.cpp:223
 msgid "Right Button"
-msgstr "Tasto destro"
+msgstr ""
 
 #: src/keycode.cpp:223
 msgid "X Button 1"
@@ -447,7 +425,7 @@ msgstr ""
 
 #: src/keycode.cpp:224
 msgid "Back"
-msgstr "Indietro"
+msgstr ""
 
 #: src/keycode.cpp:224
 msgid "Clear"
@@ -455,7 +433,7 @@ msgstr ""
 
 #: src/keycode.cpp:224
 msgid "Return"
-msgstr "Invio"
+msgstr ""
 
 #: src/keycode.cpp:224
 msgid "Tab"
@@ -539,11 +517,11 @@ msgstr ""
 
 #: src/keycode.cpp:227
 msgid "Space"
-msgstr "Spazio"
+msgstr ""
 
 #: src/keycode.cpp:228
 msgid "Down"
-msgstr "Giù"
+msgstr ""
 
 #: src/keycode.cpp:228
 msgid "Execute"
@@ -551,7 +529,7 @@ msgstr ""
 
 #: src/keycode.cpp:228
 msgid "Print"
-msgstr "Stampa"
+msgstr ""
 
 #: src/keycode.cpp:228
 msgid "Select"
@@ -658,9 +636,8 @@ msgid "Left Shift"
 msgstr ""
 
 #: src/keycode.cpp:240
-#, fuzzy
 msgid "Right Shift"
-msgstr "Destra"
+msgstr ""
 
 #: src/keycode.cpp:241
 msgid "Left Control"
@@ -751,6 +728,3 @@ msgid ""
 "\n"
 "Check debug.txt for details."
 msgstr ""
-
-#~ msgid "Delete map"
-#~ msgstr "Cancella mappa"

@@ -90,6 +90,10 @@
 #enable_fog = true
 # Enable a bit lower water surface; disable for speed (not quite optimized)
 #new_style_water = false
+# Constant volume liquids
+#liquid_finite = false
+# Update liquids every .. recommend for finite: 0.2
+#liquid_update = 1.0
 # Enable nice leaves; disable for speed
 #new_style_leaves = true
 # Enable smooth lighting with simple ambient occlusion;
@@ -239,6 +243,10 @@
 #congestion_control_aim_rtt = 0.2
 #congestion_control_max_rate = 400
 #congestion_control_min_rate = 10
+# Specifies URL from which client fetches media instead of using UDP
+# $filename should be accessible from $remote_media$filename via cURL
+# (obviously, remote_media should end with a slash)
+# Files that are not present would be fetched the usual way
 #remote_media =
 
 # Mapgen stuff
