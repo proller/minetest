@@ -1768,7 +1768,7 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 			total_level -= liquid_levels_want[D_BOTTOM];
 		}
 
-		if (total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level - can_liquid_same_level + 2 && can_liquid_same_level >= 1) { //relax up
+		if (liquid_levels[D_TOP] == 0 && total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level - can_liquid_same_level + 2 && can_liquid_same_level >= 2) { //relax up
 			//infostream << "relaxup "<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
 			total_level = LIQUID_LEVEL_SOURCE * can_liquid_same_level; 
 		}
@@ -1779,7 +1779,7 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 			: total_level / can_liquid_same_level;
 		total_level -= want_level * can_liquid_same_level;
 
-		if (want_level == LIQUID_LEVEL_SOURCE && total_level <= 2 && can_liquid_same_level >= 2) { // relax down if 3 around full
+		if (liquid_levels[D_TOP] == 0 && want_level == LIQUID_LEVEL_SOURCE && total_level <= 1 && can_liquid_same_level >= 2) { // relax down if 3 around full
 			//infostream << "relaxdw w=" <<  (int)want_level<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
 			total_level = 0; 
 		}
