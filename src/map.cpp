@@ -1705,7 +1705,7 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 					break;
 			}
 			v3s16 npos = p0 + dirs[i];
-			
+
 			neighbors[i].n = getNodeNoEx(npos);
 			neighbors[i].t = nt;
 			neighbors[i].p = npos;
@@ -1767,23 +1767,23 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 			liquid_levels_want[D_BOTTOM] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level;
 			total_level -= liquid_levels_want[D_BOTTOM];
 		}
-		
-		if (total_level == LIQUID_LEVEL_SOURCE * can_liquid_same_level - 1 && can_liquid_same_level >= 1) { //relax up
+
+		if (total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level - can_liquid_same_level + 2 && can_liquid_same_level >= 1) { //relax up
 			//infostream << "relaxup "<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
 			total_level = LIQUID_LEVEL_SOURCE * can_liquid_same_level; 
 		}
-		
+
 		u8 want_level = 
 			  total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level
 			? LIQUID_LEVEL_SOURCE 
 			: total_level / can_liquid_same_level;
 		total_level -= want_level * can_liquid_same_level;
-		
-		if (want_level == LIQUID_LEVEL_SOURCE && total_level == 1 && can_liquid_same_level >= 2) { // relax down if 3 around full
+
+		if (want_level == LIQUID_LEVEL_SOURCE && total_level <= 2 && can_liquid_same_level >= 2) { // relax down if 3 around full
 			//infostream << "relaxdw w=" <<  (int)want_level<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
 			total_level = 0; 
 		}
-		
+
 		for (u16 ii = 0; ii < 7; ii++) {
 			if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || !neighbors[ii].l)
 				continue;
@@ -1806,7 +1806,7 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 			liquid_levels_want[D_TOP] = total_level > LIQUID_LEVEL_SOURCE ? LIQUID_LEVEL_SOURCE : total_level ;
 			total_level -= liquid_levels_want[D_TOP];
 		}
-		
+
 		for (u16 ii = 0; ii < 7; ii++) { 
 			if (neighbors[ii].i) {// infinity
 				liquid_levels_want[ii] = LIQUID_LEVEL_SOURCE;
@@ -1866,7 +1866,7 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 					must_reflow.push_back(neighbors[i].p + dirs[6]);
 				}
 				*/
-				
+
 				continue;
 			}
 			++changed;
@@ -1934,7 +1934,7 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 void Map::transformLiquids(core::map<v3s16, MapBlock*> & modified_blocks)
 {
 
-	if (g_settings->getBool("water_finite")) return Map::transformLiquidsFinite(modified_blocks);
+	if (g_settings->getBool("liquid_finite")) return Map::transformLiquidsFinite(modified_blocks);
 	
 	INodeDefManager *nodemgr = m_gamedef->ndef();
 

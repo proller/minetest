@@ -1129,7 +1129,7 @@ Server::Server(
 	*/
 	add_legacy_abms(m_env, m_nodedef);
 
-	m_liquid_transform_every = g_settings->getFloat("water_update");
+	m_liquid_transform_every = g_settings->getFloat("liquid_update");
 }
 
 Server::~Server()
