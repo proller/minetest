@@ -94,6 +94,8 @@
 #liquid_finite = false
 # Update liquids every .. recommend for finite: 0.2
 #liquid_update = 1.0
+# When finite liquid: relax flowing blocks to source if level near max and N nearby source blocks, more realistic, but not true constant. values: 0,2,3,4,5
+#liquid_relax = 2
 # Enable nice leaves; disable for speed
 #new_style_leaves = true
 # Enable smooth lighting with simple ambient occlusion;

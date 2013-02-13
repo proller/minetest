@@ -1620,39 +1620,18 @@ struct NodeNeighbor {
 const v3s16 g_7dirs[7] =
 {
 	// +right, +top, +back
+	v3s16( 0,-1, 0), // bottom
 	v3s16( 0, 0, 0), // self
 	v3s16( 0, 0, 1), // back
-	v3s16( 0, 1, 0), // top
 	v3s16( 1, 0, 0), // right
 	v3s16( 0, 0,-1), // front
-	v3s16( 0,-1, 0), // bottom
-	v3s16(-1, 0, 0)  // left
+	v3s16(-1, 0, 0), // left
+	v3s16( 0, 1, 0)  // top
 };
 
-#define D_BOTTOM 5
-#define D_TOP 2
-#define D_SELF 0
-
-/*
-  .
- .b.
-.lsr.
- .f.
-  .
-*/
-/*
-const v3s16 g_8wave[8] =
-{
-	v3s16( 0, 0, 2),   // back
-	v3s16( 0, 0,-2),   // front
-	v3s16(-2, 0, 0),   // left
-	v3s16( 2, 0, 0),   // right
-
-	v3s16(-1,  0,  1), // back left
-	v3s16( 1,  0,  1), // back right
-	v3s16(-1,  1, -1), // front left
-	v3s16( 1, -1, -1), // front right
-};*/
+#define D_BOTTOM 0
+#define D_TOP 6
+#define D_SELF 1
 
 void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 {
@@ -1663,6 +1642,8 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 
 	u32 loopcount = 0;
 	u32 initial_size = m_transforming_liquid.size();
+
+	u8 relax = g_settings->getS16("liquid_relax"); 
 
 	/*if(initial_size != 0)
 		infostream<<"transformLiquids(): initial_size="<<initial_size<<std::endl;*/
@@ -1768,7 +1749,7 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 			total_level -= liquid_levels_want[D_BOTTOM];
 		}
 
-		if (liquid_levels[D_TOP] == 0 && total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level - can_liquid_same_level + 2 && can_liquid_same_level >= 2) { //relax up
+		if (relax && liquid_levels[D_TOP] == 0 && total_level >= LIQUID_LEVEL_SOURCE * can_liquid_same_level - can_liquid_same_level + 2 && can_liquid_same_level >= relax) { //relax up
 			//infostream << "relaxup "<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
 			total_level = LIQUID_LEVEL_SOURCE * can_liquid_same_level; 
 		}
@@ -1779,24 +1760,30 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 			: total_level / can_liquid_same_level;
 		total_level -= want_level * can_liquid_same_level;
 
-		if (liquid_levels[D_TOP] == 0 && want_level == LIQUID_LEVEL_SOURCE && total_level <= 1 && can_liquid_same_level >= 2) { // relax down if 3 around full
+		if (relax && liquid_levels[D_TOP] == 0 && want_level == LIQUID_LEVEL_SOURCE && total_level <= 1 && can_liquid_same_level >= relax) { // relax down if 3 around full
 			//infostream << "relaxdw w=" <<  (int)want_level<<" t="<< (int)total_level<<" c="<<(int)can_liquid_same_level<<std::endl;
 			total_level = 0; 
 		}
 
-		for (u16 ii = 0; ii < 7; ii++) {
-			if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || !neighbors[ii].l)
+		for (u16 ii = D_SELF; ii < D_TOP; ++ii) { // only same level
+			if (!neighbors[ii].l)
 				continue;
 			liquid_levels_want[ii] = want_level;
-			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 && liquid_levels[ii]>liquid_levels_want[ii]) {
-				++liquid_levels_want[ii];
-				--total_level;
+			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0
+				&& liquid_levels[ii] > liquid_levels_want[ii] //comment for all ocean wave
+				) {
+				s8 add = liquid_levels[ii] - liquid_levels_want[ii]; //comment for all ocean wave
+				//s8 add = LIQUID_LEVEL_SOURCE - liquid_levels_want[ii]; //uncomment for all ocean wave
+				if (add > total_level)
+					add = total_level;
+				liquid_levels_want[ii] += add;
+				total_level -= add;
 			}
 		}
 
-		for (u16 ii = 0; ii < 7; ii++) {
+		for (u16 ii = 0; ii < 7; ++ii) {
 			if (total_level < 1) break;
-			if (neighbors[ii].l && liquid_levels_want[ii] > 0 && liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0 ) {
+			if (neighbors[ii].l && liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE ) {
 				++liquid_levels_want[ii];
 				--total_level;
 			}
@@ -1812,7 +1799,7 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 				liquid_levels_want[ii] = LIQUID_LEVEL_SOURCE;
 			}
 		}
-		//infostream <<" AFTER level=" << (int)total_level << " flowed=" << flowed << " wantsame="<<(int)want_level<< " top="<< (int)liquid_levels_want[D_TOP]<< " bot="<< (int)liquid_levels_want[D_BOTTOM]<<std::endl;
+		//if (total_level > 0) infostream <<" AFTER level=" << (int)total_level << " wantsame="<<(int)want_level<< " top="<< (int)liquid_levels_want[D_TOP]<< " topwas="<< (int)liquid_levels[D_TOP]<< " bot="<< (int)liquid_levels_want[D_BOTTOM]<<std::endl;
 
 		u8 changed = 0;
 		for (u16 i = 0; i < 7; i++) {
@@ -1858,15 +1845,6 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 				 (((n0.param2 & LIQUID_INFINITY_MASK) == LIQUID_INFINITY_MASK) == neighbors[i].i
 				 ))
 			   ) {
-				/* for relax
-				if (new_node_level == 1 && neighbors[i].t == NEIGHBOR_SAME_LEVEL) { 
-					must_reflow.push_back(neighbors[i].p + dirs[1]);
-					must_reflow.push_back(neighbors[i].p + dirs[3]);
-					must_reflow.push_back(neighbors[i].p + dirs[4]);
-					must_reflow.push_back(neighbors[i].p + dirs[6]);
-				}
-				*/
-
 				continue;
 			}
 			++changed;
@@ -1916,12 +1894,6 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 			}
 			must_reflow.push_back(neighbors[i].p);
 		}
-		/* for better relax
-		if (changed)
-			for (u16 i = 0; i < 7; i++) {
-				//must_reflow.push_back(p0 + g_8wave[i]);
-			}
-		*/
 	}
 	//infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<" reflow="<<must_reflow.size()<<" queue="<< m_transforming_liquid.size()<<std::endl;
 	while (must_reflow.size() > 0)

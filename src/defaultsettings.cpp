@@ -178,6 +178,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("water_level", "1");
 	settings->setDefault("liquid_finite", "false");
 	settings->setDefault("liquid_update", "1.0");
+	settings->setDefault("liquid_relax", "2");
 	settings->setDefault("chunksize", "5");
 	settings->setDefault("mg_flags", "trees, caves, v6_biome_blend");
 	settings->setDefault("mgv6_freq_desert", "0.45");
