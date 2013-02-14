@@ -1623,8 +1623,8 @@ const v3s16 g_7dirs[7] =
 	v3s16( 0,-1, 0), // bottom
 	v3s16( 0, 0, 0), // self
 	v3s16( 0, 0, 1), // back
-	v3s16( 1, 0, 0), // right
 	v3s16( 0, 0,-1), // front
+	v3s16( 1, 0, 0), // right
 	v3s16(-1, 0, 0), // left
 	v3s16( 0, 1, 0)  // top
 };
@@ -1770,14 +1770,10 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 				continue;
 			liquid_levels_want[ii] = want_level;
 			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0
-				&& liquid_levels[ii] > liquid_levels_want[ii] //comment for all ocean wave
+				&& liquid_levels[ii] > liquid_levels_want[ii]
 				) {
-				s8 add = liquid_levels[ii] - liquid_levels_want[ii]; //comment for all ocean wave
-				//s8 add = LIQUID_LEVEL_SOURCE - liquid_levels_want[ii]; //uncomment for all ocean wave
-				if (add > total_level)
-					add = total_level;
-				liquid_levels_want[ii] += add;
-				total_level -= add;
+				liquid_levels_want[ii] += 1;
+				total_level -= 1;
 			}
 		}
 
@@ -1831,6 +1827,15 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 				new_node_content = liquid_kind_flowing;
 			else
 				new_node_content = CONTENT_AIR;
+
+			// last level must flow down on stairs
+			if (liquid_levels_want[i] != liquid_levels[i] && liquid_levels[D_TOP] <= 0 && new_node_level == 1) //maybe ==1,2
+				for (u16 ii = D_SELF ; ii < D_TOP; ++ii) { // only same level without self
+				if (!neighbors[ii].l)
+					continue;
+				must_reflow.push_back(p0 + dirs[ii]);
+			}
+
 			/*
 				check if anything has changed. if not, just continue with the next node.
 			 */
@@ -1894,8 +1899,13 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 			}
 			must_reflow.push_back(neighbors[i].p);
 		}
+		/* //for better relax
+		if (changed)  for (u16 ii = D_SELF + 1; ii < D_TOP; ++ii) { // only same level
+			if (!neighbors[ii].l) continue;
+			must_reflow.push_back(p0 + dirs[ii]);
+		}*/
 	}
-	//infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<" reflow="<<must_reflow.size()<<" queue="<< m_transforming_liquid.size()<<std::endl;
+	//if (loopcount) infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<" reflow="<<must_reflow.size()<<" queue="<< m_transforming_liquid.size()<<std::endl;
 	while (must_reflow.size() > 0)
 		m_transforming_liquid.push_back(must_reflow.pop_front());
 	updateLighting(lighting_modified_blocks, modified_blocks);
