@@ -1807,8 +1807,7 @@ if (pressures[D_SELF]) {
 		for (u16 ii = D_SELF; ii < D_TOP; ++ii) { // only same level
 			if (!neighbors[ii].l)
 				continue;
-			//if (pressures[ii] > pressures[D_TOP] + 2) liquid_levels_want[ii] = 0; else 
-			{
+			//if (pressures[ii] > pressures[D_TOP] + 2) liquid_levels_want[ii] = 0; else {
 			liquid_levels_want[ii] = want_level;
 			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0
 				&& liquid_levels[ii] > liquid_levels_want[ii]
@@ -1841,13 +1840,11 @@ infostream << "pressure swap top="<<  (int)liquid_levels_want[D_TOP]  << " ptop=
                         pressures[D_TOP] = pressures[D_SELF] - 1;
 			--pressures[D_SELF];
 			if ( neighbors[D_BOTTOM].l && pressures[D_BOTTOM] > pressures[D_SELF] + 1) {
-			    u8 t = liquid_levels_want[D_TOP];
-			    liquid_levels_want[D_TOP] = liquid_levels_want[D_SELF];
+			    u8 t = liquid_levels_want[D_BOTTOM];
+			    liquid_levels_want[D_BOTTOM] = liquid_levels_want[D_SELF];
 			    liquid_levels_want[D_SELF] = t;
-                    	    pressures[D_SELF] = pressures[D_TOP] - 1;
-			    --pressures[D_TOP];
-
-
+			    pressures[D_SELF] = pressures[D_BOTTOM] - 1;
+			    --pressures[D_BOTTOM];
 			} 
 		}
 
