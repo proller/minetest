@@ -141,7 +141,7 @@ function minetest.item_place_node(itemstack, placer, pointed_thing)
 		minetest.log("info", placer:get_player_name() .. " tried to place"
 			.. " node in invalid position " .. minetest.pos_to_string(above)
 			.. ", replacing " .. oldnode_above.name)
-		return
+		return itemstack
 	end
 
 	-- Place above pointed node
@@ -186,7 +186,7 @@ function minetest.item_place_node(itemstack, placer, pointed_thing)
 		not check_attached_node(place_to, newnode) then
 		minetest.log("action", "attached node " .. def.name ..
 			" can not be placed at " .. minetest.pos_to_string(place_to))
-		return
+		return itemstack
 	end
 
 	-- Add node and update
@@ -237,8 +237,7 @@ function minetest.item_place(itemstack, placer, pointed_thing)
 		local n = minetest.env:get_node(pointed_thing.under)
 		local nn = n.name
 		if minetest.registered_nodes[nn] and minetest.registered_nodes[nn].on_rightclick then
-			minetest.registered_nodes[nn].on_rightclick(pointed_thing.under, n, placer)
-			return
+			return minetest.registered_nodes[nn].on_rightclick(pointed_thing.under, n, placer, itemstack)
 		end
 	end
 
@@ -263,7 +262,7 @@ function minetest.item_drop(itemstack, dropper, pos)
 	else
 		minetest.env:add_item(pos, itemstack)
 	end
-	return ""
+	return ItemStack("")
 end
 
 function minetest.item_eat(hp_change, replace_with_item)
