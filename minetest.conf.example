@@ -94,6 +94,8 @@
 #liquid_finite = false
 # Update liquids every .. recommend for finite: 0.2
 #liquid_update = 1.0
+# When finite liquid: relax flowing blocks to source if level near max and N nearby source blocks, more realistic, but not true constant. values: 0,2,3,4,5
+#liquid_relax = 2
 # Enable nice leaves; disable for speed
 #new_style_leaves = true
 # Enable smooth lighting with simple ambient occlusion;
@@ -166,6 +168,11 @@
 #serverlist_url = servers.minetest.ru/server.list
 # File in client/serverlist/ that contains your favorite servers displayed in the Multiplayer Tab
 #serverlist_file = favoriteservers.txt
+
+#font_path = fonts/liberationsans.ttf
+#font_size = 13
+#mono_font_path = fonts/liberationmono.ttf
+#mono_font_size = 13
 
 #
 # Server stuff
@@ -248,6 +255,21 @@
 # (obviously, remote_media should end with a slash)
 # Files that are not present would be fetched the usual way
 #remote_media =
+
+# Physics stuff
+#movement_acceleration_default = 2
+#movement_acceleration_air = 0.5
+#movement_acceleration_fast = 4
+#movement_speed_walk = 4
+#movement_speed_crouch = 1.35
+#movement_speed_fast = 20
+#movement_speed_climb = 2
+#movement_speed_jump = 6.5
+#movement_speed_descend = 6
+#movement_liquid_fluidity = 1
+#movement_liquid_fluidity_smooth = 0.5
+#movement_liquid_sink = 10
+#movement_gravity = 9.81
 
 # Mapgen stuff
 #mg_name = v6

@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "settings.h"
+#include "filesys.h"
 
 void set_default_settings(Settings *settings)
 {
@@ -132,6 +133,11 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("serverlist_url", "servers.minetest.ru/server.list");
 	settings->setDefault("serverlist_file", "favoriteservers.txt");
 
+	settings->setDefault("font_path", porting::getDataPath("fonts" DIR_DELIM "liberationsans.ttf"));
+	settings->setDefault("font_size", "13");
+	settings->setDefault("mono_font_path", porting::getDataPath("fonts" DIR_DELIM "liberationmono.ttf"));
+	settings->setDefault("mono_font_size", "13");
+
 	// Server stuff
 	// "map-dir" doesn't exist by default.
 	settings->setDefault("default_game", "minetest");
@@ -172,12 +178,27 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("congestion_control_max_rate", "400");
 	settings->setDefault("congestion_control_min_rate", "10");
 	settings->setDefault("remote_media", "");
+
+	// physics stuff
+	settings->setDefault("movement_acceleration_default", "2");
+	settings->setDefault("movement_acceleration_air", "0.5");
+	settings->setDefault("movement_acceleration_fast", "8");
+	settings->setDefault("movement_speed_walk", "4");
+	settings->setDefault("movement_speed_crouch", "1.35");
+	settings->setDefault("movement_speed_fast", "20");
+	settings->setDefault("movement_speed_climb", "2");
+	settings->setDefault("movement_speed_jump", "6.5");
+	settings->setDefault("movement_liquid_fluidity", "1");
+	settings->setDefault("movement_liquid_fluidity_smooth", "0.5");
+	settings->setDefault("movement_liquid_sink", "10");
+	settings->setDefault("movement_gravity", "9.81");
 	
 	//mapgen related things
 	settings->setDefault("mg_name", "v6");
 	settings->setDefault("water_level", "1");
 	settings->setDefault("liquid_finite", "false");
 	settings->setDefault("liquid_update", "1.0");
+	settings->setDefault("liquid_relax", "2");
 	settings->setDefault("chunksize", "5");
 	settings->setDefault("mg_flags", "trees, caves, v6_biome_blend");
 	settings->setDefault("mgv6_freq_desert", "0.45");
