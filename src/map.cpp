@@ -1668,7 +1668,7 @@ void Map::transformLiquidsFinite(core::map<v3s16, MapBlock*> & modified_blocks)
 		NodeNeighbor neighbors[7]; // surrounding flowing liquid nodes
 		s8 liquid_levels[7]      = {-1, -1, -1, -1, -1, -1, -1}; // level of every block
 		s8 liquid_levels_want[7] = {-1, -1, -1, -1, -1, -1, -1}; // target levels
-		u8 pressures[7] = {};
+		u8 pressures[7] = {0,0,0,0,0,0,0};
 		s8 can_liquid_same_level = 0;
 		content_t liquid_kind = CONTENT_IGNORE;
 		content_t liquid_kind_flowing = CONTENT_IGNORE;
@@ -1752,8 +1752,8 @@ infostream << "go flow; l="<< (int)total_level << " src="<< (int)LIQUID_LEVEL_SO
 		if (liquid_kind == CONTENT_IGNORE || !neighbors[D_SELF].l)
 			continue;
 
-
-		if (liquid_levels[D_TOP] > 0 /*== LIQUID_LEVEL_SOURCE*/) {
+                /*
+		if (liquid_levels[D_TOP] > 0 ) { //== LIQUID_LEVEL_SOURCE
 			if (pressures[D_SELF] <= pressures[D_TOP]) 
 				pressures[D_SELF] = pressures[D_TOP] + 1;
 			else if (pressures[D_SELF] > pressures[D_TOP])
@@ -1761,25 +1761,26 @@ infostream << "go flow; l="<< (int)total_level << " src="<< (int)LIQUID_LEVEL_SO
 			
 //infostream << " ptop=" << (int)pressures[D_TOP];
 		
-		}
-		for (u16 ii = 0; ii < 7; ii++) {
-			if (neighbors[ii].t != NEIGHBOR_SAME_LEVEL || liquid_levels[ii] <= 0 /* != LIQUID_LEVEL_SOURCE*/) continue;
+		}*/
+		for (u16 ii = D_SELF; ii < D_TOP; ii++) {
+			if (liquid_levels[ii] <= 0 ) continue; // != LIQUID_LEVEL_SOURCE
 			if (pressures[ii] > pressures[D_SELF]) pressures[D_SELF] = pressures[ii];
 			if (pressures[D_SELF] > pressures[ii]) pressures[ii] = pressures[D_SELF];
 			//if (pressures[ii] > 1) {			}
 //infostream << " pi"<<(int)ii<<"=" << (int)pressures[ii];
 		}
-		if (liquid_levels[D_BOTTOM] > 0 /*== LIQUID_LEVEL_SOURCE*/) {
+		/*
+		if (liquid_levels[D_BOTTOM] > 0) { // == LIQUID_LEVEL_SOURCE
 			if (pressures[D_SELF] < pressures[D_BOTTOM]-1) 
 				pressures[D_SELF] = pressures[D_BOTTOM] - 1;
 			else if (pressures[D_SELF] >= pressures[D_BOTTOM])
 				pressures[D_BOTTOM] = pressures[D_SELF] + 1;
 //infostream << " pbo=" << (int)pressures[D_BOTTOM];
-		}
-if (pressures[D_SELF]) {		
+		}*/
+//if (pressures[D_SELF]) {		
 //infostream << " pme=" << (int)pressures[D_SELF];
 //infostream << std::endl;
-}
+//}
 
 
 
@@ -1830,22 +1831,25 @@ if (pressures[D_SELF]) {
 			total_level -= liquid_levels_want[D_TOP];
 		}
 
-		if (neighbors[D_SELF].l && neighbors[D_TOP].l && pressures[D_SELF] > pressures[D_TOP] + 1) { 
+			if ( neighbors[D_BOTTOM].l && pressures[D_BOTTOM] > pressures[D_SELF] + 1 && liquid_levels_want[D_BOTTOM]>=0 && liquid_levels_want[D_SELF]>=0) {
+			    u8 t = liquid_levels_want[D_BOTTOM];
+			    liquid_levels_want[D_BOTTOM] = liquid_levels_want[D_SELF];
+			    liquid_levels_want[D_SELF] = t;
+			    //if (pressures[D_BOTTOM] > 0)
+				    pressures[D_SELF] = pressures[D_BOTTOM] - 1;
+			    --pressures[D_BOTTOM];
+			} 
+
+		if ( neighbors[D_TOP].l && pressures[D_SELF] > pressures[D_TOP] + 1 && liquid_levels_want[D_TOP]>=0 && liquid_levels_want[D_SELF]>=0) { 
 infostream << "pressure swap top="<<  (int)liquid_levels_want[D_TOP]  << " ptop=" << (int)pressures[D_TOP]
 << "self="<<  (int)liquid_levels_want[D_SELF]  << " pself=" << (int)pressures[D_SELF]
 ;
 			u8 t = liquid_levels_want[D_TOP];
 			liquid_levels_want[D_TOP] = liquid_levels_want[D_SELF];
 			liquid_levels_want[D_SELF] = t;
+   		    //if (pressures[D_SELF] > 0)
                         pressures[D_TOP] = pressures[D_SELF] - 1;
 			--pressures[D_SELF];
-			if ( neighbors[D_BOTTOM].l && pressures[D_BOTTOM] > pressures[D_SELF] + 1) {
-			    u8 t = liquid_levels_want[D_BOTTOM];
-			    liquid_levels_want[D_BOTTOM] = liquid_levels_want[D_SELF];
-			    liquid_levels_want[D_SELF] = t;
-			    pressures[D_SELF] = pressures[D_BOTTOM] - 1;
-			    --pressures[D_BOTTOM];
-			} 
 		}
 
 		if (total_level > 0) {
@@ -1990,7 +1994,7 @@ infostream << "pressure swap top="<<  (int)liquid_levels_want[D_TOP]  << " ptop=
 			must_reflow.push_back(p0 + dirs[ii]);
 		}*/
 	}
-	//if (loopcount) infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<" reflow="<<must_reflow.size()<<" queue="<< m_transforming_liquid.size()<<std::endl;
+	if (loopcount) infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<" reflow="<<must_reflow.size()<<" queue="<< m_transforming_liquid.size()<<std::endl;
 	while (must_reflow.size() > 0)
 		m_transforming_liquid.push_back(must_reflow.pop_front());
 	updateLighting(lighting_modified_blocks, modified_blocks);
