@@ -44,7 +44,7 @@ struct NoiseIndevParams : public NoiseParams {
 		farscale = farscale_;
 		farspread = farspread_;
 	}
-
+	~NoiseIndevParams(){}
 };
 
 #define getNoiseIndevParams(x) getStruct<NoiseIndevParams>((x), "f,f,v3,s32,s32,f,f,f")
@@ -57,6 +57,8 @@ class NoiseIndev : public Noise {
 	//NoiseIndev() {};
 	NoiseIndev(NoiseIndevParams *np, int seed, int sx, int sy);
 	NoiseIndev(NoiseIndevParams *np, int seed, int sx, int sy, int sz);
+	~NoiseIndev(){}
+
 	void init(NoiseIndevParams *np, int seed, int sx, int sy, int sz);
 	void transformNoiseMapFarScale(float xx = 0, float yy = 0, float zz = 0);
 };
@@ -104,8 +106,8 @@ struct MapgenIndevParams : public MapgenV6Params {
 		npindev_float_islands1  = &nparams_indev_def; //&nparams_indev_def_float_islands;
 		npindev_float_islands2  = &nparams_indev_def; //&nparams_indev_def_float_islands;
 		npindev_float_islands3  = &nparams_indev_def; //&nparams_indev_def_float_islands;
-
 	}
+	~MapgenIndevParams(){}
 
 	bool readParams(Settings *settings);
 	void writeParams(Settings *settings);
