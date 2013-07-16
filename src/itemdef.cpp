@@ -389,7 +389,7 @@ public:
 			scene::IMesh *node_mesh = mapblock_mesh.getMesh();
 			assert(node_mesh);
 			video::SColor c(255, 255, 255, 255);
-			if(g_settings->getS32("enable_shaders") != 0)
+			if(g_settings->getBool("enable_shaders"))
 				c = MapBlock_LightColor(255, 0xffff, decode_light(f.light_source));
 			setMeshColor(node_mesh, c);
 
@@ -519,7 +519,8 @@ public:
 
 		// Add the four builtin items:
 		//   "" is the hand
-		//   "unknown" is returned whenever an undefined item is accessed
+		//   "unknown" is returned whenever an undefined item
+		//     is accessed (is also the unknown node)
 		//   "air" is the air node
 		//   "ignore" is the ignore node
 
@@ -530,6 +531,7 @@ public:
 		m_item_definitions.insert(std::make_pair("", hand_def));
 
 		ItemDefinition* unknown_def = new ItemDefinition;
+		unknown_def->type = ITEM_NODE;
 		unknown_def->name = "unknown";
 		m_item_definitions.insert(std::make_pair("unknown", unknown_def));
 

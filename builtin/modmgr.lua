@@ -365,7 +365,7 @@ function modmgr.render_worldmodlist()
 		local parts = modmgr.global_mods[i]:split(DIR_DELIM)
 		local shortname = parts[#parts]
 		if modmgr.worldconfig.global_mods[shortname] then
-			retval = retval .. "#GRN" .. modmgr.global_mods[i] .. ","
+			retval = retval .. "#22F922" .. modmgr.global_mods[i] .. ","
 		else
 			retval = retval .. modmgr.global_mods[i] .. ","
 		end
@@ -379,7 +379,7 @@ function modmgr.render_gamemodlist()
 	local retval = ""
 	for i=1,#modmgr.worldconfig.game_mods,1 do
 		retval = retval ..
-			"#BLU" .. modmgr.worldconfig.game_mods[i] .. ","
+			"#0000FF" .. modmgr.worldconfig.game_mods[i] .. ","
 	end
 	
 	return retval
@@ -399,15 +399,20 @@ function modmgr.dialog_configure_world()
 		local worldmodidx = modmgr.get_worldmod_idx()
 		modname = modmgr.global_mods[worldmodidx]
 
-		if modname:find("<MODPACK>") ~= nil then
-			modname = modname:sub(0,modname:find("<") -2)
-			modpack_selected = true
+		if modname ~= nil then
+		
+			if modname:find("<MODPACK>") ~= nil then
+				modname = modname:sub(0,modname:find("<") -2)
+				modpack_selected = true
+			end
+		
+			local parts = modmgr.global_mods[worldmodidx]:split(DIR_DELIM)
+			shortname = parts[#parts]
+		
+			modfolder = engine.get_modpath() .. DIR_DELIM .. modname
+		else
+			modname = ""
 		end
-		
-		local parts = modmgr.global_mods[worldmodidx]:split(DIR_DELIM)
-		shortname = parts[#parts]
-		
-		modfolder = engine.get_modpath() .. DIR_DELIM .. modname
 	end
 
 	local worldspec = engine.get_worlds()[modmgr.world_config_selected_world]
@@ -454,10 +459,8 @@ function modmgr.dialog_configure_world()
 				"checkbox[0,0.8;cb_mod_enabled;enabled;"
 			
 			if modmgr.worldconfig.global_mods[shortname] then
-				print("checkbox " .. shortname .. " enabled")
 				retval = retval .. "true"
 			else
-				print("checkbox " .. shortname .. " disabled")
 				retval = retval .. "false"
 			end
 			
@@ -511,7 +514,7 @@ function modmgr.get_dependencys(modfolder)
 		end
 		dependencyfile:close()
 	else
-		print(filename .. " not found")
+		print("Modmgr:" .. filename .. " not found")
 	end
 
 	return toadd
@@ -541,10 +544,8 @@ function modmgr.get_worldconfig(worldpath)
 			else
 				local key = parts[1]:trim():sub(10)
 				if parts[2]:trim() == "true" then
-					print("found enabled mod: >" .. key .. "<")
 					worldconfig.global_mods[key] = true
 				else
-					print("found disabled mod: >" .. key .. "<")
 					worldconfig.global_mods[key] = false
 				end
 			end
@@ -552,13 +553,12 @@ function modmgr.get_worldconfig(worldpath)
 		end
 		worldfile:close()
 	else
-		print(filename .. " not found")
+		print("Modmgr: " .. filename .. " not found")
 	end
 	
 	--read gamemods
 	local gamemodpath = engine.get_gamepath() .. DIR_DELIM .. worldconfig.id .. DIR_DELIM .. "mods"
 	
-	print("reading game mods from: " .. dump(gamemodpath))
 	get_mods(gamemodpath,worldconfig.game_mods)
 
 	return worldconfig
@@ -637,7 +637,9 @@ function modmgr.installmod(modfilename,basename)
 		
 		if clean_path ~= nil then
 			local targetpath = engine.get_modpath() .. DIR_DELIM .. clean_path
-			engine.copy_dir(basefolder.path,targetpath)
+			if not engine.copy_dir(basefolder.path,targetpath) then
+				gamedata.errormessage = "Failed to install " .. basename .. " to " .. targetpath
+			end
 		else
 			gamedata.errormessage = "Install Mod: unable to find suitable foldername for modpack " 
 				.. modfilename

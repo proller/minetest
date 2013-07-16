@@ -56,13 +56,15 @@ enum ContentParamType2
 	CPT2_FACEDIR,
 	// Direction for signs, torches and such
 	CPT2_WALLMOUNTED,
+	// Block level like FLOWINGLIQUID
+	CPT2_LEVELED,
 };
 
 enum LiquidType
 {
 	LIQUID_NONE,
 	LIQUID_FLOWING,
-	LIQUID_SOURCE
+	LIQUID_SOURCE,
 };
 
 enum NodeBoxType
@@ -70,6 +72,7 @@ enum NodeBoxType
 	NODEBOX_REGULAR, // Regular block; allows buildable_to
 	NODEBOX_FIXED, // Static separately defined box(es)
 	NODEBOX_WALLMOUNTED, // Box for wall mounted nodes; (top, bottom, side)
+	NODEBOX_LEVELED, // Same as fixed, but with dynamic height from param2. for snow, ...
 };
 
 struct NodeBox
@@ -207,6 +210,8 @@ struct ContentFeatures
 	bool buildable_to;
 	// Player cannot build to these (placement prediction disabled)
 	bool rightclickable;
+	// Flowing liquid or snow, value = default level
+	u8 leveled;
 	// Whether the node is non-liquid, source liquid or flowing liquid
 	enum LiquidType liquid_type;
 	// If the content is liquid, this is the flowing version of the liquid.
@@ -288,15 +293,14 @@ public:
 	virtual const ContentFeatures& get(content_t c) const=0;
 	virtual const ContentFeatures& get(const MapNode &n) const=0;
 	virtual bool getId(const std::string &name, content_t &result) const=0;
+	// If not found, returns CONTENT_IGNORE
 	virtual content_t getId(const std::string &name) const=0;
 	// Allows "group:name" in addition to regular node names
 	virtual void getIds(const std::string &name, std::set<content_t> &result)
 			const=0;
-	// If not found, returns the features of CONTENT_IGNORE
+	// If not found, returns the features of CONTENT_UNKNOWN
 	virtual const ContentFeatures& get(const std::string &name) const=0;
 
-	// Register node definition
-	virtual void set(content_t c, const ContentFeatures &def)=0;
 	// Register node definition by name (allocate an id)
 	// If returns CONTENT_IGNORE, could not allocate id
 	virtual content_t set(const std::string &name,

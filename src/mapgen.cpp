@@ -237,6 +237,8 @@ Decoration::~Decoration() {
 
 
 void Decoration::resolveNodeNames(INodeDefManager *ndef) {
+	this->ndef = ndef;
+	
 	if (c_place_on == CONTENT_IGNORE)
 		c_place_on = ndef->getId(place_on_name);
 }
@@ -291,7 +293,7 @@ void Decoration::placeDeco(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax) {
 				continue;
 
 			int height = getHeight();
-			int max_y = nmax.Y + MAP_BLOCKSIZE;
+			int max_y = nmax.Y;// + MAP_BLOCKSIZE - 1;
 			if (y + 1 + height > max_y) {
 				continue;
 #if 0
@@ -553,7 +555,7 @@ std::string DecoSchematic::getName() {
 
 
 void DecoSchematic::blitToVManip(v3s16 p, ManualMapVoxelManipulator *vm,
-								int rot, bool force_placement) {
+								Rotation rot, bool force_placement) {
 	int xstride = 1;
 	int ystride = size.X;
 	int zstride = size.X * size.Y;
@@ -594,7 +596,7 @@ void DecoSchematic::blitToVManip(v3s16 p, ManualMapVoxelManipulator *vm,
 			u32 vi = vm->m_area.index(p.X + x, p.Y + y, p.Z + z);
 			if (!vm->m_area.contains(vi))
 				continue;
-				
+			
 			if (schematic[i].getContent() == CONTENT_IGNORE)
 				continue;
 
@@ -609,6 +611,9 @@ void DecoSchematic::blitToVManip(v3s16 p, ManualMapVoxelManipulator *vm,
 			
 			vm->m_data[vi] = schematic[i];
 			vm->m_data[vi].param1 = 0;
+			
+			if (rot)
+				vm->m_data[vi].rotateAlongYAxis(ndef, rot);
 		}
 	}
 }
@@ -660,7 +665,7 @@ bool DecoSchematic::loadSchematicFile() {
 	std::ifstream is(filename.c_str(), std::ios_base::binary);
 
 	u32 signature = readU32(is);
-	if (signature != 'MTSM') {
+	if (signature != MTSCHEM_FILE_SIGNATURE) {
 		errorstream << "loadSchematicFile: invalid schematic "
 			"file" << std::endl;
 		return false;
@@ -719,7 +724,7 @@ bool DecoSchematic::loadSchematicFile() {
 void DecoSchematic::saveSchematicFile(INodeDefManager *ndef) {
 	std::ofstream os(filename.c_str(), std::ios_base::binary);
 
-	writeU32(os, 'MTSM'); // signature
+	writeU32(os, MTSCHEM_FILE_SIGNATURE); // signature
 	writeU16(os, 1);      // version
 	writeV3S16(os, size); // schematic size
 	
@@ -859,9 +864,16 @@ void Mapgen::updateHeightmap(v3s16 nmin, v3s16 nmax) {
 	//TimeTaker t("Mapgen::updateHeightmap", NULL, PRECISION_MICRO);
 	int index = 0;
 	for (s16 z = nmin.Z; z <= nmax.Z; z++) {
-		for (s16 x = nmin.X; x <= nmax.X; x++) {
+		for (s16 x = nmin.X; x <= nmax.X; x++, index++) {
 			s16 y = findGroundLevel(v2s16(x, z), nmin.Y, nmax.Y);
-			heightmap[index++] = y;
+
+			// if the values found are out of range, trust the old heightmap
+			if (y == nmax.Y && heightmap[index] > nmax.Y)
+				continue;
+			if (y == nmin.Y - 1 && heightmap[index] < nmin.Y)
+				continue;
+				
+			heightmap[index] = y;
 		}
 	}
 	//printf("updateHeightmap: %dus\n", t.stop());
@@ -1060,9 +1072,12 @@ bool MapgenV7Params::readParams(Settings *settings) {
 	bool success = 
 		settings->getNoiseParams("mgv7_np_terrain_base",    np_terrain_base)    &&
 		settings->getNoiseParams("mgv7_np_terrain_alt",     np_terrain_alt)     &&
-		settings->getNoiseParams("mgv7_np_terrain_mod",     np_terrain_mod)     &&
 		settings->getNoiseParams("mgv7_np_terrain_persist", np_terrain_persist) &&
 		settings->getNoiseParams("mgv7_np_height_select",   np_height_select)   &&
+		settings->getNoiseParams("mgv7_np_filler_depth",    np_filler_depth)    &&
+		settings->getNoiseParams("mgv7_np_mount_height",    np_mount_height)    &&
+		settings->getNoiseParams("mgv7_np_ridge_uwater",    np_ridge_uwater)    &&
+		settings->getNoiseParams("mgv7_np_mountain",        np_mountain)        &&
 		settings->getNoiseParams("mgv7_np_ridge",           np_ridge);
 	return success;
 }
@@ -1071,9 +1086,12 @@ bool MapgenV7Params::readParams(Settings *settings) {
 void MapgenV7Params::writeParams(Settings *settings) {
 	settings->setNoiseParams("mgv7_np_terrain_base",    np_terrain_base);
 	settings->setNoiseParams("mgv7_np_terrain_alt",     np_terrain_alt);
-	settings->setNoiseParams("mgv7_np_terrain_mod",     np_terrain_mod);
 	settings->setNoiseParams("mgv7_np_terrain_persist", np_terrain_persist);
 	settings->setNoiseParams("mgv7_np_height_select",   np_height_select);
+	settings->setNoiseParams("mgv7_np_filler_depth",    np_filler_depth);
+	settings->setNoiseParams("mgv7_np_mount_height",    np_mount_height);
+	settings->setNoiseParams("mgv7_np_ridge_uwater",    np_ridge_uwater);
+	settings->setNoiseParams("mgv7_np_mountain",        np_mountain);
 	settings->setNoiseParams("mgv7_np_ridge",           np_ridge);
 }
 

@@ -197,12 +197,14 @@ int guiLuaApi::l_start(lua_State *L)
 	bool valid = false;
 
 
-	engine->m_data->selected_world	= getIntegerData(L, "selected_world",valid) -1;
+	engine->m_data->selected_world		= getIntegerData(L, "selected_world",valid) -1;
 	engine->m_data->simple_singleplayer_mode = getBoolData(L,"singleplayer",valid);
-	engine->m_data->name			= getTextData(L,"playername");
-	engine->m_data->password		= getTextData(L,"password");
-	engine->m_data->address			= getTextData(L,"address");
-	engine->m_data->port			= getTextData(L,"port");
+	engine->m_data->name				= getTextData(L,"playername");
+	engine->m_data->password			= getTextData(L,"password");
+	engine->m_data->address				= getTextData(L,"address");
+	engine->m_data->port				= getTextData(L,"port");
+	engine->m_data->serverdescription	= getTextData(L,"serverdescription");
+	engine->m_data->servername			= getTextData(L,"servername");
 
 	//close menu next time
 	engine->m_startgame = true;
@@ -805,9 +807,8 @@ int guiLuaApi::l_set_topleft_text(lua_State *L)
 /******************************************************************************/
 int guiLuaApi::l_get_modpath(lua_State *L)
 {
-	//TODO this path may be controversial!
 	std::string modpath
-			= fs::RemoveRelativePathComponents(porting::path_share + DIR_DELIM + "mods" + DIR_DELIM);
+			= fs::RemoveRelativePathComponents(porting::path_user + DIR_DELIM + "mods" + DIR_DELIM);
 	lua_pushstring(L, modpath.c_str());
 	return 1;
 }
@@ -816,7 +817,7 @@ int guiLuaApi::l_get_modpath(lua_State *L)
 int guiLuaApi::l_get_gamepath(lua_State *L)
 {
 	std::string gamepath
-			= fs::RemoveRelativePathComponents(porting::path_share + DIR_DELIM + "games"	+ DIR_DELIM);
+			= fs::RemoveRelativePathComponents(porting::path_share + DIR_DELIM + "games" + DIR_DELIM);
 	lua_pushstring(L, gamepath.c_str());
 	return 1;
 }
@@ -1007,7 +1008,7 @@ bool guiLuaApi::isMinetestPath(std::string path) {
 		return true;
 
 	/* mods */
-	if (fs::PathStartsWith(path,fs::RemoveRelativePathComponents(porting::path_share + DIR_DELIM + "mods")))
+	if (fs::PathStartsWith(path,fs::RemoveRelativePathComponents(porting::path_user + DIR_DELIM + "mods")))
 		return true;
 
 	/* worlds */

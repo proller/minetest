@@ -1,5 +1,8 @@
+os.setlocale("C", "numeric")
+
 local scriptpath = engine.get_scriptdir()
 
+dofile(scriptpath .. DIR_DELIM .. "mainmenu_worldlist.lua")
 dofile(scriptpath .. DIR_DELIM .. "modmgr.lua")
 dofile(scriptpath .. DIR_DELIM .. "modstore.lua")
 dofile(scriptpath .. DIR_DELIM .. "gamemgr.lua")
@@ -9,50 +12,53 @@ local tabbuilder = {}
 local menubar = {}
 
 --------------------------------------------------------------------------------
-function render_favourite(spec)
+function render_favourite(spec,render_details)
 	local text = ""
 	
 	if spec.name ~= nil then
-		text = text .. spec.name:trim()
+		text = text .. fs_escape_string(spec.name:trim())
 		
-		if spec.description ~= nil then
-			--TODO make sure there's no invalid chat in spec.description
-			text = text .. " (" .. fs_escape_string(spec.description) .. ")"
-		end
+--		if spec.description ~= nil and
+--			fs_escape_string(spec.description):trim() ~= "" then
+--			text = text .. " (" .. fs_escape_string(spec.description) .. ")"
+--		end
 	else
 		if spec.address ~= nil then
 			text = text .. spec.address:trim()
 		end
 	end
 	
+	if not render_details then
+		return text
+	end
+	
 	local details = ""
 	if spec.password == true then
-		details = " *"
+		details = details .. "*"
 	else
-		details = "  "
+		details = details .. "_"
 	end
 	
 	if spec.creative then
 		details = details .. "C"
 	else
-		details = details .. " "
+		details = details .. "_"
 	end
 	
 	if spec.damage then
 		details = details .. "D"
 	else
-		details = details .. " "
+		details = details .. "_"
 	end
 	
 	if spec.pvp then
 		details = details .. "P"
 	else
-		details = details .. " "
+		details = details .. "_"
 	end
+	details = details .. "  "
 	
-	text = text .. ":" .. spec.port:trim()
-	
-	return text
+	return fs_escape_string(details) .. text
 end
 
 --------------------------------------------------------------------------------
@@ -114,37 +120,82 @@ function cleanup_path(temppath)
 end
 
 --------------------------------------------------------------------------------
+
+function menu.set_texture(identifier,gamedetails)
+	local texture_set = false
+	if menu.texturepack ~= nil and gamedetails ~= nil then
+		local path = menu.basetexturedir .. 
+						gamedetails.id .. "_menu_" .. identifier .. ".png"
+		
+		if engine.set_background(identifier,path) then
+			texture_set = true
+		end
+	end
+	
+	if not texture_set and gamedetails ~= nil then
+		local path = gamedetails.path .. DIR_DELIM .."menu" .. 
+									 DIR_DELIM .. identifier .. ".png"
+		if engine.set_background(identifier,path) then
+			texture_set = true
+		end
+	end
+	
+	if not texture_set then
+		local path = menu.basetexturedir .. DIR_DELIM .."menu_" .. 
+										identifier .. ".png"
+		if engine.set_background(identifier,path) then
+			texture_set = true
+		end
+	end
+	
+	if not texture_set then
+		local path = menu.defaulttexturedir .. DIR_DELIM .."menu_" .. 
+										identifier .. ".png"
+		engine.set_background(identifier,path)
+	end
+end
+
+--------------------------------------------------------------------------------
 function menu.update_gametype()
+	
+	
+	
 	if (menu.game_last_check == nil or
 		menu.game_last_check ~= menu.last_game) and
 		tabbuilder.current_tab == "singleplayer" then
 		
 		local gamedetails = menu.lastgame()
 		engine.set_topleft_text(gamedetails.name)
+		worldlist.set_gamefilter(gamedetails.id)
 		
 		--background
-		local path_background_texture = gamedetails.path .. DIR_DELIM .."menu" .. 
-												 DIR_DELIM .. "background.png"
-		if engine.set_background("background",path_background_texture) then
-			engine.set_clouds(false)
-		else
+		local background_set = false
+		if menu.texturepack ~= nil then
+			local path_background_texture = menu.basetexturedir .. 
+										gamedetails.id .. "_menu_background.png"
+			
+			if engine.set_background("background",path_background_texture) then
+				background_set = true
+				engine.set_clouds(false)
+			end
+		end
+		
+		if not background_set then
+			local path_background_texture = gamedetails.path .. DIR_DELIM .."menu" .. 
+										 DIR_DELIM .. "background.png"
+			if engine.set_background("background",path_background_texture) then
+				background_set = true
+				engine.set_clouds(false)
+			end
+		end
+		
+		if not background_set then
 			engine.set_clouds(true)
 		end
 		
-		--overlay
-		local path_overlay_texture = gamedetails.path .. DIR_DELIM .."menu" .. 
-												 DIR_DELIM .. "overlay.png"
-		engine.set_background("overlay",path_overlay_texture)
-		
-		--header
-		local path_overlay_texture = gamedetails.path .. DIR_DELIM .."menu" .. 
-												 DIR_DELIM .. "header.png"
-		engine.set_background("header",path_overlay_texture)
-		
-		--footer
-		local path_overlay_texture = gamedetails.path .. DIR_DELIM .."menu" .. 
-												 DIR_DELIM .. "footer.png"
-		engine.set_background("footer",path_overlay_texture)
+		menu.set_texture("overlay",gamedetails)
+		menu.set_texture("header",gamedetails)
+		menu.set_texture("footer",gamedetails)
 		
 		menu.game_last_check = menu.last_game
 	else
@@ -157,12 +208,21 @@ end
 
 --------------------------------------------------------------------------------
 function menu.reset_gametype()
+	worldlist.set_gamefilter(nil)
 	menu.game_last_check = nil
-	engine.set_clouds(true)
-	engine.set_background("background","")
-	engine.set_background("overlay",menu.basetexturedir .. "menu_overlay.png")
-	engine.set_background("header",menu.basetexturedir .. "menu_header.png")
-	engine.set_background("footer",menu.basetexturedir .. "menu_footer.png")
+	
+	local path_background_texture = menu.basetexturedir .. "menu_background.png"
+			
+	if engine.set_background("background",path_background_texture) then
+		background_set = true
+		engine.set_clouds(false)
+	else
+		engine.set_clouds(true)
+	end 
+
+	menu.set_texture("overlay",nil)
+	menu.set_texture("header",nil)
+	menu.set_texture("footer",nil)
 	engine.set_topleft_text("")
 end
 
@@ -246,72 +306,29 @@ function update_menu()
 end
 
 --------------------------------------------------------------------------------
-function menu.filtered_game_list()
+function menu.render_world_list()
 	local retval = ""
-
-	local current_game = menu.lastgame()
 	
-	for i=1,#menu.worldlist,1 do
-		if menu.worldlist[i].gameid == current_game.id then
-			if retval ~= "" then
-				retval = retval ..","
-			end
-			
-			retval = retval .. menu.worldlist[i].name .. 
-						" [[" .. menu.worldlist[i].gameid .. "]]"
-		end
-	end
+	local current_worldlist = worldlist.get_list()
 	
-	return retval
-end
-
---------------------------------------------------------------------------------
-function menu.filtered_game_list_raw()
-	local retval =  {}
-
-	local current_game = menu.lastgame()
-	
-	for i=1,#menu.worldlist,1 do
-		if menu.worldlist[i].gameid == current_game.id then
-			table.insert(retval,menu.worldlist[i])
-		end
-	end
-	
-	return retval
-end
-
---------------------------------------------------------------------------------
-function menu.filtered_index_to_plain(filtered_index)
-
-	local current_game = menu.lastgame()
-	
-	local temp_idx = 0
-	
-	for i=1,#menu.worldlist,1 do
-		if menu.worldlist[i].gameid == current_game.id then
-			temp_idx = temp_idx +1
+	for i,v in ipairs(current_worldlist) do
+		if retval ~= "" then
+			retval = retval ..","
 		end
 		
-		if temp_idx == filtered_index then
-			return i
-		end
+		retval = retval .. v.name .. 
+					" \\[" .. v.gameid .. "\\]"
 	end
-	return -1
+
+	return retval
 end
 
 --------------------------------------------------------------------------------
 function menu.init()
 	--init menu data
 	gamemgr.update_gamelist()
-
-	menu.worldlist = engine.get_worlds()
 	
-	menu.last_world	= tonumber(engine.setting_get("main_menu_last_world_idx"))
 	menu.last_game	= tonumber(engine.setting_get("main_menu_last_game_idx"))
-	
-	if type(menu.last_world) ~= "number" then
-		menu.last_world = 1
-	end
 	
 	if type(menu.last_game) ~= "number" then
 		menu.last_game = 1
@@ -324,9 +341,16 @@ function menu.init()
 	end
 	
 	
-	menu.basetexturedir = engine.get_gamepath() .. DIR_DELIM .. ".." ..
+	menu.defaulttexturedir = engine.get_gamepath() .. DIR_DELIM .. ".." ..
 						DIR_DELIM .. "textures" .. DIR_DELIM .. "base" .. 
 						DIR_DELIM .. "pack" .. DIR_DELIM
+	menu.basetexturedir = menu.defaulttexturedir
+	
+	menu.texturepack = engine.setting_get("texture_path")
+	
+	if menu.texturepack ~= nil then
+		menu.basetexturedir = menu.texturepack .. DIR_DELIM
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -345,36 +369,49 @@ function menu.lastgame()
 end
 
 --------------------------------------------------------------------------------
-function menu.lastworld()
-	if menu.last_world ~= nil and 
-		menu.last_world > 0 and 
-		menu.last_world <= #menu.worldlist then
-		return menu.worldlist[menu.last_world]
-	end
-	
-	if #menu.worldlist >= 1 then
-		menu.last_world = 1
-		return menu.worldlist[menu.last_world]
-	end
-	
-	--error case!!
-	return nil
-end
+function menu.update_last_game()
 
---------------------------------------------------------------------------------
-function menu.update_last_game(world_idx)
-	if gamedata.selected_world <= #menu.worldlist then
-		local world = menu.worldlist[gamedata.selected_world]
+	local current_world = worldlist.get_raw_world(
+							engine.setting_get("mainmenu_last_selected_world")
+							)
+							
+	if current_world == nil then
+		return
+	end
 		
-		for i=1,#gamemgr.games,1 do		
-			if gamemgr.games[i].id == world.gameid then
-				menu.last_game = i
-				engine.setting_set("main_menu_last_game_idx",menu.last_game)
-				break
-			end
+	for i=1,#gamemgr.games,1 do		
+		if gamemgr.games[i].id == current_world.gameid then
+			menu.last_game = i
+			engine.setting_set("main_menu_last_game_idx",menu.last_game)
+			break
 		end
 	end
 end
+
+--------------------------------------------------------------------------------
+function menu.handle_key_up_down(fields,textlist,settingname)
+
+	if fields["key_up"] then
+		local oldidx = engine.get_textlist_index(textlist)
+		
+		if oldidx > 1 then
+			local newidx = oldidx -1
+			engine.setting_set(settingname,
+				worldlist.get_engine_index(newidx))
+		end
+	end
+	
+	if fields["key_down"] then
+		local oldidx = engine.get_textlist_index(textlist)
+		
+		if oldidx < worldlist.size() then
+			local newidx = oldidx + 1
+			engine.setting_set(settingname,
+				worldlist.get_engine_index(newidx))
+		end
+	end
+end
+
 
 --------------------------------------------------------------------------------
 function menubar.handle_buttons(fields)
@@ -389,26 +426,27 @@ end
 
 --------------------------------------------------------------------------------
 function menubar.refresh()
-	menubar.formspec = "box[-2,7.625;15.75,1.75;BLK]"
+	menubar.formspec = "box[-0.3,5.625;12.4,1.3;000000]" ..
+					   "box[-0.3,5.6;12.4,0.05;FFFFFF]"
 	menubar.buttons = {}
 
-	local button_base = -1.8
+	local button_base = -0.25
 	
 	local maxbuttons = #gamemgr.games
 	
-	if maxbuttons > 12 then
-		maxbuttons = 12
+	if maxbuttons > 10 then
+		maxbuttons = 10
 	end
 	
 	for i=1,maxbuttons,1 do
 
 		local btn_name = "menubar_btn_" .. gamemgr.games[i].id
-		local buttonpos = button_base + (i-1) * 1.3
+		local buttonpos = button_base + (i-1) * 1.245
 		if gamemgr.games[i].menuicon_path ~= nil and
 			gamemgr.games[i].menuicon_path ~= "" then
 
 			menubar.formspec = menubar.formspec ..
-				"image_button[" .. buttonpos ..  ",7.9;1.3,1.3;"  ..
+				"image_button[" .. buttonpos ..  ",5.7;1.3,1.3;"  ..
 				gamemgr.games[i].menuicon_path .. ";" .. btn_name .. ";;true;false]"
 		else
 		
@@ -422,7 +460,7 @@ function menubar.refresh()
 				text = text .. "\n" .. part3
 			end
 			menubar.formspec = menubar.formspec ..
-				"image_button[" .. buttonpos ..  ",7.9;1.3,1.3;;" ..btn_name ..
+				"image_button[" .. buttonpos ..  ",5.7;1.3,1.3;;" ..btn_name ..
 				";" .. text .. ";true;true]"
 		end
 		
@@ -470,7 +508,7 @@ end
 
 --------------------------------------------------------------------------------
 function tabbuilder.dialog_delete_world()
-	return	"label[2,2;Delete World \"" .. menu.lastworld().name .. "\"?]"..
+	return	"label[2,2;Delete World \"" .. worldlist.get_raw_list()[menu.world_to_del].name .. "\"?]"..
 			"button[3.5,4.2;2.6,0.5;world_delete_confirm;Yes]" ..
 			"button[6,4.2;2.8,0.5;world_delete_cancel;No]"
 end
@@ -521,41 +559,33 @@ end
 --------------------------------------------------------------------------------
 function tabbuilder.handle_create_world_buttons(fields)
 	
-	if fields["world_create_confirm"] then
+	if fields["world_create_confirm"] or
+		fields["key_enter"] then
 		
 		local worldname = fields["te_world_name"]
 		local gameindex = engine.get_textlist_index("games")
 		
 		if gameindex > 0 and
 			worldname ~= "" then
-			engine.setting_set("mg_name",fields["dd_mapgen"])
-			local message = engine.create_world(worldname,gameindex)
 			
-			menu.last_game = gameindex
-			engine.setting_set("main_menu_last_game_idx",gameindex)
+			local message = nil
+			
+			if not worldlist.exists(worldname) then
+				engine.setting_set("mg_name",fields["dd_mapgen"])
+				message = engine.create_world(worldname,gameindex)
+			else
+				message = "A world named \"" .. worldname .. "\" already exists"
+			end
 			
 			if message ~= nil then
 				gamedata.errormessage = message
 			else
-				menu.worldlist = engine.get_worlds()
+				menu.last_game = gameindex
+				engine.setting_set("main_menu_last_game_idx",gameindex)
 				
-				local worldlist = menu.worldlist
-				
-				if tabbuilder.current_tab == "singleplayer" then
-					worldlist = menu.filtered_game_list_raw()
-				end
-				
-				local index = 0
-				
-				for i=1,#worldlist,1 do
-					if worldlist[i].name == worldname then
-						index = i
-						break
-					end
-				end
-
-				engine.setting_set("main_menu_singleplayer_world_idx", index)
-				menu.last_world = index
+				worldlist.refresh()
+				engine.setting_set("mainmenu_last_selected_world",
+									worldlist.engine_index_by_name(worldname))
 			end
 		else
 			gamedata.errormessage = "No worldname given or no game selected"
@@ -567,6 +597,7 @@ function tabbuilder.handle_create_world_buttons(fields)
 		return
 	end
 	
+	--close dialog
 	tabbuilder.is_dialog = false
 	tabbuilder.show_buttons = true
 	tabbuilder.current_tab = engine.setting_get("main_menu_tab")
@@ -576,11 +607,11 @@ end
 function tabbuilder.handle_delete_world_buttons(fields)
 	
 	if fields["world_delete_confirm"] then
-		if menu.last_world > 0 and 
-			menu.last_world < #menu.worldlist then
-			engine.delete_world(menu.last_world)
-			menu.worldlist = engine.get_worlds()
-			menu.last_world = 1
+		if menu.world_to_del > 0 and 
+			menu.world_to_del <= #worldlist.get_raw_list() then
+			engine.delete_world(menu.world_to_del)
+			menu.world_to_del = 0
+			worldlist.refresh()
 		end
 	end
 	
@@ -591,17 +622,32 @@ end
 
 --------------------------------------------------------------------------------
 function tabbuilder.handle_multiplayer_buttons(fields)
+	
+	if fields["te_name"] ~= nil then
+		gamedata.playername = fields["te_name"]
+		engine.setting_set("name", fields["te_name"])
+	end
+	
 	if fields["favourites"] ~= nil then
 		local event = explode_textlist_event(fields["favourites"])
 		if event.typ == "DCL" then
-			gamedata.address = menu.favorites[event.index].name
-			if gamedata.address == nil then
-				gamedata.address = menu.favorites[event.index].address
-			end
+			gamedata.address = menu.favorites[event.index].address
 			gamedata.port = menu.favorites[event.index].port
 			gamedata.playername		= fields["te_name"]
-			gamedata.password		= fields["te_pwd"]
+			if fields["te_pwd"] ~= nil then
+				gamedata.password		= fields["te_pwd"]
+			end
 			gamedata.selected_world = 0
+			
+			if menu.favorites ~= nil then
+				gamedata.servername = menu.favorites[event.index].name
+				gamedata.serverdescription = menu.favorites[event.index].description
+			end
+			
+			if menu.favorites ~= nil then
+				gamedata.servername = menu.favorites[event.index].name
+				gamedata.serverdescription = menu.favorites[event.index].description
+			end
 			
 			if gamedata.address ~= nil and
 				gamedata.port ~= nil then
@@ -611,10 +657,7 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 		end
 		
 		if event.typ == "CHG" then
-			local address = menu.favorites[event.index].name
-			if address == nil then
-				address = menu.favorites[event.index].address
-			end
+			local address = menu.favorites[event.index].address
 			local port = menu.favorites[event.index].port
 			
 			if address ~= nil and
@@ -622,7 +665,33 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 				engine.setting_set("address",address)
 				engine.setting_set("port",port)
 			end
+			
+			menu.fav_selected = event.index
 		end
+		return
+	end
+	
+	if fields["key_up"] ~= nil or
+		fields["key_down"] ~= nil then
+		
+		local fav_idx = engine.get_textlist_index("favourites")
+		
+		if fields["key_up"] ~= nil and fav_idx > 1 then
+			fav_idx = fav_idx -1
+		else if fields["key_down"] and fav_idx < #menu.favorites then
+			fav_idx = fav_idx +1
+		end end
+		
+		local address = menu.favorites[fav_idx].address
+		local port = menu.favorites[fav_idx].port
+		
+		if address ~= nil and
+			port ~= nil then
+			engine.setting_set("address",address)
+			engine.setting_set("port",port)
+		end
+		
+		menu.fav_selected = fav_idx
 		return
 	end
 	
@@ -635,12 +704,15 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 		else
 			menu.favorites = engine.get_favorites("local")
 		end
+		menu.fav_selected = nil
+		return
 	end
 
 	if fields["btn_delete_favorite"] ~= nil then
 		local current_favourite = engine.get_textlist_index("favourites")
 		engine.delete_favorite(current_favourite)
 		menu.favorites = engine.get_favorites()
+		menu.fav_selected = nil
 		
 		engine.setting_set("address","")
 		engine.setting_get("port","")
@@ -648,13 +720,29 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 		return
 	end
 
-	if fields["btn_mp_connect"] ~= nil then
+	if fields["btn_mp_connect"] ~= nil or
+		fields["key_enter"] then
+		
 		gamedata.playername		= fields["te_name"]
 		gamedata.password		= fields["te_pwd"]
 		gamedata.address		= fields["te_address"]
 		gamedata.port			= fields["te_port"]
-		gamedata.selected_world = 0
+		
+		local fav_idx = engine.get_textlist_index("favourites")
+		
+		if fav_idx > 0 and fav_idx <= #menu.favorites and
+			menu.favorites[fav_idx].address == fields["te_address"] and
+			menu.favorites[fav_idx].port == fields["te_port"] then
+			
+			gamedata.servername			= menu.favorites[fav_idx].name
+			gamedata.serverdescription	= menu.favorites[fav_idx].description
+		else
+			gamedata.servername = ""
+			gamedata.serverdescription = ""
+		end
 
+		gamedata.selected_world = 0
+		
 		engine.start()
 		return
 	end
@@ -665,13 +753,19 @@ function tabbuilder.handle_server_buttons(fields)
 
 	local world_doubleclick = false
 
-	if fields["worlds"] ~= nil then
-		local event = explode_textlist_event(fields["worlds"])
+	if fields["srv_worlds"] ~= nil then
+		local event = explode_textlist_event(fields["srv_worlds"])
 		
-		if event.typ == "DBL" then
+		if event.typ == "DCL" then
 			world_doubleclick = true
 		end
+		if event.typ == "CHG" then
+			engine.setting_set("mainmenu_last_selected_world",
+				worldlist.get_engine_index(engine.get_textlist_index("srv_worlds")))
+		end
 	end
+	
+	menu.handle_key_up_down(fields,"srv_worlds","mainmenu_last_selected_world")
 	
 	if fields["cb_creative_mode"] then
 		engine.setting_setbool("creative_mode",tabbuilder.tobool(fields["cb_creative_mode"]))
@@ -681,18 +775,20 @@ function tabbuilder.handle_server_buttons(fields)
 		engine.setting_setbool("enable_damage",tabbuilder.tobool(fields["cb_enable_damage"]))
 	end
 
+	if fields["cb_server_announce"] then
+		engine.setting_setbool("server_announce",tabbuilder.tobool(fields["cb_server_announce"]))
+	end
+	
 	if fields["start_server"] ~= nil or
-		world_doubleclick then
+		world_doubleclick or
+		fields["key_enter"] then
 		local selected = engine.get_textlist_index("srv_worlds")
 		if selected > 0 then
 			gamedata.playername		= fields["te_playername"]
-			gamedata.password		= fields["te_pwd"]
-			gamedata.address		= ""
+			gamedata.password		= fields["te_passwd"]
 			gamedata.port			= fields["te_serverport"]
-			gamedata.selected_world	= selected
-			
-			engine.setting_set("main_menu_tab",tabbuilder.current_tab)
-			engine.setting_set("main_menu_last_world_idx",gamedata.selected_world)
+			gamedata.address		= ""
+			gamedata.selected_world	= worldlist.get_engine_index(selected)
 			
 			menu.update_last_game(gamedata.selected_world)
 			engine.start()
@@ -707,16 +803,18 @@ function tabbuilder.handle_server_buttons(fields)
 	
 	if fields["world_delete"] ~= nil then
 		local selected = engine.get_textlist_index("srv_worlds")
-		if selected > 0 then
-			menu.last_world = engine.get_textlist_index("worlds")
-			if menu.lastworld() ~= nil and
-				menu.lastworld().name ~= nil and
-				menu.lastworld().name ~= "" then
+		if selected > 0 and
+			selected <= worldlist.size() then
+			local world = worldlist.get_list()[selected]
+			if world ~= nil and
+				world.name ~= nil and
+				world.name ~= "" then
+				menu.world_to_del = worldlist.get_engine_index(selected)
 				tabbuilder.current_tab = "dialog_delete_world"
 				tabbuilder.is_dialog = true
 				tabbuilder.show_buttons = false
 			else
-				menu.last_world = 0
+				menu.world_to_del = 0
 			end
 		end
 	end
@@ -724,7 +822,7 @@ function tabbuilder.handle_server_buttons(fields)
 	if fields["world_configure"] ~= nil then
 		selected = engine.get_textlist_index("srv_worlds")
 		if selected > 0 then
-			modmgr.world_config_selected_world = selected
+			modmgr.world_config_selected_world = worldlist.get_engine_index(selected)
 			if modmgr.init_worldconfig() then
 				tabbuilder.current_tab = "dialog_configure_world"
 				tabbuilder.is_dialog = true
@@ -801,7 +899,14 @@ function tabbuilder.handle_singleplayer_buttons(fields)
 		if event.typ == "DCL" then
 			world_doubleclick = true
 		end
+		
+		if event.typ == "CHG" then
+			engine.setting_set("mainmenu_last_selected_world",
+				worldlist.get_engine_index(engine.get_textlist_index("sp_worlds")))
+		end
 	end
+	
+	menu.handle_key_up_down(fields,"sp_worlds","mainmenu_last_selected_world")
 	
 	if fields["cb_creative_mode"] then
 		engine.setting_setbool("creative_mode",tabbuilder.tobool(fields["cb_creative_mode"]))
@@ -812,14 +917,12 @@ function tabbuilder.handle_singleplayer_buttons(fields)
 	end
 
 	if fields["play"] ~= nil or
-		world_doubleclick then
+		world_doubleclick or
+		fields["key_enter"] then
 		local selected = engine.get_textlist_index("sp_worlds")
 		if selected > 0 then
-			gamedata.selected_world	= menu.filtered_index_to_plain(selected)
+			gamedata.selected_world	= worldlist.get_engine_index(selected)
 			gamedata.singleplayer	= true
-
-			engine.setting_set("main_menu_tab",tabbuilder.current_tab)
-			engine.setting_set("main_menu_singleplayer_world_idx",selected)
 			
 			menu.update_last_game(gamedata.selected_world)
 			
@@ -835,16 +938,18 @@ function tabbuilder.handle_singleplayer_buttons(fields)
 	
 	if fields["world_delete"] ~= nil then
 		local selected = engine.get_textlist_index("sp_worlds")
-		if selected > 0 then
-			menu.last_world = menu.filtered_index_to_plain(selected)
-			if menu.lastworld() ~= nil and
-				menu.lastworld().name ~= nil and
-				menu.lastworld().name ~= "" then
+		if selected > 0 and
+			selected <= worldlist.size() then
+			local world = worldlist.get_list()[selected]
+			if world ~= nil and
+				world.name ~= nil and
+				world.name ~= "" then
+				menu.world_to_del = worldlist.get_engine_index(selected)
 				tabbuilder.current_tab = "dialog_delete_world"
 				tabbuilder.is_dialog = true
 				tabbuilder.show_buttons = false
 			else
-				menu.last_world = 0
+				menu.world_to_del = 0
 			end
 		end
 	end
@@ -852,7 +957,7 @@ function tabbuilder.handle_singleplayer_buttons(fields)
 	if fields["world_configure"] ~= nil then
 		selected = engine.get_textlist_index("sp_worlds")
 		if selected > 0 then
-			modmgr.world_config_selected_world = menu.filtered_index_to_plain(selected)
+			modmgr.world_config_selected_world = worldlist.get_engine_index(selected)
 			if modmgr.init_worldconfig() then
 				tabbuilder.current_tab = "dialog_configure_world"
 				tabbuilder.is_dialog = true
@@ -949,6 +1054,7 @@ end
 
 --------------------------------------------------------------------------------
 function tabbuilder.tab_multiplayer()
+
 	local retval =
 		"vertlabel[0,-0.25;CLIENT]" ..
 		"label[1,-0.25;Favorites:]"..
@@ -956,29 +1062,55 @@ function tabbuilder.tab_multiplayer()
 		"label[9,0;Name/Password]" ..
 		"field[1.25,5.25;5.5,0.5;te_address;;" ..engine.setting_get("address") .."]" ..
 		"field[6.75,5.25;2.25,0.5;te_port;;" ..engine.setting_get("port") .."]" ..
-		"button[6.45,3.95;2.25,0.5;btn_delete_favorite;Delete]" ..
+		"checkbox[1,3.6;cb_public_serverlist;Public Serverlist;" ..
+		dump(engine.setting_getbool("public_serverlist")) .. "]"
+		
+	if not engine.setting_getbool("public_serverlist") then
+		retval = retval .. 
+		"button[6.45,3.95;2.25,0.5;btn_delete_favorite;Delete]"
+	end
+	
+	retval = retval ..
 		"button[9,4.95;2.5,0.5;btn_mp_connect;Connect]" ..
 		"field[9.25,1;2.5,0.5;te_name;;" ..engine.setting_get("name") .."]" ..
 		"pwdfield[9.25,1.75;2.5,0.5;te_pwd;]" ..
-		"checkbox[1,3.6;cb_public_serverlist;Public Serverlist;" ..
-		dump(engine.setting_getbool("public_serverlist")) .. "]" ..
+		"textarea[9.25,2.25;2.5,2.75;;"
+	if menu.fav_selected ~= nil and 
+		menu.favorites[menu.fav_selected].description ~= nil then
+		retval = retval .. 
+			fs_escape_string(menu.favorites[menu.fav_selected].description,true)
+	end
+	
+	retval = retval .. 
+		";]" ..
 		"textlist[1,0.35;7.5,3.35;favourites;"
 
+	local render_details = engine.setting_getbool("public_serverlist")
+
 	if #menu.favorites > 0 then
-		retval = retval .. render_favourite(menu.favorites[1])
+		retval = retval .. render_favourite(menu.favorites[1],render_details)
 		
 		for i=2,#menu.favorites,1 do
-			retval = retval .. "," .. render_favourite(menu.favorites[i])
+			retval = retval .. "," .. render_favourite(menu.favorites[i],render_details)
 		end
 	end
 
-	retval = retval .. ";1]"
+	if menu.fav_selected ~= nil then
+		retval = retval .. ";" .. menu.fav_selected .. "]"
+	else
+		retval = retval .. ";0]"
+	end
 
 	return retval
 end
 
 --------------------------------------------------------------------------------
 function tabbuilder.tab_server()
+
+	local index = worldlist.get_current_index(
+				tonumber(engine.setting_get("mainmenu_last_selected_world"))
+				)
+	
 	local retval = 
 		"button[4,4.15;2.6,0.5;world_delete;Delete]" ..
 		"button[6.5,4.15;2.8,0.5;world_create;New]" ..
@@ -990,23 +1122,15 @@ function tabbuilder.tab_server()
 		dump(engine.setting_getbool("creative_mode")) .. "]"..
 		"checkbox[0.5,0.7;cb_enable_damage;Enable Damage;" ..
 		dump(engine.setting_getbool("enable_damage")) .. "]"..
-		"field[0.8,2.2;3,0.5;te_playername;Name;" ..
+		"checkbox[0.5,1.15;cb_server_announce;Public;" ..
+		dump(engine.setting_getbool("server_announce")) .. "]"..
+		"field[0.8,3.2;3,0.5;te_playername;Name;" ..
 		engine.setting_get("name") .. "]" ..
-		"pwdfield[0.8,3.2;3,0.5;te_passwd;Password]" ..
+		"pwdfield[0.8,4.2;3,0.5;te_passwd;Password]" ..
 		"field[0.8,5.2;3,0.5;te_serverport;Server Port;30000]" ..
-		"textlist[4,0.25;7.5,3.7;srv_worlds;"
-	
-	if #menu.worldlist > 0 then
-		retval = retval .. menu.worldlist[1].name .. 
-						" [[" .. menu.worldlist[1].gameid .. "]]"
-				
-		for i=2,#menu.worldlist,1 do
-			retval = retval .. "," .. menu.worldlist[i].name .. 
-						" [[" .. menu.worldlist[i].gameid .. "]]"
-		end
-	end
-				
-	retval = retval .. ";" .. menu.last_world .. "]"
+		"textlist[4,0.25;7.5,3.7;srv_worlds;" ..
+		menu.render_world_list() ..
+		";" .. index .. "]"
 		
 	return retval
 end
@@ -1034,11 +1158,10 @@ end
 
 --------------------------------------------------------------------------------
 function tabbuilder.tab_singleplayer()
-	local index = engine.setting_get("main_menu_singleplayer_world_idx")
-
-	if index == nil then
-		index = 0
-	end
+	
+	local index = worldlist.get_current_index(
+				tonumber(engine.setting_get("mainmenu_last_selected_world"))
+				)
 
 	return	"button[4,4.15;2.6,0.5;world_delete;Delete]" ..
 			"button[6.5,4.15;2.8,0.5;world_create;New]" ..
@@ -1051,7 +1174,7 @@ function tabbuilder.tab_singleplayer()
 			"checkbox[0.5,0.7;cb_enable_damage;Enable Damage;" ..
 			dump(engine.setting_getbool("enable_damage")) .. "]"..
 			"textlist[4,0.25;7.5,3.7;sp_worlds;" ..
-			menu.filtered_game_list() ..
+			menu.render_world_list() ..
 			";" .. index .. "]" ..
 			menubar.formspec
 end
@@ -1061,9 +1184,9 @@ function tabbuilder.tab_credits()
 	return	"vertlabel[0,-0.5;CREDITS]" ..
 			"label[0.5,3;Minetest " .. engine.get_version() .. "]" ..
 			"label[0.5,3.3;http://minetest.net]" .. 
-			"image[0.5,1;" .. menu.basetexturedir .. "logo.png]" ..
+			"image[0.5,1;" .. menu.defaulttexturedir .. "logo.png]" ..
 			"textlist[3.5,-0.25;8.5,5.8;list_credits;" ..
-			"#YLWCore Developers," ..
+			"#FFFF00Core Developers," ..
 			"Perttu Ahola (celeron55) <celeron55@gmail.com>,"..
 			"Ryan Kwolek (kwolekr) <kwolekr@minetest.net>,"..
 			"PilzAdam <pilzadam@minetest.net>," ..
@@ -1074,17 +1197,17 @@ function tabbuilder.tab_credits()
 			"sfan5 <sfan5@live.de>,"..
 			"kahrl <kahrl@gmx.net>,"..
 			","..
-			"#YLWActive Contributors," ..
+			"#FFFF00Active Contributors," ..
 			"sapier,"..
 			"Vanessa Ezekowitz (VanessaE) <vanessaezekowitz@gmail.com>,"..
 			"Jurgen Doser (doserj) <jurgen.doser@gmail.com>,"..
 			"Jeija <jeija@mesecons.net>,"..
 			"MirceaKitsune <mirceakitsune@gmail.com>,"..
-			"ShadowNinja"..
-			"dannydark <the_skeleton_of_a_child@yahoo.co.uk>"..
+			"ShadowNinja,"..
+			"dannydark <the_skeleton_of_a_child@yahoo.co.uk>,"..
 			"0gb.us <0gb.us@0gb.us>,"..
 			"," ..
-			"#YLWPrevious Contributors," ..
+			"#FFFF00Previous Contributors," ..
 			"Guiseppe Bilotta (Oblomov) <guiseppe.bilotta@gmail.com>,"..
 			"Jonathan Neuschafer <j.neuschaefer@gmx.net>,"..
 			"Nils Dagsson Moskopp (erlehmann) <nils@dieweltistgarnichtso.net>,"..
@@ -1195,8 +1318,10 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 init_globals()
+worldlist.init()
 menu.init()
 tabbuilder.init()
 menubar.refresh()
 modstore.init()
+
 update_menu()
