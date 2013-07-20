@@ -1675,6 +1675,7 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 		s8 can_liquid_same_level = 0;
 		content_t liquid_kind = CONTENT_IGNORE;
 		content_t liquid_kind_flowing = CONTENT_IGNORE;
+		s8 viscosity = 0;
 		/*
 			Collect information about the environment
 		 */
@@ -1700,7 +1701,7 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 
 			switch (nodemgr->get(nb.n.getContent()).liquid_type) {
 				case LIQUID_NONE:
-					if (nb.n.getContent() == CONTENT_AIR) {
+					if (nb.n.getContent() == CONTENT_AIR || nodemgr->get(nb.n).buildable_to && !nodemgr->get(nb.n).walkable) {
 						liquid_levels[i] = 0;
 						nb.l = 1;
 					}
@@ -1750,6 +1751,7 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 			<< (int)can_liquid_same_level << std::endl;
 			*/
 		}
+		viscosity = nodemgr->get(liquid_kind).viscosity;
 
 		if (liquid_kind == CONTENT_IGNORE ||
 			!neighbors[D_SELF].l ||
@@ -1796,6 +1798,7 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 			if (!neighbors[ii].l)
 				continue;
 			liquid_levels_want[ii] = want_level;
+			//if (viscosity > 1 && (liquid_levels_want[ii]-liquid_levels[ii]>8-viscosity))
 			if (liquid_levels_want[ii] < LIQUID_LEVEL_SOURCE && total_level > 0) {
 				if (loopcount % 3 || liquid_levels[ii] <= 0){
 					if (liquid_levels[ii] > liquid_levels_want[ii]) {
@@ -1926,6 +1929,11 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 			<<(int)new_node_level<<std::endl;
 			*/
 			
+			// drop here old content 
+//			if (new_node_content != n0.getContent() && nodemgr->get(n0).drop) {
+//errorstream<<"wantdrop="<<(int)n0.getContent();
+//			}
+
 			n0.setContent(new_node_content);
 			// Find out whether there is a suspect for this action
 			std::string suspect;
