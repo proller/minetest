@@ -1812,6 +1812,7 @@ Object Properties
 {
     hp_max = 1,
     physical = true,
+    collide_with_objects = true, -- collide with other objects if physical=true
     weight = 5,
     collisionbox = {-0.5,-0.5,-0.5, 0.5,0.5,0.5},
     visual = "cube"/"sprite"/"upright_sprite"/"mesh",
@@ -1868,6 +1869,7 @@ Item definition (register_node, register_craftitem, register_tool)
     wield_image = "",
     wield_scale = {x=1,y=1,z=1},
     stack_max = 99,
+    range = 4.0,
     liquids_pointable = false,
     tool_capabilities = {
         full_punch_interval = 1.0,
@@ -1946,6 +1948,7 @@ Node definition (register_node)
     liquid_alternative_source = "", -- Source version of flowing liquid
     liquid_viscosity = 0, -- Higher viscosity = slower flow (max. 7)
     liquid_renewable = true, -- Can new liquid source be created by placing
+    liquid_range = 8, -- number of flowing nodes arround source (max. 8)
     drowning = true, -- Player will drown in these 
     two or more sources nearly?
     light_source = 0, -- Amount of light emitted by node
