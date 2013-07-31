@@ -517,13 +517,13 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 		menu.fav_selected = nil
 		
 		engine.setting_set("address","")
-		engine.setting_get("port","")
+		engine.setting_set("port","30000")
 		
 		return
 	end
 
 	if fields["btn_mp_connect"] ~= nil or
-		fields["key_enter"] then
+		fields["key_enter"] ~= nil then
 		
 		gamedata.playername		= fields["te_name"]
 		gamedata.password		= fields["te_pwd"]
@@ -534,16 +534,19 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 		
 		if fav_idx > 0 and fav_idx <= #menu.favorites and
 			menu.favorites[fav_idx].address == fields["te_address"] and
-			menu.favorites[fav_idx].port == fields["te_port"] then
+			menu.favorites[fav_idx].port    == fields["te_port"] then
 			
 			gamedata.servername			= menu.favorites[fav_idx].name
 			gamedata.serverdescription	= menu.favorites[fav_idx].description
 		else
-			gamedata.servername = ""
-			gamedata.serverdescription = ""
+			gamedata.servername			= ""
+			gamedata.serverdescription	= ""
 		end
 
 		gamedata.selected_world = 0
+		
+		engine.setting_set("address",fields["te_address"])
+		engine.setting_set("port",fields["te_port"])
 		
 		engine.start()
 		return
