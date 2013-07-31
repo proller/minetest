@@ -73,6 +73,7 @@ struct MapgenParams {
 	int chunksize;
 	u64 seed;
 	int water_level;
+	int liquid_finite; // only for per-world saving
 	u32 flags;
 
 	MapgenParams() {

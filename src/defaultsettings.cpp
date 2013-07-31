@@ -108,7 +108,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("view_bobbing_amount", "1.0");
 	settings->setDefault("fall_bobbing_amount", "0.0");
 	settings->setDefault("enable_3d_clouds", "true");
-	settings->setDefault("cloud_height", "120");
+	settings->setDefault("cloud_height", "300");
 	settings->setDefault("menu_clouds", "true");
 	settings->setDefault("opaque_water", "false");
 	settings->setDefault("console_color", "(0,0,0)");
@@ -211,11 +211,11 @@ void set_default_settings(Settings *settings)
 	//liquid stuff
 	settings->setDefault("liquid_finite", "false");
 	settings->setDefault("liquid_loop_max", "1000");
-	settings->setDefault("liquid_update", "1.0");
+	settings->setDefault("liquid_update", "0.2");
 	settings->setDefault("liquid_relax", "2");
 	settings->setDefault("liquid_fast_flood", "1");
 	settings->setDefault("underground_springs", "1");
-	settings->setDefault("weather", "false");
+	settings->setDefault("weather", "true");
 
 	//mapgen stuff
 	settings->setDefault("mg_name", "v6");
