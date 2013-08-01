@@ -581,8 +581,8 @@ private:
 	bool m_initial_tx_basepos_set;
 	bool m_tx_select_horiz_by_yawpitch;
 	v2f m_animation_range;
-	int m_animation_speed;
-	int m_animation_blend;
+	float m_animation_speed;
+	float m_animation_blend;
 	std::map<std::string, core::vector2d<v3f> > m_bone_position; // stores position and rotation for each bone name
 	std::string m_attachment_bone;
 	v3f m_attachment_position;
@@ -591,7 +591,9 @@ private:
 	int m_anim_frame;
 	int m_anim_num_frames;
 	float m_anim_framelength;
+	float m_anim_last_updated_velocity;
 	float m_anim_timer;
+	float m_anim_base_velocity;
 	ItemGroupList m_armor_groups;
 	float m_reset_textures_timer;
 	bool m_visuals_expired;
@@ -635,6 +637,7 @@ public:
 		m_anim_num_frames(1),
 		m_anim_framelength(0.2),
 		m_anim_timer(0),
+		m_anim_base_velocity(-1.0),
 		m_reset_textures_timer(-1),
 		m_visuals_expired(false),
 		m_step_distance_counter(0),
@@ -1216,6 +1219,29 @@ public:
 			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
 			updateNodePos();
 		}
+		updateAnimationSpeed();
+	}
+
+	void updateAnimationSpeed()
+	{
+		if(m_animated_meshnode == NULL)
+			return;
+
+		if (m_anim_base_velocity > 0)
+		{
+			//calculate current velocity
+			float current_velocity = XZScalar(m_velocity.X,m_velocity.Z);
+
+			if (fabs(m_anim_last_updated_velocity-current_velocity) > 0.05)
+			{
+				//calculate new animation speed
+				float new_speed = current_velocity/m_anim_base_velocity * 15;
+
+				m_animated_meshnode->setAnimationSpeed(new_speed);
+
+				m_anim_last_updated_velocity = current_velocity;
+			}
+		}
 	}
 
 	void updateTexturePos()
@@ -1703,9 +1729,13 @@ public:
 		}
 		else if(cmd == GENERIC_CMD_SET_ANIMATION)
 		{
-			m_animation_range = readV2F1000(is);
-			m_animation_speed = readF1000(is);
-			m_animation_blend = readF1000(is);
+			try {
+				m_animation_range = readV2F1000(is);
+				m_animation_speed = readF1000(is);
+				m_animation_blend = readF1000(is);
+				m_anim_base_velocity = readF1000(is);
+			}
+			catch (SerializationError &e) {}
 
 			updateAnimation();
 		}

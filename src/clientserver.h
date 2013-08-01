@@ -100,6 +100,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 		version, heat and humidity transfer in MapBock
 		automatic_face_movement_dir and automatic_face_movement_dir_offset
 			added to object properties
+		Add parameter to GENERIC_CMD_SET_ANIMATION
+		Add support for anim framerate prediction based uppon base_velocity
 */
 
 #define LATEST_PROTOCOL_VERSION 21
