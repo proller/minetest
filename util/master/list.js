@@ -49,13 +49,13 @@ function success(r) {
         h += '<tr class="mts_row">';
         h += '<td class="mts_address">' + e(s.address) + (s.port != 30000 ? (':' + e(s.port)) : '') + '</td>';
         h += '<td class="mts_clients">' + e(s.clients) + (s.clients_max ? '/' + e(s.clients_max) : '') + (s.clients_top ? ', ' + s.clients_top : '') + '</td>';
-        var mods;
+        var mods = 0;
         if (s.mods && jQuery.isArray(s.mods)) {
             mods = s.mods.length;
         }
         h += '<td class="mts_version' + (mods ? ' mts_ismods' : '') + '">' + e(s.version) + ' ' + e(s.gameid) ' ' + e(s.mapgen);
         if (mods) {
-            h += '<div class="mts_mods">Mods:<br/>';
+            h += '<div class="mts_mods">Mods ('+mods+'):<br/>';
             for (m in s.mods) {
                 h += s.mods[m] + '<br/>';
             }
