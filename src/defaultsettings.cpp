@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "settings.h"
 #include "filesys.h"
+#include "config.h"
 
 void set_default_settings(Settings *settings)
 {
@@ -141,10 +142,17 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("server_name", "");
 	settings->setDefault("server_description", "");
 
+#if USE_FREETYPE
+	settings->setDefault("freetype", "true");
 	settings->setDefault("font_path", porting::getDataPath("fonts" DIR_DELIM "liberationsans.ttf"));
 	settings->setDefault("font_size", "13");
 	settings->setDefault("mono_font_path", porting::getDataPath("fonts" DIR_DELIM "liberationmono.ttf"));
 	settings->setDefault("mono_font_size", "13");
+#else
+	settings->setDefault("freetype", "false");
+	settings->setDefault("font_path", porting::getDataPath("fonts" DIR_DELIM "fontlucida.png"));
+	settings->setDefault("mono_font_path", porting::getDataPath("textures" DIR_DELIM "fontdejavusansmono.png"));
+#endif
 
 	// Server stuff
 	// "map-dir" doesn't exist by default.
@@ -180,6 +188,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("time_speed", "72");
 	settings->setDefault("year_days", "30");
 	settings->setDefault("server_unload_unused_data_timeout", "29");
+	settings->setDefault("max_objects_per_block", "49");
 	settings->setDefault("server_map_save_interval", "5.3");
 	settings->setDefault("full_block_send_enable_min_time_from_building", "2.0");
 	settings->setDefault("dedicated_server_step", "0.1");
