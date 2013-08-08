@@ -102,12 +102,9 @@ double mengersponge(double x, double y, double z, double d, int MI = 10) {
 
 
 	for (i = 0; i < MI && r < 9; i++) {
-
-
 		x = fabs(x);
 		y = fabs(y);
 		z = fabs(z);
-
 
 		if (x - y < 0) {
 			double x1 = y;
@@ -125,16 +122,12 @@ double mengersponge(double x, double y, double z, double d, int MI = 10) {
 			y = y1;
 		}
 
-
 		x = scale * x - 1 * (scale - 1);
 		y = scale * y - 1 * (scale - 1);
 		z = scale * z;
 
-
 		if (z > 0.5 * 1 * (scale - 1))
 			z -= 1 * (scale - 1);
-
-
 		r = x * x + y * y + z * z;
 	}
 	return ((sqrt(r)) * pow(scale, (-i)) < d);
@@ -238,139 +231,139 @@ int MapgenMath::generateTerrain() {
 	v3s16 em = vm->m_area.getExtent();
 
 //#if 0
-if (params["generator"].asString() == "sphere" ||
-    params["generator"].asString() == "mengersponge" ||
-    params["generator"].asString() == "mandelbox"
-) {
-	/* debug
-	v3f vec0 = (v3f(node_min.X, node_min.Y, node_min.Z) - center) * scale ;
-	errorstream << " X=" << node_min.X << " Y=" << node_min.Y << " Z=" << node_min.Z
-	            //<< " N="<< mengersponge(vec0.X, vec0.Y, vec0.Z, distance, iterations)
-	            << " N=" << (*func)(vec0.X, vec0.Y, vec0.Z, distance, iterations)
-	            << " Sc=" << scale << " gen=" << params["generator"].asString() << " J=" << Json::FastWriter().write(params) << std::endl;
-	*/
-	for (s16 z = node_min.Z; z <= node_max.Z; z++) {
-		for (s16 x = node_min.X; x <= node_max.X; x++, index++) {
-			//Biome *biome = bmgr->biomes[biomemap[index]];
-			u32 i = vm->m_area.index(x, node_min.Y, z);
-			for (s16 y = node_min.Y; y <= node_max.Y; y++) {
-				v3f vec = (v3f(x, y, z) - center) * scale ;
-				double d = (*func)(vec.X, vec.Y, vec.Z, distance, iterations);
-				if ((!invert && d > 0) || (invert && d == 0)  ) {
-					if (vm->m_data[i].getContent() == CONTENT_IGNORE)
-	//					vm->m_data[i] = (y > water_level + biome->filler) ?
-		//				                MapNode(biome->c_filler) : n_stone;
-						vm->m_data[i] = n_stone;
-				} else if (y <= water_level) {
-					vm->m_data[i] = n_water_source;
-				} else {
-					vm->m_data[i] = n_air;
+	if (params["generator"].asString() == "sphere" ||
+	        params["generator"].asString() == "mengersponge" ||
+	        params["generator"].asString() == "mandelbox"
+	   ) {
+		/* debug
+		v3f vec0 = (v3f(node_min.X, node_min.Y, node_min.Z) - center) * scale ;
+		errorstream << " X=" << node_min.X << " Y=" << node_min.Y << " Z=" << node_min.Z
+		            //<< " N="<< mengersponge(vec0.X, vec0.Y, vec0.Z, distance, iterations)
+		            << " N=" << (*func)(vec0.X, vec0.Y, vec0.Z, distance, iterations)
+		            << " Sc=" << scale << " gen=" << params["generator"].asString() << " J=" << Json::FastWriter().write(params) << std::endl;
+		*/
+		for (s16 z = node_min.Z; z <= node_max.Z; z++) {
+			for (s16 x = node_min.X; x <= node_max.X; x++, index++) {
+				//Biome *biome = bmgr->biomes[biomemap[index]];
+				u32 i = vm->m_area.index(x, node_min.Y, z);
+				for (s16 y = node_min.Y; y <= node_max.Y; y++) {
+					v3f vec = (v3f(x, y, z) - center) * scale ;
+					double d = (*func)(vec.X, vec.Y, vec.Z, distance, iterations);
+					if ((!invert && d > 0) || (invert && d == 0)  ) {
+						if (vm->m_data[i].getContent() == CONTENT_IGNORE)
+							//					vm->m_data[i] = (y > water_level + biome->filler) ?
+							//				                MapNode(biome->c_filler) : n_stone;
+							vm->m_data[i] = n_stone;
+					} else if (y <= water_level) {
+						vm->m_data[i] = n_water_source;
+					} else {
+						vm->m_data[i] = n_air;
+					}
+					vm->m_area.add_y(em, i, 1);
 				}
-				vm->m_area.add_y(em, i, 1);
 			}
 		}
-	}
 //#endif
-} else {
+	} else {
 
 
 #ifdef FRACTAL_H_
 // mandelbulber, unfinished but works
-	//sFractal par;
-	sFractal & par = mg_params->par;
-	par.doubles.N = 10;
+		//sFractal par;
+		sFractal & par = mg_params->par;
+		par.doubles.N = 10;
 
-	par.doubles.power = 9.0;
-	par.doubles.foldingSphericalFixed =  1.0;
-	par.doubles.foldingSphericalMin = 0.5;
-	//no par.formula = smoothMandelbox; par.doubles.N = 40; invert = 0;//no
-	par.mandelbox.doubles.sharpness = 3.0;
-	par.mandelbox.doubles.scale = 1;
-	par.mandelbox.doubles.sharpness = 2;
-	par.mandelbox.doubles.foldingLimit = 1.0;
-	par.mandelbox.doubles.foldingValue = 2;
+		par.doubles.power = 9.0;
+		par.doubles.foldingSphericalFixed =  1.0;
+		par.doubles.foldingSphericalMin = 0.5;
+		//no par.formula = smoothMandelbox; par.doubles.N = 40; invert = 0;//no
+		par.mandelbox.doubles.sharpness = 3.0;
+		par.mandelbox.doubles.scale = 1;
+		par.mandelbox.doubles.sharpness = 2;
+		par.mandelbox.doubles.foldingLimit = 1.0;
+		par.mandelbox.doubles.foldingValue = 2;
 
-	if (params["generator"].asString() == "mandelboxVaryScale4D") {
-	par.formula = mandelboxVaryScale4D; par.doubles.N = 50; scale = 5; invert = 1; //ok
-	}
-	par.mandelbox.doubles.vary4D.scaleVary =  0.1;
-	par.mandelbox.doubles.vary4D.fold = 1;
-	par.mandelbox.doubles.vary4D.rPower = 1;
-	par.mandelbox.doubles.vary4D.minR = 0.5;
-	par.mandelbox.doubles.vary4D.wadd = 0;
-	par.doubles.constantFactor = 1.0;
-
-	if (params["generator"].asString() == "menger_sponge") {
-	par.formula = menger_sponge; par.doubles.N = 15; invert = 0; size = 30000; center = v3f(-size / 2, -size + (-2 * -invert), 2);  scale = (double)1 / size; //ok
-	}
-
-	//double tresh = 1.5;
-	if (params["generator"].asString() == "mandelbulb2") {
-	par.formula = mandelbulb2; par.doubles.N = 10; scale = (double)1/size; invert=1; center = v3f(5,-size-5,0); //ok
-	}
-	if (params["generator"].asString() == "hypercomplex") {
-	par.formula = hypercomplex; par.doubles.N = 20; scale = 0.0001; invert=1; center = v3f(0,-10001,0); //(double)50 / max_r;
-	}
-	//no par.formula = trig_DE; par.doubles.N = 5;  scale = (double)10; invert=1;
-
-	//no par.formula = trig_optim; scale = (double)10;  par.doubles.N = 4;
-
-	//par.formula = mandelbulb2; scale = (double)1/10000; par.doubles.N = 10; invert = 1; center = v3f(1,-4201,1); //ok
-	// no par.formula = tglad;
-
-	//par.formula = xenodreambuie;  par.juliaMode = 1; par.doubles.julia.x = -1; par.doubles.power = 2.0; center=v3f(-size/2,-size/2-5,5); //ok
-
-	par.mandelbox.doubles.vary4D.scaleVary = 0.1;
-	par.mandelbox.doubles.vary4D.fold = 1;
-	par.mandelbox.doubles.vary4D.minR = 0.5;
-	par.mandelbox.doubles.vary4D.rPower = 1;
-	par.mandelbox.doubles.vary4D.wadd = 0;
-	//no par.formula = mandelboxVaryScale4D;
-	par.doubles.cadd = -1.3;
-	//par.formula = aexion; // ok but center
-	if (params["generator"].asString() == "benesi") {
-	par.formula = benesi; par.doubles.N = 10; center = v3f(0,0,0); invert = 0; //ok
-	}
-	if (params["generator"].asString() == "bristorbrot") {
-	par.formula = bristorbrot; //ok
-	}
-
-	v3f vec0(node_min.X, node_min.Y, node_min.Z);
-	vec0 = (vec0 - center) * scale ;
-	errorstream << " X=" << node_min.X << " Y=" << node_min.Y << " Z=" << node_min.Z
-	            << " N=" << Compute<normal>(CVector3(vec0.X, vec0.Y, vec0.Z), par)
-	            //<<" F="<< Compute<fake_AO>(CVector3(node_min.X,node_min.Y,node_min.Z), par)
-	            //<<" L="<<node_min.getLength()<< " -="<<node_min.getLength() - Compute<normal>(CVector3(node_min.X,node_min.Y,node_min.Z), par)
-	            << " Sc=" << scale
-	            << std::endl;
-
-	for (s16 z = node_min.Z; z <= node_max.Z; z++)
-		for (s16 y = node_min.Y; y <= node_max.Y; y++) {
-			u32 i = vm->m_area.index(node_min.X, y, z);
-			for (s16 x = node_min.X; x <= node_max.X; x++) {
-				v3f vec(x, y, z);
-				vec = (vec - center) * scale ;
-				//double d = Compute<fake_AO>(CVector3(x,y,z), par);
-				double d = Compute<normal>(CVector3(vec.X, vec.Y, vec.Z), par);
-				//if (d>0)
-				// errorstream << " d=" << d  <<" v="<< vec.getLength()<< " -="<< vec.getLength() - d <<" yad="
-				//<< Compute<normal>(CVector3(x,y,z), par)
-				//<< std::endl;
-				if ((!invert && d > 0) || (invert && d == 0)/*&& vec.getLength() - d > tresh*/ ) {
-					if (vm->m_data[i].getContent() == CONTENT_IGNORE)
-						vm->m_data[i] = n_stone;
-				} else if (y <= water_level) {
-					vm->m_data[i] = n_water_source;
-				} else {
-					vm->m_data[i] = n_air;
-				}
-				i++;
-			}
+		if (params["generator"].asString() == "mandelboxVaryScale4D") {
+			par.formula = mandelboxVaryScale4D; par.doubles.N = 50; scale = 5; invert = 1; //ok
 		}
+		par.mandelbox.doubles.vary4D.scaleVary =  0.1;
+		par.mandelbox.doubles.vary4D.fold = 1;
+		par.mandelbox.doubles.vary4D.rPower = 1;
+		par.mandelbox.doubles.vary4D.minR = 0.5;
+		par.mandelbox.doubles.vary4D.wadd = 0;
+		par.doubles.constantFactor = 1.0;
+
+		if (params["generator"].asString() == "menger_sponge") {
+			par.formula = menger_sponge; par.doubles.N = 15; invert = 0; size = 30000; center = v3f(-size / 2, -size + (-2 * -invert), 2);  scale = (double)1 / size; //ok
+		}
+
+		//double tresh = 1.5;
+		if (params["generator"].asString() == "mandelbulb2") {
+			par.formula = mandelbulb2; par.doubles.N = 10; scale = (double)1 / size; invert = 1; center = v3f(5, -size - 5, 0); //ok
+		}
+		if (params["generator"].asString() == "hypercomplex") {
+			par.formula = hypercomplex; par.doubles.N = 20; scale = 0.0001; invert = 1; center = v3f(0, -10001, 0); //(double)50 / max_r;
+		}
+		//no par.formula = trig_DE; par.doubles.N = 5;  scale = (double)10; invert=1;
+
+		//no par.formula = trig_optim; scale = (double)10;  par.doubles.N = 4;
+
+		//par.formula = mandelbulb2; scale = (double)1/10000; par.doubles.N = 10; invert = 1; center = v3f(1,-4201,1); //ok
+		// no par.formula = tglad;
+
+		//par.formula = xenodreambuie;  par.juliaMode = 1; par.doubles.julia.x = -1; par.doubles.power = 2.0; center=v3f(-size/2,-size/2-5,5); //ok
+
+		par.mandelbox.doubles.vary4D.scaleVary = 0.1;
+		par.mandelbox.doubles.vary4D.fold = 1;
+		par.mandelbox.doubles.vary4D.minR = 0.5;
+		par.mandelbox.doubles.vary4D.rPower = 1;
+		par.mandelbox.doubles.vary4D.wadd = 0;
+		//no par.formula = mandelboxVaryScale4D;
+		par.doubles.cadd = -1.3;
+		//par.formula = aexion; // ok but center
+		if (params["generator"].asString() == "benesi") {
+			par.formula = benesi; par.doubles.N = 10; center = v3f(0, 0, 0); invert = 0; //ok
+		}
+		if (params["generator"].asString() == "bristorbrot") {
+			par.formula = bristorbrot; //ok
+		}
+
+		v3f vec0(node_min.X, node_min.Y, node_min.Z);
+		vec0 = (vec0 - center) * scale ;
+		errorstream << " X=" << node_min.X << " Y=" << node_min.Y << " Z=" << node_min.Z
+		            << " N=" << Compute<normal>(CVector3(vec0.X, vec0.Y, vec0.Z), par)
+		            //<<" F="<< Compute<fake_AO>(CVector3(node_min.X,node_min.Y,node_min.Z), par)
+		            //<<" L="<<node_min.getLength()<< " -="<<node_min.getLength() - Compute<normal>(CVector3(node_min.X,node_min.Y,node_min.Z), par)
+		            << " Sc=" << scale
+		            << std::endl;
+
+		for (s16 z = node_min.Z; z <= node_max.Z; z++)
+			for (s16 y = node_min.Y; y <= node_max.Y; y++) {
+				u32 i = vm->m_area.index(node_min.X, y, z);
+				for (s16 x = node_min.X; x <= node_max.X; x++) {
+					v3f vec(x, y, z);
+					vec = (vec - center) * scale ;
+					//double d = Compute<fake_AO>(CVector3(x,y,z), par);
+					double d = Compute<normal>(CVector3(vec.X, vec.Y, vec.Z), par);
+					//if (d>0)
+					// errorstream << " d=" << d  <<" v="<< vec.getLength()<< " -="<< vec.getLength() - d <<" yad="
+					//<< Compute<normal>(CVector3(x,y,z), par)
+					//<< std::endl;
+					if ((!invert && d > 0) || (invert && d == 0)/*&& vec.getLength() - d > tresh*/ ) {
+						if (vm->m_data[i].getContent() == CONTENT_IGNORE)
+							vm->m_data[i] = n_stone;
+					} else if (y <= water_level) {
+						vm->m_data[i] = n_water_source;
+					} else {
+						vm->m_data[i] = n_air;
+					}
+					i++;
+				}
+			}
 
 
 #endif
-}
+	}
 	return 0;
 }
 
