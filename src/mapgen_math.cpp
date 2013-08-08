@@ -214,63 +214,8 @@ MapgenMath::MapgenMath(int mapgenid, MapgenMathParams *params_, EmergeManager *e
 	if (params["center"].empty() && !center.getLength()) center = v3f(3, -size + (-5 - (-invert * 10)), 3);
 	//size ||= params["size"].empty()?1000:params["size"].asDouble(); // = max_r
 
-}
+	sFractal & par = mg_params->par;
 
-
-MapgenMath::~MapgenMath() {
-}
-
-//////////////////////// Map generator
-
-int MapgenMath::generateTerrain() {
-
-	Json::Value & params = mg_params->params;
-	MapNode n_air(CONTENT_AIR, LIGHT_SUN), n_water_source(c_water_source, LIGHT_SUN);
-	MapNode n_stone(c_stone, LIGHT_SUN);
-	u32 index = 0;
-	v3s16 em = vm->m_area.getExtent();
-
-//#if 0
-	if (params["generator"].asString() == "sphere" ||
-	        params["generator"].asString() == "mengersponge" ||
-	        params["generator"].asString() == "mandelbox"
-	   ) {
-		/* debug
-		v3f vec0 = (v3f(node_min.X, node_min.Y, node_min.Z) - center) * scale ;
-		errorstream << " X=" << node_min.X << " Y=" << node_min.Y << " Z=" << node_min.Z
-		            //<< " N="<< mengersponge(vec0.X, vec0.Y, vec0.Z, distance, iterations)
-		            << " N=" << (*func)(vec0.X, vec0.Y, vec0.Z, distance, iterations)
-		            << " Sc=" << scale << " gen=" << params["generator"].asString() << " J=" << Json::FastWriter().write(params) << std::endl;
-		*/
-		for (s16 z = node_min.Z; z <= node_max.Z; z++) {
-			for (s16 x = node_min.X; x <= node_max.X; x++, index++) {
-				//Biome *biome = bmgr->biomes[biomemap[index]];
-				u32 i = vm->m_area.index(x, node_min.Y, z);
-				for (s16 y = node_min.Y; y <= node_max.Y; y++) {
-					v3f vec = (v3f(x, y, z) - center) * scale ;
-					double d = (*func)(vec.X, vec.Y, vec.Z, distance, iterations);
-					if ((!invert && d > 0) || (invert && d == 0)  ) {
-						if (vm->m_data[i].getContent() == CONTENT_IGNORE)
-							//					vm->m_data[i] = (y > water_level + biome->filler) ?
-							//				                MapNode(biome->c_filler) : n_stone;
-							vm->m_data[i] = n_stone;
-					} else if (y <= water_level) {
-						vm->m_data[i] = n_water_source;
-					} else {
-						vm->m_data[i] = n_air;
-					}
-					vm->m_area.add_y(em, i, 1);
-				}
-			}
-		}
-//#endif
-	} else {
-
-
-#ifdef FRACTAL_H_
-// mandelbulber, unfinished but works
-		//sFractal par;
-		sFractal & par = mg_params->par;
 		par.doubles.N = 10;
 
 		par.doubles.power = 9.0;
@@ -328,6 +273,72 @@ int MapgenMath::generateTerrain() {
 			par.formula = bristorbrot; //ok
 		}
 
+
+}
+
+
+MapgenMath::~MapgenMath() {
+}
+
+//////////////////////// Map generator
+
+int MapgenMath::generateTerrain() {
+
+	Json::Value & params = mg_params->params;
+	MapNode n_air(CONTENT_AIR, LIGHT_SUN), n_water_source(c_water_source, LIGHT_SUN);
+	MapNode n_stone(c_stone, LIGHT_SUN);
+	u32 index = 0;
+	v3s16 em = vm->m_area.getExtent();
+
+//#if 0
+	if (params["generator"].asString() == "sphere" ||
+	        params["generator"].asString() == "mengersponge" ||
+	        params["generator"].asString() == "mandelbox"
+	   ) {
+		/* debug
+		v3f vec0 = (v3f(node_min.X, node_min.Y, node_min.Z) - center) * scale ;
+		errorstream << " X=" << node_min.X << " Y=" << node_min.Y << " Z=" << node_min.Z
+		            //<< " N="<< mengersponge(vec0.X, vec0.Y, vec0.Z, distance, iterations)
+		            << " N=" << (*func)(vec0.X, vec0.Y, vec0.Z, distance, iterations)
+		            << " Sc=" << scale << " gen=" << params["generator"].asString() << " J=" << Json::FastWriter().write(params) << std::endl;
+		*/
+		for (s16 z = node_min.Z; z <= node_max.Z; z++) {
+			for (s16 x = node_min.X; x <= node_max.X; x++, index++) {
+				//Biome *biome = bmgr->biomes[biomemap[index]];
+				u32 i = vm->m_area.index(x, node_min.Y, z);
+				for (s16 y = node_min.Y; y <= node_max.Y; y++) {
+					v3f vec = (v3f(x, y, z) - center) * scale ;
+
+					double d;
+#ifdef FRACTAL_H_
+					d = Compute<normal>(CVector3(vec.X, vec.Y, vec.Z), mg_params->par);
+#else
+					d = (*func)(vec.X, vec.Y, vec.Z, distance, iterations);
+#endif
+					if ((!invert && d > 0) || (invert && d == 0)  ) {
+						if (vm->m_data[i].getContent() == CONTENT_IGNORE)
+							//					vm->m_data[i] = (y > water_level + biome->filler) ?
+							//				                MapNode(biome->c_filler) : n_stone;
+							vm->m_data[i] = n_stone;
+					} else if (y <= water_level) {
+						vm->m_data[i] = n_water_source;
+					} else {
+						vm->m_data[i] = n_air;
+					}
+					vm->m_area.add_y(em, i, 1);
+				}
+			}
+		}
+//#endif
+	} else {
+
+
+#if 0
+//#ifdef FRACTAL_H_
+// mandelbulber, unfinished but works
+		//sFractal par;
+		//sFractal & par = mg_params->par;
+
 		v3f vec0(node_min.X, node_min.Y, node_min.Z);
 		vec0 = (vec0 - center) * scale ;
 		errorstream << " X=" << node_min.X << " Y=" << node_min.Y << " Z=" << node_min.Z
@@ -344,7 +355,7 @@ int MapgenMath::generateTerrain() {
 					v3f vec(x, y, z);
 					vec = (vec - center) * scale ;
 					//double d = Compute<fake_AO>(CVector3(x,y,z), par);
-					double d = Compute<normal>(CVector3(vec.X, vec.Y, vec.Z), par);
+					double d = Compute<normal>(CVector3(vec.X, vec.Y, vec.Z), mg_params->par);
 					//if (d>0)
 					// errorstream << " d=" << d  <<" v="<< vec.getLength()<< " -="<< vec.getLength() - d <<" yad="
 					//<< Compute<normal>(CVector3(x,y,z), par)
@@ -360,8 +371,6 @@ int MapgenMath::generateTerrain() {
 					i++;
 				}
 			}
-
-
 #endif
 	}
 	return 0;
