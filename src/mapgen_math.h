@@ -27,13 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 struct MapgenMathParams : public MapgenV7Params {
 
-	MapgenMathParams() {
-#ifdef FRACTAL_H_
-		par = sFractal();
-#endif
-	}
-//	~MapgenMathParams() {
-//	}
+	MapgenMathParams() {};
 
 	Json::Value params;
 
@@ -41,8 +35,8 @@ struct MapgenMathParams : public MapgenV7Params {
 	sFractal par;
 #endif
 
-	bool readParams(Settings *settings);
-	void writeParams(Settings *settings);
+	bool readParams(Settings * settings);
+	void writeParams(Settings * settings);
 };
 
 class MapgenMath : public MapgenV7 {

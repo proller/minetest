@@ -159,30 +159,33 @@ MapgenMath::MapgenMath(int mapgenid, MapgenMathParams *params_, EmergeManager *e
 	this->flags |= MG_NOLIGHT;
 
 	Json::Value & params = mg_params->params;
-	invert = params.get("invert", 1).asBool(); //params["invert"].empty()?1:params["invert"].asBool();
-	size = params.get("size", 0).asDouble(); // = max_r
-	scale = params.get("scale", 0).asDouble(); //(double)1 / size;
+	invert = params.get("invert", 0).asBool(); //params["invert"].empty()?1:params["invert"].asBool();
+	size = params.get("size", (MAP_GENERATION_LIMIT - 1000)).asDouble(); // = max_r
+	scale = params.get("scale", (double)1 / size).asDouble(); //(double)1 / size;
 	if(!params.get("center", Json::Value()).empty()) center = v3f(params["center"]["x"].asFloat(), params["center"]["y"].asFloat(), params["center"]["z"].asFloat()); //v3f(5, -size - 5, 5);
-	iterations = params.get("iterations", 0).asInt(); //10;
-	distance = params.get("distance", 0).asDouble(); // = 1/size;
+	iterations = params.get("iterations", 10).asInt(); //10;
+	distance = params.get("distance", scale).asDouble(); // = 1/size;
 
-	func = &sphere;
 	internal = 0;
+	func = &sphere;
 
 	if (params["generator"].empty()) params["generator"] = "mandelbox";
 	if (params["generator"].asString() == "mengersponge") {
 		internal = 1;
-		if (!size) size = (MAP_GENERATION_LIMIT - 1000) / 2;
-		if (!iterations) iterations = 10;
-		if (!distance) distance = 0.0003;
+		func = &mengersponge;
+		invert = params.get("invert", 1).asBool();
+		size = params.get("size", (MAP_GENERATION_LIMIT - 1000) / 2).asDouble();
+		//if (!iterations) iterations = 10;
+		//if (!distance) distance = 0.0003;
+		distance = params.get("distance", 0.0003).asDouble();
 		//if (!scale) scale = (double)0.1 / size;
 		//if (!distance) distance = 0.01; //10/size;//sqrt3 * bd4;
 		//if (!scale) scale = 0.01; //10/size;//sqrt3 * bd4;
 		//center=v3f(-size/3,-size/3+(-2*-invert),2);
-		center = v3f(-size, -size, -size);
-		func = &mengersponge;
+		if(!center.getLength()) center = v3f(-size, -size, -size);
 	} else if (params["generator"].asString() == "mandelbox") {
 		internal = 1;
+		func = &mandelbox;
 		/*
 			size = MAP_GENERATION_LIMIT - 1000;
 			//size = 1000;
@@ -192,67 +195,80 @@ MapgenMath::MapgenMath(int mapgenid, MapgenMathParams *params_, EmergeManager *e
 		*/
 
 		//mandelbox
-		if (!size) size = 1000;
-		if (!distance) distance = 0.01;
-		if(params["invert"].empty()) invert = 0;
+		invert = params.get("invert", 1).asBool();
+		size = params.get("size", 1000).asDouble();
+		distance = params.get("size", 0.01).asDouble();
+		//if(params["invert"].empty()) invert = 0;
+		invert = params.get("invert", 0).asBool();
 		//center=v3f(2,-size/4,2);
 		//size = 10000;
 		//center=v3f(size/2,-size*0.9,size/2);
-		if(params["center"].empty())center = v3f(size * 0.3, -size * 0.6, size * 0.5);
-		func = &mandelbox;
+		if(!center.getLength()) center = v3f(size * 0.3, -size * 0.6, size * 0.5);
 	} else if (params["generator"].asString() == "sphere") {
 		internal = 1;
-		if(params["invert"].empty()) invert = 0;
-		if (!size) size = 100;
-		if (!distance) distance = size;
 		func = &sphere;
-		if (!scale) scale = 1;
+		invert = params.get("invert", 0).asBool();
+		size = params.get("size", 100).asDouble();
+		distance = params.get("distance", size).asDouble();
+		scale = params.get("scale", 1).asDouble();
 		//sphere
 		//size = 1000;scale = 1;center = v3f(2,-size-2,2);
 	}
 
-	if (!iterations) iterations = 10;
-	if (!size) size = 1000;
-	if (!scale) scale = (double)1 / size;
-	if (!distance)  distance = scale;
-	if (params.get("center", Json::Value()).empty() && !center.getLength()) center = v3f(3, -size + (-5 - (-invert * 10)), 3);
-	//size ||= params["size"].empty()?1000:params["size"].asDouble(); // = max_r
 
 #ifdef FRACTAL_H_
 	sFractal & par = mg_params->par;
 
-	par.doubles.N = 10;
+	par.doubles.N = iterations;
 
-	par.doubles.power = 9.0;
-	par.doubles.foldingSphericalFixed =  1.0;
-	par.doubles.foldingSphericalMin = 0.5;
+	par.doubles.power = params.get("power", 9.0).asDouble();
+	par.doubles.foldingSphericalFixed = params.get("foldingSphericalFixed", 1.0).asDouble();
+	par.doubles.foldingSphericalMin = params.get("foldingSphericalMin", 0.5).asDouble();
 	//no par.formula = smoothMandelbox; par.doubles.N = 40; invert = 0;//no
-	par.mandelbox.doubles.sharpness = 3.0;
-	par.mandelbox.doubles.scale = 1;
-	par.mandelbox.doubles.sharpness = 2;
-	par.mandelbox.doubles.foldingLimit = 1.0;
-	par.mandelbox.doubles.foldingValue = 2;
+	par.mandelbox.doubles.scale = params.get("mscale", 1).asDouble();
+	par.mandelbox.doubles.sharpness = params.get("sharpness", 2).asDouble();
+	par.mandelbox.doubles.foldingLimit = params.get("foldingLimit", 1.0).asDouble();
+	par.mandelbox.doubles.foldingValue = params.get("foldingValue", 2).asDouble();
 
 	if (params["generator"].asString() == "mandelboxVaryScale4D") {
-		par.formula = mandelboxVaryScale4D; par.doubles.N = 50; scale = 5; invert = 1; //ok
+		par.formula = mandelboxVaryScale4D; par.doubles.N = params.get("iterations", 50).asInt();
+		scale = params.get("scale", 1).asDouble();
+		invert = params.get("invert", 1).asBool(); //ok
+		par.mandelbox.doubles.vary4D.scaleVary =  params.get("scaleVary", 0.1).asDouble();
+		par.mandelbox.doubles.vary4D.fold = params.get("fold", 1).asDouble();
+		par.mandelbox.doubles.vary4D.rPower = params.get("rPower", 1).asDouble();
+		par.mandelbox.doubles.vary4D.minR = params.get("minR", 0.5).asDouble();
+		par.mandelbox.doubles.vary4D.wadd = params.get("wadd", 0).asDouble();
 	}
-	par.mandelbox.doubles.vary4D.scaleVary =  0.1;
-	par.mandelbox.doubles.vary4D.fold = 1;
-	par.mandelbox.doubles.vary4D.rPower = 1;
-	par.mandelbox.doubles.vary4D.minR = 0.5;
-	par.mandelbox.doubles.vary4D.wadd = 0;
-	par.doubles.constantFactor = 1.0;
+	par.doubles.constantFactor = params.get("constantFactor", 1.0).asDouble();
 
 	if (params["generator"].asString() == "menger_sponge") {
-		par.formula = menger_sponge; par.doubles.N = 10; invert = 0; size = (MAP_GENERATION_LIMIT - 1000) / 2; center = v3f(-size / 2, -size + (-2 * -invert), 2);  scale = (double)1 / size; //ok
+		par.formula = menger_sponge;
+		//par.doubles.N = 10;
+		//invert = 0;
+		invert = params.get("invert", 0).asBool();
+		size = params.get("size", (MAP_GENERATION_LIMIT - 1000) / 2).asDouble();
+		if(!center.getLength()) center = v3f(-size / 2, -size + (-2 * -invert), 2);
+		//scale = (double)1 / size; //ok
 	}
 
 	//double tresh = 1.5;
 	if (params["generator"].asString() == "mandelbulb2") {
-		par.formula = mandelbulb2; par.doubles.N = 10; scale = (double)1 / size; invert = 1; center = v3f(5, -size - 5, 0); //ok
+		par.formula = mandelbulb2;
+		//par.doubles.N = 10;
+		scale  = params.get("scale", (double)1 / size).asDouble();
+		//invert = 1;
+		invert = params.get("invert", 1).asBool();
+
+		if(!center.getLength()) center = v3f(5, -size - 5, 0); //ok
 	}
 	if (params["generator"].asString() == "hypercomplex") {
-		par.formula = hypercomplex; par.doubles.N = 20; scale = 0.0001; invert = 1; center = v3f(0, -10001, 0); //(double)50 / max_r;
+		par.formula = hypercomplex;
+		par.doubles.N = params.get("iterations", 20).asInt();
+		scale = params.get("scale", 0.0001).asDouble();
+		//invert = 1;
+		invert = params.get("invert", 1).asBool();
+		if(!center.getLength()) center = v3f(0, -10001, 0); //(double)50 / max_r;
 	}
 	//no par.formula = trig_DE; par.doubles.N = 5;  scale = (double)10; invert=1;
 
@@ -263,24 +279,32 @@ MapgenMath::MapgenMath(int mapgenid, MapgenMathParams *params_, EmergeManager *e
 
 	//par.formula = xenodreambuie;  par.juliaMode = 1; par.doubles.julia.x = -1; par.doubles.power = 2.0; center=v3f(-size/2,-size/2-5,5); //ok
 
-	par.mandelbox.doubles.vary4D.scaleVary = 0.1;
-	par.mandelbox.doubles.vary4D.fold = 1;
-	par.mandelbox.doubles.vary4D.minR = 0.5;
-	par.mandelbox.doubles.vary4D.rPower = 1;
-	par.mandelbox.doubles.vary4D.wadd = 0;
 	//no par.formula = mandelboxVaryScale4D;
-	par.doubles.cadd = -1.3;
+	par.doubles.cadd = params.get("cadd", -1.3).asDouble();
 	//par.formula = aexion; // ok but center
 	if (params["generator"].asString() == "benesi") {
-		par.formula = benesi; par.doubles.N = 10; center = v3f(0, 0, 0); invert = 0; //ok
+		par.formula = benesi;
+		//par.doubles.N = 10;
+		if(!center.getLength()) center = v3f(0, 0, 0);
+//		invert = 0; //ok
+		invert = params.get("invert", 0).asBool();
+
 	}
 	if (params["generator"].asString() == "bristorbrot") {
 		par.formula = bristorbrot; //ok
+		invert = params.get("invert", 1).asBool();
 	}
 #endif
 
-}
+	//if (!iterations) iterations = 10;
+	//if (!size) size = (MAP_GENERATION_LIMIT - 1000);
+	//if (!scale) scale = (double)1 / size;
+	//if (!distance)  distance = scale;
+	if (params.get("center", Json::Value()).empty() && !center.getLength()) center = v3f(3, -size + (-5 - (-invert * 10)), 3);
+	//size ||= params["size"].empty()?1000:params["size"].asDouble(); // = max_r
 
+
+}
 
 MapgenMath::~MapgenMath() {
 }
