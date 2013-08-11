@@ -1619,7 +1619,7 @@ s32 Map::transforming_liquid_size() {
         return m_transforming_liquid.size();
 }
 
-const v3s16 g_7dirs[7] =
+const v3s16 liquid_flow_dirs[7] =
 {
 	// +right, +top, +back
 	v3s16( 0,-1, 0), // bottom
@@ -1630,6 +1630,9 @@ const v3s16 g_7dirs[7] =
 	v3s16(-1, 0, 0), // left
 	v3s16( 0, 1, 0)  // top
 };
+
+// when looking around we must first check self node for correct type definitions
+const s8 liquid_explore_map[7] = {1,0,2,3,4,5,6};
 
 #define D_BOTTOM 0
 #define D_TOP 6
@@ -1679,12 +1682,13 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 		s8 can_liquid_same_level = 0;
 		content_t liquid_kind = CONTENT_IGNORE;
 		content_t liquid_kind_flowing = CONTENT_IGNORE;
-		s8 viscosity = 0;
+		content_t melt_kind = CONTENT_IGNORE;
+		//s8 viscosity = 0;
 		/*
 			Collect information about the environment
 		 */
-		const v3s16 *dirs = g_7dirs;
-		for (u16 i = 0; i < 7; i++) {
+		for (u8 e = 0; e < 7; e++) {
+			u8 i = liquid_explore_map[e];
 			NeighborType nt = NEIGHBOR_SAME_LEVEL;
 			switch (i) {
 				case D_TOP:
@@ -1694,7 +1698,7 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 					nt = NEIGHBOR_LOWER;
 					break;
 			}
-			v3s16 npos = p0 + dirs[i];
+			v3s16 npos = p0 + liquid_flow_dirs[i];
 
 			neighbors[i].n = getNodeNoEx(npos);
 			neighbors[i].t = nt;
@@ -1705,9 +1709,18 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 
 			switch (nodemgr->get(nb.n.getContent()).liquid_type) {
 				case LIQUID_NONE:
-					if (nb.n.getContent() == CONTENT_AIR || nodemgr->get(nb.n).buildable_to && !nodemgr->get(nb.n).walkable) {
+					//if (nb.n.getContent() == CONTENT_AIR || nodemgr->get(nb.n).buildable_to && !nodemgr->get(nb.n).walkable) { // need lua drop api
+					if (nb.n.getContent() == CONTENT_AIR) {
 						liquid_levels[i] = 0;
 						nb.l = 1;
+					}
+//errorstream<<"ME="<<melt_kind<<" n="<<nb.n.getContent()<<std::endl;
+					if (melt_kind != CONTENT_IGNORE && nb.n.getContent() == melt_kind) {
+//errorstream<<" LWAS=" << (int)nb.n.getLevel(nodemgr);
+						nb.n.freezeMelt(nodemgr);
+						liquid_levels[i] = nb.n.getLevel(nodemgr);
+						nb.l = 1;
+//errorstream<<" LNOW=" << liquid_levels[i];
 					}
 					break;
 				case LIQUID_SOURCE:
@@ -1718,6 +1731,8 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 							nodemgr->get(nb.n).liquid_alternative_flowing);
 					if (liquid_kind == CONTENT_IGNORE)
 						liquid_kind = nb.n.getContent();
+					if (melt_kind == CONTENT_IGNORE)
+						melt_kind = nodemgr->getId(nodemgr->get(nodemgr->getId(nodemgr->get(nb.n).freezemelt)).liquid_alternative_flowing);
 					if (nb.n.getContent() == liquid_kind) {
 						liquid_levels[i] = nb.n.getLevel(nodemgr); //LIQUID_LEVEL_SOURCE;
 						nb.l = 1;
@@ -1732,13 +1747,15 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 					if (liquid_kind == CONTENT_IGNORE)
 						liquid_kind = nodemgr->getId(
 							nodemgr->get(nb.n).liquid_alternative_source);
+					if (melt_kind == CONTENT_IGNORE)
+						melt_kind = nodemgr->getId(nodemgr->get(nb.n).freezemelt);
 					if (nb.n.getContent() == liquid_kind_flowing) {
 						liquid_levels[i] = nb.n.getLevel(nodemgr); //(nb.n.param2 & LIQUID_LEVEL_MASK);
 						nb.l = 1;
 					}
 					break;
 			}
-			
+
 			if (nb.l && nb.t == NEIGHBOR_SAME_LEVEL)
 				++can_liquid_same_level;
 			if (liquid_levels[i] > 0)
@@ -1755,7 +1772,7 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 			<< (int)can_liquid_same_level << std::endl;
 			*/
 		}
-		viscosity = nodemgr->get(liquid_kind).viscosity;
+		//viscosity = nodemgr->get(liquid_kind).viscosity;
 
 		if (liquid_kind == CONTENT_IGNORE ||
 			!neighbors[D_SELF].l ||
@@ -1892,7 +1909,7 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 				new_node_level >= 1 && new_node_level <= 2) {
 				for (u16 ii = D_SELF + 1; ii < D_TOP; ++ii) { // only same level
 					if (neighbors[ii].l)
-						must_reflow_second.push_back(p0 + dirs[ii]);
+						must_reflow_second.push_back(p0 + liquid_flow_dirs[ii]);
 				}
 			}
 
