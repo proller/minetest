@@ -672,7 +672,6 @@ int ModApiBasic::l_register_ore(lua_State *L)
 
 	ore->ore_name       = getstringfield_default(L, index, "ore", "");
 	ore->ore_param2     = (u8)getintfield_default(L, index, "ore_param2", 0);
-	ore->wherein_name   = getstringfield_default(L, index, "wherein", "");
 	ore->clust_scarcity = getintfield_default(L, index, "clust_scarcity", 1);
 	ore->clust_num_ores = getintfield_default(L, index, "clust_num_ores", 1);
 	ore->clust_size     = getintfield_default(L, index, "clust_size", 0);
@@ -680,6 +679,21 @@ int ModApiBasic::l_register_ore(lua_State *L)
 	ore->height_max     = getintfield_default(L, index, "height_max", 0);
 	ore->flags          = getflagsfield(L, index, "flags", flagdesc_ore);
 	ore->nthresh        = getfloatfield_default(L, index, "noise_threshhold", 0.);
+
+	lua_getfield(L, index, "wherein");
+	if (lua_istable(L, -1)) {
+		int  i = lua_gettop(L);
+		lua_pushnil(L);
+		while(lua_next(L, i) != 0) {
+			ore->wherein_names.push_back(lua_tostring(L, -1));
+			lua_pop(L, 1);
+		}
+	} else if (lua_isstring(L, -1)) {
+		ore->wherein_names.push_back(lua_tostring(L, -1));
+	} else {
+		ore->wherein_names.push_back("");
+	}
+	lua_pop(L, 1);
 
 	lua_getfield(L, index, "noise_params");
 	ore->np = read_noiseparams(L, -1);
@@ -794,7 +808,26 @@ int ModApiBasic::l_register_decoration(lua_State *L)
 			dschem->flags    = getflagsfield(L, index, "flags", flagdesc_deco_schematic);
 			dschem->rotation = (Rotation)getenumfield(L, index,
 								"rotation", es_Rotation, ROTATE_0);
-			
+
+			lua_getfield(L, index, "replacements");
+			if (lua_istable(L, -1)) {
+				int i = lua_gettop(L);
+				lua_pushnil(L);
+				while (lua_next(L, i) != 0) {
+					// key at index -2 and value at index -1
+					lua_rawgeti(L, -1, 1);
+					std::string replace_from = lua_tostring(L, -1);
+					lua_pop(L, 1);
+					lua_rawgeti(L, -1, 2);
+					std::string replace_to = lua_tostring(L, -1);
+					lua_pop(L, 1);
+					dschem->replacements[replace_from] = replace_to;
+					// removes value, keeps key for next iteration
+					lua_pop(L, 1);
+				}
+			}
+			lua_pop(L, 1);
+
 			lua_getfield(L, index, "schematic");
 			if (!read_schematic(L, -1, dschem, getServer(L))) {
 				delete dschem;
@@ -874,7 +907,7 @@ int ModApiBasic::l_create_schematic(lua_State *L)
 }
 
 
-// place_schematic(p, schematic, rotation)
+// place_schematic(p, schematic, rotation, replacement)
 int ModApiBasic::l_place_schematic(lua_State *L)
 {
 	DecoSchematic dschem;
@@ -891,6 +924,23 @@ int ModApiBasic::l_place_schematic(lua_State *L)
 		string_to_enum(es_Rotation, (int &)rot, std::string(lua_tostring(L, 3)));
 		
 	dschem.rotation = rot;
+
+	if (lua_istable(L, 4)) {
+		int index = 4;
+		lua_pushnil(L);
+		while (lua_next(L, index) != 0) {
+			// key at index -2 and value at index -1
+			lua_rawgeti(L, -1, 1);
+			std::string replace_from = lua_tostring(L, -1);
+			lua_pop(L, 1);
+			lua_rawgeti(L, -1, 2);
+			std::string replace_to = lua_tostring(L, -1);
+			lua_pop(L, 1);
+			dschem.replacements[replace_from] = replace_to;
+			// removes value, keeps key for next iteration
+			lua_pop(L, 1);
+		}
+	}
 
 	if (!dschem.filename.empty()) {
 		if (!dschem.loadSchematicFile()) {

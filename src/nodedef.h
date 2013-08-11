@@ -90,7 +90,7 @@ struct NodeBox
 	{ reset(); }
 
 	void reset();
-	void serialize(std::ostream &os) const;
+	void serialize(std::ostream &os, u16 protocol_version) const;
 	void deSerialize(std::istream &is);
 };
 
@@ -224,9 +224,11 @@ struct ContentFeatures
 	u8 liquid_viscosity;
 	// Is liquid renewable (new liquid source will be created between 2 existing)
 	bool liquid_renewable;
+	// Ice for water, water for ice
+	std::string freezemelt;
 	// Number of flowing liquids surrounding source
 	u8 liquid_range;
-	bool drowning;
+	u8 drowning;
 	// Amount of light the node emits
 	u8 light_source;
 	u32 damage_per_second;

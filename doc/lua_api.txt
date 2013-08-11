@@ -322,6 +322,8 @@ param2 is reserved for the engine when any of these are used:
     facedir modulo 4 = axisdir
     0 = y+    1 = z+    2 = z-    3 = x+    4 = x-    5 = y-
     facedir's two less significant bits are rotation around the axis
+  paramtype2 == "leveled"
+  ^ The drawn node level is read from param2, like flowingliquid
 
 Nodes can also contain extra data. See "Node Metadata".
 
@@ -353,7 +355,7 @@ Node selection boxes are defined using "node boxes"
 
 The "nodebox" node drawtype allows defining visual of nodes consisting of
 arbitrary number of boxes. It allows defining stuff like stairs. Only the
-"fixed" box type is supported for these.
+"fixed" and "leveled" box type is supported for these.
 ^ Please note that this is still experimental, and may be incompatibly
   changed in the future.
 
@@ -380,6 +382,8 @@ A box is defined as:
   {x1, y1, z1, x2, y2, z2}
 A box of a regular node would look like:
   {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5},
+
+type = "leveled" is same as "fixed", but y2 will be automaticaly setted to level from param2
 
 Ore types
 ---------------
@@ -933,15 +937,23 @@ button[<X>,<Y>;<W>,<H>;<name>;<label>]
 
 image_button[<X>,<Y>;<W>,<H>;<texture name>;<name>;<label>]
 ^ x, y, w, h, and name work as per button
-^ image is the filename of an image
+^ texture name is the filename of an image
 ^ Position and size units are inventory slots
 
 image_button[<X>,<Y>;<W>,<H>;<texture name>;<name>;<label>;<noclip>;<drawborder>]
 ^ x, y, w, h, and name work as per button
-^ image is the filename of an image
+^ texture name is the filename of an image
 ^ Position and size units are inventory slots
 ^ noclip true meand imagebutton doesn't need to be within specified formsize
 ^ drawborder draw button bodrer or not
+
+image_button[<X>,<Y>;<W>,<H>;<texture name>;<name>;<label>;<noclip>;<drawborder>;<pressed texture name>]
+^ x, y, w, h, and name work as per button
+^ texture name is the filename of an image
+^ Position and size units are inventory slots
+^ noclip true meand imagebutton doesn't need to be within specified formsize
+^ drawborder draw button bodrer or not
+^ pressed texture name is the filename of an image on pressed state
 
 item_image_button[<X>,<Y>;<W>,<H>;<item name>;<name>;<label>]
 ^ x, y, w, h, name and label work as per button
@@ -996,6 +1008,13 @@ dropdown[<X>,<Y>;<W>;<name>;<item 1>,<item 2>, ...,<item n>;<selected idx>]
 ^ items to be shown in dropdown
 ^ index of currently selected dropdown item
 ^ color in hexadecimal format RRGGBB
+
+checkbox[<X>,<Y>;<name>;<label>;<selected>]
+^ show a checkbox
+^ x and y position of checkbox
+^ name fieldname data is transfered to lua
+^ label to be shown left of checkbox
+^ selected (optional) true/false
 
 Note: do NOT use a element name starting with "key_" those names are reserved to
 pass key press events to formspec! 
@@ -1123,6 +1142,9 @@ minetest.register_on_joinplayer(func(ObjectRef))
 ^ Called when a player joins the game
 minetest.register_on_leaveplayer(func(ObjectRef))
 ^ Called when a player leaves the game
+minetest.register_on_cheat(func(ObjectRef, cheat))
+^ Called when a player cheats
+^ cheat: {type="moved_too_fast"/"interacted_too_far"/"finished_unknown_dig"/"dug_unbreakable"/"dug_too_fast"}
 minetest.register_on_chat_message(func(name, message))
 ^ Called always when a player says something
 minetest.register_on_player_receive_fields(func(player, formname, fields))
@@ -1243,6 +1265,20 @@ minetest.find_path(pos1,pos2,searchdistance,max_jump,max_drop,algorithm)
 ^ algorithm: A*_noprefetch(default), A*, Dijkstra
 minetest.spawn_tree (pos, {treedef})
 ^ spawns L-System tree at given pos with definition in treedef table
+minetest.transforming_liquid_add(pos)
+^ add node to liquid update queue
+minetest.get_node_max_level(pos)
+^ get max available level for leveled node
+minetest.get_node_level(pos)
+^ get level of leveled node (water, snow)
+minetest.set_node_level(pos, level)
+^ set level of leveled node, default level = 1, if totallevel > maxlevel returns rest (total-max).
+minetest.add_node_level(pos, level)
+^ increase level of leveled node by level, default level = 1, if totallevel > maxlevel returns rest (total-max). can be negative for decreasing
+minetest.get_heat(pos)
+^ heat at pos
+minetest.get_humidity(pos)
+^ humidity at pos
 
 Inventory:
 minetest.get_inventory(location) -> InvRef
@@ -1263,8 +1299,10 @@ minetest.inventorycube(img1, img2, img3)
 ^ Returns a string for making an image of a cube (useful as an item image)
 minetest.get_pointed_thing_position(pointed_thing, above)
 ^ Get position of a pointed_thing (that you can get from somewhere)
-minetest.dir_to_facedir(dir)
-^ Convert a vector to a facedir value, used in param2 for paramtype2="facedir"
+minetest.dir_to_facedir(dir, is6d)
+^ Convert a vector to a facedir value, used in param2 for paramtype2="facedir"; passing something non-nil/false for the optional second parameter causes it to take the y component into account
+minetest.facedir_to_dir(facedir)
+^ Convert a facedir back into a vector aimed directly out the "back" of a node
 minetest.dir_to_wallmounted(dir)
 ^ Convert a vector to a wallmounted value, used for paramtype2="wallmounted"
 minetest.get_node_drops(nodename, toolname)
@@ -1404,10 +1442,11 @@ minetest.create_schematic(p1, p2, probability_list, filename)
    ^ If probability_list is nil, no probabilities are applied.
 ^ Saves schematic in the Minetest Schematic format to filename.
 
-minetest.place_schematic(pos, schematic, rotation)
+minetest.place_schematic(pos, schematic, rotation, replacements)
 ^ Place the schematic specified by schematic (see: Schematic specifier) at pos.
 ^ Rotation can be "0", "90", "180", "270", or "random".
 ^ If the rotation parameter is omitted, the schematic is not rotated.
+^ replacements = {{"oldname", "convert_to"}, ...}
 
 Random:
 minetest.get_connected_players() -> list of ObjectRefs
@@ -1825,6 +1864,7 @@ Object Properties
     is_visible = true,
     makes_footstep_sound = false,
     automatic_rotate = false,
+    stepheight = 0,
 }
 
 Entity definition (register_entity)
@@ -1948,8 +1988,10 @@ Node definition (register_node)
     liquid_alternative_source = "", -- Source version of flowing liquid
     liquid_viscosity = 0, -- Higher viscosity = slower flow (max. 7)
     liquid_renewable = true, -- Can new liquid source be created by placing
+    freezemelt = "", -- water for snow/ice, ice/snow for water
+    leveled = 0, -- Block contain level in param2. value - default level, used for snow. Dont forget use "leveled" type nodebox
     liquid_range = 8, -- number of flowing nodes arround source (max. 8)
-    drowning = true, -- Player will drown in these 
+    drowning = 0, -- Player will take this amount of damage if no bubbles are left
     two or more sources nearly?
     light_source = 0, -- Amount of light emitted by node
     damage_per_second = 0, -- If player is inside node, this damage is caused
@@ -2091,6 +2133,7 @@ Ore definition (register_ore)
     ore_type = "scatter", -- See "Ore types"
     ore = "default:stone_with_coal",
     wherein = "default:stone",
+    ^ a list of nodenames is supported too
     clust_scarcity = 8*8*8,
     ^ Ore has a 1 out of clust_scarcity chance of spawning in a node
     ^ This value should be *MUCH* higher than your intuition might tell you!
@@ -2158,6 +2201,7 @@ Decoration definition (register_decoration)
         }
     },
     ^ See 'Schematic specifier' for details.
+    replacements = {{"oldname", "convert_to"}, ...},
     flags = "place_center_x, place_center_z",
     ^ Flags for schematic decorations.  See 'Schematic attributes'.
     rotation = "90" --rotate schematic 90 degrees on placement

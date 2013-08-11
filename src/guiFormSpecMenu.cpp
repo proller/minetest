@@ -174,6 +174,7 @@ GUIFormSpecMenu::GUIFormSpecMenu(irr::IrrlichtDevice* dev,
 	current_keys_pending.key_down = false;
 	current_keys_pending.key_up = false;
 	current_keys_pending.key_enter = false;
+	current_keys_pending.key_escape = false;
 
 }
 
@@ -411,29 +412,24 @@ void GUIFormSpecMenu::parseCheckbox(parserData* data,std::string element) {
 		if (selected == "true")
 			fselected = true;
 
-		wchar_t* wlabel = 0;
+		std::wstring wlabel = narrow_to_wide(label.c_str());
 
 		if (m_use_gettext)
-			wlabel = wgettext(label.c_str());
-		else
-			wlabel = (wchar_t*) narrow_to_wide(label.c_str()).c_str();
+			wlabel = wstrgettext(label);
 
 		FieldSpec spec = FieldSpec(
 				narrow_to_wide(name.c_str()),
-				narrow_to_wide(""),
+				L"",
 				wlabel,
 				258+m_fields.size()
 			);
 
 		spec.ftype = f_CheckBox;
-
+		spec.flabel = wlabel; //Needed for displaying text on MSVC
 		gui::IGUICheckBox* e = Environment->addCheckBox(fselected, rect, this,
-					spec.fid, wlabel);
-
+					spec.fid, spec.flabel.c_str());
 		m_checkboxes.push_back(std::pair<FieldSpec,gui::IGUICheckBox*>(spec,e));
 		m_fields.push_back(spec);
-		if (m_use_gettext)
-			delete[] wlabel;
 		return;
 	}
 	errorstream<< "Invalid checkbox element(" << parts.size() << "): '" << element << "'"  << std::endl;
@@ -547,17 +543,15 @@ void GUIFormSpecMenu::parseButton(parserData* data,std::string element,std::stri
 
 		label = unescape_string(label);
 
-		wchar_t* wlabel = 0;
+		std::wstring wlabel = narrow_to_wide(label.c_str());
 
 		if (m_use_gettext)
-			wlabel = wgettext(label.c_str());
-		else
-			wlabel = (wchar_t*) narrow_to_wide(label.c_str()).c_str();
+			wlabel = wstrgettext(label);
 
 		FieldSpec spec = FieldSpec(
 			narrow_to_wide(name.c_str()),
 			wlabel,
-			narrow_to_wide(""),
+			L"",
 			258+m_fields.size()
 		);
 		spec.ftype = f_Button;
@@ -566,8 +560,6 @@ void GUIFormSpecMenu::parseButton(parserData* data,std::string element,std::stri
 
 		Environment->addButton(rect, this, spec.fid, spec.flabel.c_str());
 		m_fields.push_back(spec);
-		if (m_use_gettext)
-			delete[] wlabel;
 		return;
 	}
 	errorstream<< "Invalid button element(" << parts.size() << "): '" << element << "'"  << std::endl;
@@ -639,8 +631,8 @@ void GUIFormSpecMenu::parseTextList(parserData* data,std::string element) {
 
 		FieldSpec spec = FieldSpec(
 			fname_w,
-			narrow_to_wide(""),
-			narrow_to_wide(""),
+			L"",
+			L"",
 			258+m_fields.size()
 		);
 
@@ -720,8 +712,8 @@ void GUIFormSpecMenu::parseDropDown(parserData* data,std::string element) {
 
 		FieldSpec spec = FieldSpec(
 			fname_w,
-			narrow_to_wide(""),
-			narrow_to_wide(""),
+			L"",
+			L"",
 			258+m_fields.size()
 		);
 
@@ -782,21 +774,19 @@ void GUIFormSpecMenu::parsePwdField(parserData* data,std::string element) {
 
 		label = unescape_string(label);
 
-		wchar_t* wlabel = 0;
+		std::wstring wlabel = narrow_to_wide(label.c_str());
 
 		if (m_use_gettext) {
 			if (label.length() > 1)
-				wlabel = wgettext(label.c_str());
+				wlabel = wstrgettext(label);
 			else
-				wlabel = (wchar_t*) narrow_to_wide("").c_str();
+				wlabel = L"";
 		}
-		else
-			wlabel = (wchar_t*) narrow_to_wide(label.c_str()).c_str();
 
 		FieldSpec spec = FieldSpec(
 			narrow_to_wide(name.c_str()),
 			wlabel,
-			narrow_to_wide(""),
+			L"",
 			258+m_fields.size()
 			);
 
@@ -814,13 +804,14 @@ void GUIFormSpecMenu::parsePwdField(parserData* data,std::string element) {
 		e->setPasswordBox(true,L'*');
 
 		irr::SEvent evt;
-		evt.KeyInput.Key = KEY_END;
-		evt.EventType = EET_KEY_INPUT_EVENT;
+		evt.EventType            = EET_KEY_INPUT_EVENT;
+		evt.KeyInput.Key         = KEY_END;
+		evt.KeyInput.Char        = 0;
+		evt.KeyInput.Control     = 0;
+		evt.KeyInput.Shift       = 0;
 		evt.KeyInput.PressedDown = true;
 		e->OnEvent(evt);
 		m_fields.push_back(spec);
-		if ((m_use_gettext) && (label.length() >1))
-			delete[] wlabel;
 		return;
 	}
 	errorstream<< "Invalid pwdfield element(" << parts.size() << "): '" << element << "'"  << std::endl;
@@ -862,16 +853,14 @@ void GUIFormSpecMenu::parseSimpleField(parserData* data,std::vector<std::string>
 	default_val = unescape_string(default_val);
 	label = unescape_string(label);
 
-	wchar_t* wlabel = 0;
+	std::wstring wlabel = narrow_to_wide(label.c_str());
 
 	if (m_use_gettext) {
 		if (label.length() > 1)
-			wlabel = wgettext(label.c_str());
+			wlabel = wstrgettext(label);
 		else
-			wlabel = (wchar_t*) narrow_to_wide("").c_str();
+			wlabel = L"";
 	}
-	else
-		wlabel = (wchar_t*) narrow_to_wide(label.c_str()).c_str();
 
 	FieldSpec spec = FieldSpec(
 		narrow_to_wide(name.c_str()),
@@ -892,8 +881,11 @@ void GUIFormSpecMenu::parseSimpleField(parserData* data,std::vector<std::string>
 		Environment->setFocus(e);
 
 		irr::SEvent evt;
-		evt.KeyInput.Key = KEY_END;
-		evt.EventType = EET_KEY_INPUT_EVENT;
+		evt.EventType            = EET_KEY_INPUT_EVENT;
+		evt.KeyInput.Key         = KEY_END;
+		evt.KeyInput.Char        = 0;
+		evt.KeyInput.Control     = 0;
+		evt.KeyInput.Shift       = 0;
 		evt.KeyInput.PressedDown = true;
 		e->OnEvent(evt);
 
@@ -904,8 +896,6 @@ void GUIFormSpecMenu::parseSimpleField(parserData* data,std::vector<std::string>
 			Environment->addStaticText(spec.flabel.c_str(), rect, false, true, this, 0);
 		}
 	}
-	if (m_use_gettext && (label.length() > 1))
-		delete[] wlabel;
 
 	m_fields.push_back(spec);
 }
@@ -953,16 +943,14 @@ void GUIFormSpecMenu::parseTextArea(parserData* data,std::vector<std::string>& p
 	default_val = unescape_string(default_val);
 	label = unescape_string(label);
 
-	wchar_t* wlabel = 0;
+	std::wstring wlabel = narrow_to_wide(label.c_str());
 
 	if (m_use_gettext) {
 		if (label.length() > 1)
-			wlabel = wgettext(label.c_str());
+			wlabel = wstrgettext(label);
 		else
-			wlabel = (wchar_t*) narrow_to_wide("").c_str();
+			wlabel = L"";
 	}
-	else
-		wlabel = (wchar_t*) narrow_to_wide(label.c_str()).c_str();
 
 	FieldSpec spec = FieldSpec(
 		narrow_to_wide(name.c_str()),
@@ -1004,8 +992,6 @@ void GUIFormSpecMenu::parseTextArea(parserData* data,std::vector<std::string>& p
 			Environment->addStaticText(spec.flabel.c_str(), rect, false, true, this, 0);
 		}
 	}
-	if (m_use_gettext && (label.length() > 1))
-		delete[] wlabel;
 	m_fields.push_back(spec);
 }
 
@@ -1044,23 +1030,19 @@ void GUIFormSpecMenu::parseLabel(parserData* data,std::string element) {
 
 		text = unescape_string(text);
 
-		wchar_t* wlabel = 0;
+		std::wstring wlabel = narrow_to_wide(text.c_str());
 
 		if (m_use_gettext)
-			wlabel = wgettext(text.c_str());
-		else
-			wlabel = (wchar_t*) narrow_to_wide(text.c_str()).c_str();
+			wlabel = wstrgettext(text);
 
 		FieldSpec spec = FieldSpec(
-			narrow_to_wide(""),
+			L"",
 			wlabel,
-			narrow_to_wide(""),
+			L"",
 			258+m_fields.size()
 		);
 		Environment->addStaticText(spec.flabel.c_str(), rect, false, true, this, spec.fid);
 		m_fields.push_back(spec);
-		if (m_use_gettext)
-			delete[] wlabel;
 		return;
 	}
 	errorstream<< "Invalid label element(" << parts.size() << "): '" << element << "'"  << std::endl;
@@ -1099,9 +1081,9 @@ void GUIFormSpecMenu::parseVertLabel(parserData* data,std::string element) {
 		}
 
 		FieldSpec spec = FieldSpec(
-			narrow_to_wide(""),
+			L"",
 			narrow_to_wide(label.c_str()),
-			narrow_to_wide(""),
+			L"",
 			258+m_fields.size()
 		);
 		gui::IGUIStaticText *t =
@@ -1116,7 +1098,7 @@ void GUIFormSpecMenu::parseVertLabel(parserData* data,std::string element) {
 void GUIFormSpecMenu::parseImageButton(parserData* data,std::string element,std::string type) {
 	std::vector<std::string> parts = split(element,';');
 
-	if ((parts.size() == 5) || (parts.size() == 7)) {
+	if ((parts.size() == 5) || (parts.size() == 7) || (parts.size() == 8)) {
 		std::vector<std::string> v_pos = split(parts[0],',');
 		std::vector<std::string> v_geom = split(parts[1],',');
 		std::string image_name = parts[2];
@@ -1136,12 +1118,18 @@ void GUIFormSpecMenu::parseImageButton(parserData* data,std::string element,std:
 		bool noclip = false;
 		bool drawborder = true;
 
-		if ((parts.size() == 7)) {
+		if ((parts.size() >= 7)) {
 			if (parts[5] == "true")
 				noclip = true;
 
 			if (parts[6] == "false")
 				drawborder = false;
+		}
+		
+		std::string pressed_image_name = "";
+		
+		if ((parts.size() == 8)) {
+			pressed_image_name = parts[7];
 		}
 
 		core::rect<s32> rect = core::rect<s32>(pos.X, pos.Y, pos.X+geom.X, pos.Y+geom.Y);
@@ -1151,9 +1139,14 @@ void GUIFormSpecMenu::parseImageButton(parserData* data,std::string element,std:
 
 		label = unescape_string(label);
 
+		std::wstring wlabel = narrow_to_wide(label.c_str());
+
+		if (m_use_gettext)
+			wlabel = wstrgettext(label);
+
 		FieldSpec spec = FieldSpec(
 			narrow_to_wide(name.c_str()),
-			narrow_to_wide(label.c_str()),
+			wlabel,
 			narrow_to_wide(image_name.c_str()),
 			258+m_fields.size()
 		);
@@ -1162,21 +1155,31 @@ void GUIFormSpecMenu::parseImageButton(parserData* data,std::string element,std:
 			spec.is_exit = true;
 
 		video::ITexture *texture = 0;
+		video::ITexture *pressed_texture = 0;
 		//if there's no gamedef specified try to get direct
 		//TODO check for possible texture leak
-		if (m_gamedef != 0)
+		if (m_gamedef != 0) {
 			texture = m_gamedef->tsrc()->getTexture(image_name);
-		else {
+			if ((parts.size() == 8)) {
+				pressed_texture = m_gamedef->tsrc()->getTexture(pressed_image_name);
+			}
+		} else {
 			if (fs::PathExists(image_name)) {
 				texture = Environment->getVideoDriver()->getTexture(image_name.c_str());
 				m_Textures.push_back(texture);
 			}
+			if (fs::PathExists(pressed_image_name)) {
+				pressed_texture = Environment->getVideoDriver()->getTexture(pressed_image_name.c_str());
+				m_Textures.push_back(pressed_texture);
+			}
 		}
+		if (parts.size() < 8)
+			pressed_texture = texture;
 
 		gui::IGUIButton *e = Environment->addButton(rect, this, spec.fid, spec.flabel.c_str());
 		e->setUseAlphaChannel(true);
 		e->setImage(texture);
-		e->setPressedImage(texture);
+		e->setPressedImage(pressed_texture);
 		e->setScaleImage(true);
 		e->setNotClipped(noclip);
 		e->setDrawBorder(drawborder);
@@ -1211,8 +1214,8 @@ void GUIFormSpecMenu::parseTabHeader(parserData* data,std::string element) {
 
 		FieldSpec spec = FieldSpec(
 			narrow_to_wide(name.c_str()),
-			narrow_to_wide(""),
-			narrow_to_wide(""),
+			L"",
+			L"",
 			258+m_fields.size()
 		);
 

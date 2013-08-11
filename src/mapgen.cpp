@@ -91,18 +91,17 @@ void Ore::resolveNodeNames(INodeDefManager *ndef) {
 		if (ore == CONTENT_IGNORE) {
 			errorstream << "Ore::resolveNodeNames: ore node '"
 				<< ore_name << "' not defined";
-			ore     = CONTENT_AIR;
-			wherein = CONTENT_AIR;
+			ore = CONTENT_AIR;
+			wherein.push_back(CONTENT_AIR);
+			return;
 		}
 	}
 
-	if (wherein == CONTENT_IGNORE) {
-		wherein = ndef->getId(wherein_name);
-		if (wherein == CONTENT_IGNORE) {
-			errorstream << "Ore::resolveNodeNames: wherein node '"
-				<< wherein_name << "' not defined";
-			ore     = CONTENT_AIR;
-			wherein = CONTENT_AIR;
+	for (size_t i=0; i != wherein_names.size(); i++) {
+		std::string name = wherein_names[i];
+		content_t c = ndef->getId(name);
+		if (c != CONTENT_IGNORE) {
+			wherein.push_back(c);
 		}
 	}
 }
@@ -161,8 +160,9 @@ void OreScatter::generate(ManualMapVoxelManipulator *vm, int seed,
 				continue;
 
 			u32 i = vm->m_area.index(x0 + x1, y0 + y1, z0 + z1);
-			if (vm->m_data[i].getContent() == wherein)
-				vm->m_data[i] = n_ore;
+			for (size_t ii = 0; ii < wherein.size(); ii++)
+				if (vm->m_data[i].getContent() == wherein[ii])
+					vm->m_data[i] = n_ore;
 		}
 	}
 }
@@ -199,8 +199,9 @@ void OreSheet::generate(ManualMapVoxelManipulator *vm, int seed,
 			if (!vm->m_area.contains(i))
 				continue;
 
-			if (vm->m_data[i].getContent() == wherein)
-				vm->m_data[i] = n_ore;
+			for (size_t ii = 0; ii < wherein.size(); ii++)
+				if (vm->m_data[i].getContent() == wherein[ii])
+					vm->m_data[i] = n_ore;
 		}
 	}
 }
@@ -505,7 +506,12 @@ void DecoSchematic::resolveNodeNames(INodeDefManager *ndef) {
 	}
 	
 	for (size_t i = 0; i != node_names->size(); i++) {
-		content_t c = ndef->getId(node_names->at(i));
+		std::string name = node_names->at(i);
+		std::map<std::string, std::string>::iterator it;
+		it = replacements.find(name);
+		if (it != replacements.end())
+			name = it->second;
+		content_t c = ndef->getId(name);
 		if (c == CONTENT_IGNORE) {
 			errorstream << "DecoSchematic::resolveNodeNames: node '"
 				<< node_names->at(i) << "' not defined" << std::endl;
@@ -691,7 +697,7 @@ bool DecoSchematic::loadSchematicFile() {
 
 	delete schematic;
 	schematic = new MapNode[nodecount];
-	MapNode::deSerializeBulk(is, SER_FMT_VER_HIGHEST, schematic,
+	MapNode::deSerializeBulk(is, SER_FMT_VER_HIGHEST_READ, schematic,
 				nodecount, 2, 2, true);
 				
 	return true;
@@ -738,7 +744,7 @@ void DecoSchematic::saveSchematicFile(INodeDefManager *ndef) {
 		os << serializeString(ndef->get(usednodes[i]).name); // node names
 		
 	// compressed bulk node data
-	MapNode::serializeBulk(os, SER_FMT_VER_HIGHEST, schematic,
+	MapNode::serializeBulk(os, SER_FMT_VER_HIGHEST_WRITE, schematic,
 				nodecount, 2, 2, true);
 }
 

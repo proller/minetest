@@ -46,10 +46,15 @@ void NodeBox::reset()
 	wall_side = aabb3f(-BS/2, -BS/2, -BS/2, -BS/2+BS/16., BS/2, BS/2);
 }
 
-void NodeBox::serialize(std::ostream &os) const
+void NodeBox::serialize(std::ostream &os, u16 protocol_version) const
 {
-	writeU8(os, 1); // version
-	writeU8(os, type);
+	int version = protocol_version >= 21 ? 2 : 1;
+	writeU8(os, version);
+
+	if (version == 1 && type == NODEBOX_LEVELED)
+		writeU8(os, NODEBOX_FIXED);
+	else
+		writeU8(os, type);
 
 	if(type == NODEBOX_FIXED || type == NODEBOX_LEVELED)
 	{
@@ -76,7 +81,7 @@ void NodeBox::serialize(std::ostream &os) const
 void NodeBox::deSerialize(std::istream &is)
 {
 	int version = readU8(is);
-	if(version != 1)
+	if(version < 1 || version > 2)
 		throw SerializationError("unsupported NodeBox version");
 
 	reset();
@@ -213,8 +218,9 @@ void ContentFeatures::reset()
 	liquid_alternative_source = "";
 	liquid_viscosity = 0;
 	liquid_renewable = true;
+	freezemelt = "";
 	liquid_range = LIQUID_LEVEL_MAX+1;
-	drowning = true;
+	drowning = 0;
 	light_source = 0;
 	damage_per_second = 0;
 	node_box = NodeBox();
@@ -273,19 +279,19 @@ void ContentFeatures::serialize(std::ostream &os, u16 protocol_version)
 	writeU8(os, liquid_renewable);
 	writeU8(os, light_source);
 	writeU32(os, damage_per_second);
-	node_box.serialize(os);
-	selection_box.serialize(os);
+	node_box.serialize(os, protocol_version);
+	selection_box.serialize(os, protocol_version);
 	writeU8(os, legacy_facedir_simple);
 	writeU8(os, legacy_wallmounted);
 	serializeSimpleSoundSpec(sound_footstep, os);
 	serializeSimpleSoundSpec(sound_dig, os);
 	serializeSimpleSoundSpec(sound_dug, os);
 	writeU8(os, rightclickable);
-	// Stuff below should be moved to correct place in a version that otherwise changes
-	// the protocol version
 	writeU8(os, drowning);
 	writeU8(os, leveled);
 	writeU8(os, liquid_range);
+	// Stuff below should be moved to correct place in a version that otherwise changes
+	// the protocol version
 }
 
 void ContentFeatures::deSerialize(std::istream &is)
@@ -345,14 +351,14 @@ void ContentFeatures::deSerialize(std::istream &is)
 	deSerializeSimpleSoundSpec(sound_dig, is);
 	deSerializeSimpleSoundSpec(sound_dug, is);
 	rightclickable = readU8(is);
+	drowning = readU8(is);
+	leveled = readU8(is);
+	liquid_range = readU8(is);
 	// If you add anything here, insert it primarily inside the try-catch
 	// block to not need to increase the version.
 	try{
 		// Stuff below should be moved to correct place in a version that
 		// otherwise changes the protocol version
-		drowning = readU8(is);
-		leveled = readU8(is);
-		liquid_range = readU8(is);
 	}catch(SerializationError &e) {};
 }
 
@@ -917,8 +923,8 @@ void ContentFeatures::serializeOld(std::ostream &os, u16 protocol_version)
 		writeU8(os, liquid_viscosity);
 		writeU8(os, light_source);
 		writeU32(os, damage_per_second);
-		node_box.serialize(os);
-		selection_box.serialize(os);
+		node_box.serialize(os, protocol_version);
+		selection_box.serialize(os, protocol_version);
 		writeU8(os, legacy_facedir_simple);
 		writeU8(os, legacy_wallmounted);
 		serializeSimpleSoundSpec(sound_footstep, os);

@@ -807,7 +807,12 @@ public:
 		
 		// Normal map texture layer
 		int layer = 1;
+		// before 1.8 there isn't a "integer interface", only float
+#if (IRRLICHT_VERSION_MAJOR == 1 && IRRLICHT_VERSION_MINOR < 8)
 		services->setPixelShaderConstant("normalTexture" , (irr::f32*)&layer, 1);
+#else
+		services->setPixelShaderConstant("normalTexture" , (irr::s32*)&layer, 1);
+#endif
 	}
 };
 
@@ -2451,10 +2456,12 @@ void the_game(
 		float full_punch_interval = playeritem_toolcap.full_punch_interval;
 		float tool_reload_ratio = time_from_last_punch / full_punch_interval;
 		tool_reload_ratio = MYMIN(tool_reload_ratio, 1.0);
-		camera.update(player, busytime, screensize, tool_reload_ratio);
+		camera.update(player, dtime, busytime, screensize,
+				tool_reload_ratio);
 		camera.step(dtime);
 
 		v3f player_position = player->getPosition();
+		v3s16 pos_i = floatToInt(player_position, BS);
 		v3f camera_position = camera.getPosition();
 		v3f camera_direction = camera.getDirection();
 		f32 camera_fov = camera.getFovMax();
@@ -2869,6 +2876,7 @@ void the_game(
 		else
 		{
 			fog_range = draw_control.wanted_range*BS + 0.0*MAP_BLOCKSIZE*BS;
+			fog_range = MYMIN(fog_range, (draw_control.farthest_drawn+20)*BS);
 			fog_range *= 0.9;
 			if(draw_control.range_all)
 				fog_range = 100000*BS;
@@ -3034,7 +3042,9 @@ void the_game(
 				<<", "<<(player_position.Y/BS)
 				<<", "<<(player_position.Z/BS)
 				<<") (yaw="<<(wrapDegrees_0_360(camera_yaw))
-				<<") (seed = "<<((unsigned long long)client.getMapSeed())
+				<<") (t="<<client.getEnv().getClientMap().getHeat(pos_i)
+				<<"C, h="<<client.getEnv().getClientMap().getHumidity(pos_i)
+				<<"%) (seed = "<<((unsigned long long)client.getMapSeed())
 				<<")";
 			guitext2->setText(narrow_to_wide(os.str()).c_str());
 			guitext2->setVisible(true);
@@ -3472,6 +3482,7 @@ void the_game(
 		infostream << "\t\t" << i << ":" << texture->getName().getPath().c_str()
 				<< std::endl;
 	}
+	clearTextureNameCache();
 	infostream << "\tRemaining materials: "
 		<< driver-> getMaterialRendererCount ()
 		<< " (note: irrlicht doesn't support removing renderers)"<< std::endl;

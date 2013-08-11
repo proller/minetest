@@ -332,7 +332,8 @@ ServerEnvironment::ServerEnvironment(ServerMap *map, ScriptApi *scriptIface,
 	m_active_block_interval_overload_skip(0),
 	m_game_time(0),
 	m_game_time_fraction_counter(0),
-	m_recommended_send_interval(0.1)
+	m_recommended_send_interval(0.1),
+	m_max_lag_estimate(0.1)
 {
 }
 
@@ -1702,7 +1703,7 @@ void ServerEnvironment::activateObjects(MapBlock *block, u32 dtime_s)
 			<<"activating objects of block "<<PP(block->getPos())
 			<<" ("<<block->m_static_objects.m_stored.size()
 			<<" objects)"<<std::endl;
-	bool large_amount = (block->m_static_objects.m_stored.size() > 49);
+	bool large_amount = (block->m_static_objects.m_stored.size() > g_settings->getU16("max_objects_per_block"));
 	if(large_amount){
 		errorstream<<"suspiciously large amount of objects detected: "
 				<<block->m_static_objects.m_stored.size()<<" in "
@@ -1880,12 +1881,12 @@ void ServerEnvironment::deactivateFarObjects(bool force_delete)
 
 			if(block)
 			{
-				if(block->m_static_objects.m_stored.size() >= 49){
+				if(block->m_static_objects.m_stored.size() >= g_settings->getU16("max_objects_per_block")){
 					errorstream<<"ServerEnv: Trying to store id="<<obj->getId()
 							<<" statically but block "<<PP(blockpos)
 							<<" already contains "
 							<<block->m_static_objects.m_stored.size()
-							<<" (over 49) objects."
+							<<" objects."
 							<<" Forcing delete."<<std::endl;
 					force_delete = true;
 				} else {
@@ -2242,7 +2243,8 @@ void ClientEnvironment::step(float dtime)
 		v3s16 p = floatToInt(pf + v3f(0, BS*1.6, 0), BS);
 		MapNode n = m_map->getNodeNoEx(p);
 		ContentFeatures c = m_gamedef->ndef()->get(n);
-		if(c.isLiquid() && c.drowning && lplayer->hp > 0){
+		u8 drowning_damage = c.drowning;
+		if(drowning_damage > 0 && lplayer->hp > 0){
 			u16 breath = lplayer->getBreath();
 			if(breath > 10){
 				breath = 11;
@@ -2254,8 +2256,8 @@ void ClientEnvironment::step(float dtime)
 			updateLocalPlayerBreath(breath);
 		}
 
-		if(lplayer->getBreath() == 0){
-			damageLocalPlayer(1, true);
+		if(lplayer->getBreath() == 0 && drowning_damage > 0){
+			damageLocalPlayer(drowning_damage, true);
 		}
 	}
 	if(m_breathing_interval.step(dtime, 0.5))
@@ -2269,7 +2271,7 @@ void ClientEnvironment::step(float dtime)
 		if (!lplayer->hp){
 			lplayer->setBreath(11);
 		}
-		else if(!c.isLiquid() || !c.drowning){
+		else if(c.drowning == 0){
 			u16 breath = lplayer->getBreath();
 			if(breath <= 10){
 				breath += 1;

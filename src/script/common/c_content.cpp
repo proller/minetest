@@ -188,6 +188,8 @@ void read_object_properties(lua_State *L, int index,
 	getboolfield(L, -1, "is_visible", prop->is_visible);
 	getboolfield(L, -1, "makes_footstep_sound", prop->makes_footstep_sound);
 	getfloatfield(L, -1, "automatic_rotate", prop->automatic_rotate);
+	getfloatfield(L, -1, "stepheight", prop->stepheight);
+	prop->stepheight*=BS;
 }
 
 /******************************************************************************/
@@ -397,7 +399,9 @@ ContentFeatures read_content_features(lua_State *L, int index)
 	f.leveled = getintfield_default(L, index, "leveled", f.leveled);
 
 	getboolfield(L, index, "liquid_renewable", f.liquid_renewable);
-	getboolfield(L, index, "drowning", f.drowning);
+	getstringfield(L, index, "freezemelt", f.freezemelt);
+	f.drowning = getintfield_default(L, index,
+			"drowning", f.drowning);
 	// Amount of light the node emits
 	f.light_source = getintfield_default(L, index,
 			"light_source", f.light_source);

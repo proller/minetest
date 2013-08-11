@@ -31,6 +31,7 @@ extern "C" {
 #include "settings.h"
 #include "filesys.h"
 #include "convert_json.h"
+#include "sound.h"
 
 
 #include "IFileArchive.h"
@@ -81,6 +82,7 @@ void guiLuaApi::initialize(lua_State* L,GUIEngine* engine)
 	retval &= API_FCT(set_topleft_text);
 	retval &= API_FCT(get_modpath);
 	retval &= API_FCT(get_gamepath);
+	retval &= API_FCT(get_texturepath);
 	retval &= API_FCT(get_dirlist);
 	retval &= API_FCT(create_dir);
 	retval &= API_FCT(delete_dir);
@@ -92,6 +94,8 @@ void guiLuaApi::initialize(lua_State* L,GUIEngine* engine)
 	retval &= API_FCT(download_file);
 	retval &= API_FCT(get_modstore_details);
 	retval &= API_FCT(get_modstore_list);
+	retval &= API_FCT(sound_play);
+	retval &= API_FCT(sound_stop);
 
 	if (!retval) {
 		//TODO show error
@@ -430,6 +434,10 @@ int guiLuaApi::l_get_modstore_details(lua_State *L)
 			lua_pushstring(L,current_mod.versions[0].file.c_str());
 			lua_settable(L, top);
 
+			lua_pushstring(L,"screenshot_url");
+			lua_pushstring(L,current_mod.titlepic.file.c_str());
+			lua_settable(L, top);
+
 			lua_pushstring(L,"license");
 			lua_pushstring(L,current_mod.license.shortinfo.c_str());
 			lua_settable(L, top);
@@ -552,7 +560,7 @@ int guiLuaApi::l_get_favorites(lua_State *L)
 
 		if (servers[i]["clients_max"].asString().size()) {
 
-			const char* clients_max_raw = servers[i]["clients"].asString().c_str();
+			const char* clients_max_raw = servers[i]["clients_max"].asString().c_str();
 			char* endptr = 0;
 			int numbervalue = strtol(clients_max_raw,&endptr,10);
 
@@ -817,7 +825,16 @@ int guiLuaApi::l_get_modpath(lua_State *L)
 int guiLuaApi::l_get_gamepath(lua_State *L)
 {
 	std::string gamepath
-			= fs::RemoveRelativePathComponents(porting::path_share + DIR_DELIM + "games" + DIR_DELIM);
+			= fs::RemoveRelativePathComponents(porting::path_user + DIR_DELIM + "games" + DIR_DELIM);
+	lua_pushstring(L, gamepath.c_str());
+	return 1;
+}
+
+/******************************************************************************/
+int guiLuaApi::l_get_texturepath(lua_State *L)
+{
+	std::string gamepath
+			= fs::RemoveRelativePathComponents(porting::path_user + DIR_DELIM + "textures");
 	lua_pushstring(L, gamepath.c_str());
 	return 1;
 }
@@ -1043,6 +1060,49 @@ int guiLuaApi::l_show_file_open_dialog(lua_State *L) {
 /******************************************************************************/
 int guiLuaApi::l_get_version(lua_State *L) {
 	lua_pushstring(L,VERSION_STRING);
+	return 1;
+}
+
+/******************************************************************************/
+int guiLuaApi::l_sound_play(lua_State *L) {
+	GUIEngine* engine = get_engine(L);
+
+	SimpleSoundSpec spec;
+	if(lua_isnil(L, 1))
+	{
+	} else if(lua_istable(L, 1)){
+		lua_getfield(L, 1, "name");
+		if(lua_isstring(L, -1)){
+			size_t len = 0;
+			spec.name = lua_tolstring(L, -1, &len);
+		}
+		lua_pop(L, 1);
+
+		//luaL_checkfloat(L, 1, "gain", spec.gain);
+		lua_getfield(L, 1, "gain");
+		if(lua_isnumber(L, -1)){
+			spec.gain = lua_tonumber(L, -1);
+		}
+		lua_pop(L, 1);
+	} else if(lua_isstring(L, 1)){
+		spec.name = luaL_checkstring(L, 1);
+	}
+	bool looped = lua_toboolean(L, 2);
+
+	u32 handle = engine->playSound(spec, looped);
+
+	lua_pushinteger(L, handle);
+
+	return 1;
+}
+
+/******************************************************************************/
+int guiLuaApi::l_sound_stop(lua_State *L) {
+	GUIEngine* engine = get_engine(L);
+
+	u32 handle = luaL_checkinteger(L, 1);
+	engine->stopSound(handle);
+
 	return 1;
 }
 
