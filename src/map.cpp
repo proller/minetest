@@ -1685,7 +1685,7 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 		content_t melt_kind = CONTENT_IGNORE;
 		//s8 viscosity = 0;
 		/*
-			Collect information about the environment
+			Collect information about the environment, start from self
 		 */
 		for (u8 e = 0; e < 7; e++) {
 			u8 i = liquid_explore_map[e];
@@ -1717,10 +1717,12 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 //errorstream<<"ME="<<melt_kind<<" n="<<nb.n.getContent()<<std::endl;
 					if (melt_kind != CONTENT_IGNORE && nb.n.getContent() == melt_kind) {
 //errorstream<<" LWAS=" << (int)nb.n.getLevel(nodemgr);
-						nb.n.freezeMelt(nodemgr);
-						liquid_levels[i] = nb.n.getLevel(nodemgr);
+						//nb.n.freezeMelt(nodemgr);
+						u8 melt_max_level = nb.n.getMaxLevel(nodemgr);
+						u8 my_max_level = MapNode(liquid_kind_flowing).getMaxLevel(nodemgr);
+						liquid_levels[i] = (float)my_max_level / melt_max_level * nb.n.getLevel(nodemgr);;
 						nb.l = 1;
-//errorstream<<" LNOW=" << liquid_levels[i];
+//errorstream<<" LNOW=" << (int)liquid_levels[i]<<" MYMAX="<<(int)my_max_level<<" MELTMAX="<<(int)melt_max_level<<std::endl;
 					}
 					break;
 				case LIQUID_SOURCE:
@@ -1774,9 +1776,7 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 		}
 		//viscosity = nodemgr->get(liquid_kind).viscosity;
 
-		if (liquid_kind == CONTENT_IGNORE ||
-			!neighbors[D_SELF].l ||
-			total_level <= 0)
+		if (liquid_kind == CONTENT_IGNORE || !neighbors[D_SELF].l || total_level <= 0)
 			continue;
 
 		// fill bottom block
