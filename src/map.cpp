@@ -3209,6 +3209,12 @@ void ServerMap::verifyDatabase() {
 		if(needs_create)
 			createDatabase();
 
+		d = sqlite3_exec(m_database, (std::string("PRAGMA synchronous = ") + g_settings->get("sqlite_synchronous")).c_str(), NULL, NULL, NULL);
+		if(d != SQLITE_OK) {
+			infostream<<"WARNING: Database pragma set failed: "<<sqlite3_errmsg(m_database)<<std::endl;
+			throw FileNotGoodException("Cannot set pragma");
+		}
+
 		d = sqlite3_prepare(m_database, "SELECT `data` FROM `blocks` WHERE `pos`=? LIMIT 1", -1, &m_database_read, NULL);
 		if(d != SQLITE_OK) {
 			infostream<<"WARNING: Database read statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
