@@ -267,6 +267,16 @@ struct ContentFeatures
 		if(!isLiquid() || !f.isLiquid()) return false;
 		return (liquid_alternative_flowing == f.liquid_alternative_flowing);
 	}
+	u8 getMaxLevel() const{
+		if(param_type_2 == CPT2_LEVELED && liquid_type == LIQUID_FLOWING && leveled)
+			return leveled;
+		if(leveled || param_type_2 == CPT2_LEVELED)
+			return LEVELED_MAX;
+		if(param_type_2 == CPT2_FLOWINGLIQUID)
+			return LIQUID_LEVEL_SOURCE;
+		return 0;
+	}
+
 };
 
 class INodeDefManager
