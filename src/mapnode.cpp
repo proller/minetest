@@ -343,7 +343,12 @@ static std::vector<aabb3f> transformNodeBox(const MapNode &n,
 	}
 	else // NODEBOX_REGULAR
 	{
-		boxes.push_back(aabb3f(-BS/2,-BS/2,-BS/2,BS/2,BS/2,BS/2));
+		const ContentFeatures &f = nodemgr->get(n);
+		float top = BS/2;
+		if (f.leveled || f.param_type_2 == CPT2_LEVELED || f.param_type_2 == CPT2_LEVELED)
+			top = -BS/2 + BS*((float)1/f.getMaxLevel()) * n.getLevel(nodemgr);
+
+		boxes.push_back(aabb3f(-BS/2,-BS/2,-BS/2,BS/2,top,BS/2));
 	}
 	return boxes;
 }
