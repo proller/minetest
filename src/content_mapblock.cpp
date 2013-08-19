@@ -701,24 +701,23 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 			*/
 			MapNode n_bottom = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y-1,z));
 			const ContentFeatures &f_bottom = nodedef->get(n_bottom);
-			if (!f_bottom.walkable && n_bottom.getContent() != c_flowing && n_bottom.getContent() != c_source) {
-			video::S3DVertex vertices[4] =
-			{
-				video::S3DVertex(-BS/2,0,BS/2, 0,0,0, c, 0,1),
-				video::S3DVertex(BS/2,0,BS/2, 0,0,0, c, 1,1),
-				video::S3DVertex(BS/2,0,-BS/2, 0,0,0, c, 1,0),
-				video::S3DVertex(-BS/2,0,-BS/2, 0,0,0, c, 0,0),
-			};
+			if (!f_bottom.walkable && n_bottom.getContent() != c_flowing &&
+				n_bottom.getContent() != c_source) {
+				video::S3DVertex vertices[4] = {
+					video::S3DVertex(-BS/2,0,BS/2, 0,0,0, c, 0,1),
+					video::S3DVertex(BS/2,0,BS/2, 0,0,0, c, 1,1),
+					video::S3DVertex(BS/2,0,-BS/2, 0,0,0, c, 1,0),
+					video::S3DVertex(-BS/2,0,-BS/2, 0,0,0, c, 0,0),
+				};
 
-			v3f offset(p.X*BS, p.Y*BS + -0.5*BS, p.Z*BS);
-			for(s32 i=0; i<4; i++)
-			{
-				vertices[i].Pos += offset;
-			}
+				v3f offset(p.X*BS, p.Y*BS + -0.5*BS, p.Z*BS);
+				for(s32 i=0; i<4; i++) {
+					vertices[i].Pos += offset;
+				}
 
-			u16 indices[] = {0,1,2,2,3,0};
-			// Add to mesh collector
-			collector.append(tile_liquid, vertices, 4, indices, 6);
+				u16 indices[] = {0,1,2,2,3,0};
+				// Add to mesh collector
+				collector.append(tile_liquid, vertices, 4, indices, 6);
                         }
 		break;}
 		case NDT_GLASSLIKE:

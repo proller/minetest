@@ -1711,18 +1711,23 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 
 			switch (nodemgr->get(nb.n.getContent()).liquid_type) {
 				case LIQUID_NONE:
-					//if (nb.n.getContent() == CONTENT_AIR || nodemgr->get(nb.n).buildable_to && !nodemgr->get(nb.n).walkable) { // need lua drop api for drop torches
+					//TODO: if (nb.n.getContent() == CONTENT_AIR || nodemgr->get(nb.n).buildable_to && !nodemgr->get(nb.n).walkable) { // need lua drop api for drop torches
 					if (nb.n.getContent() == CONTENT_AIR) {
 						liquid_levels[i] = 0;
 						nb.l = 1;
 					}
-					else if (melt_kind_flowing != CONTENT_IGNORE && nb.n.getContent() == melt_kind_flowing && !(loopcount % 2)) {
+					else if (	melt_kind_flowing != CONTENT_IGNORE &&
+							nb.n.getContent() == melt_kind_flowing &&
+							!(loopcount % 2)) {
 						u8 melt_max_level = nb.n.getMaxLevel(nodemgr);
 						u8 my_max_level = MapNode(liquid_kind_flowing).getMaxLevel(nodemgr);
-						liquid_levels[i] = (float)my_max_level / melt_max_level * nb.n.getLevel(nodemgr);
+						liquid_levels[i] = 
+							(float)my_max_level / melt_max_level * nb.n.getLevel(nodemgr);
 						nb.l = 1;
 					}
-					else if (melt_kind != CONTENT_IGNORE && nb.n.getContent() == melt_kind && !(loopcount % 8)) {
+					else if (	melt_kind != CONTENT_IGNORE &&
+							nb.n.getContent() == melt_kind &&
+							!(loopcount % 8)) {
 						liquid_levels[i] = nodemgr->get(liquid_kind_flowing).getMaxLevel();
 						nb.l = 1;
 					}
@@ -1739,7 +1744,10 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 					if (melt_kind == CONTENT_IGNORE)
 						melt_kind = nodemgr->getId(nodemgr->get(nb.n).freezemelt);
 					if (melt_kind_flowing == CONTENT_IGNORE)
-						melt_kind_flowing = nodemgr->getId(nodemgr->get(nodemgr->getId(nodemgr->get(nb.n).freezemelt)).liquid_alternative_flowing);
+						melt_kind_flowing = 
+							nodemgr->getId(
+							nodemgr->get(nodemgr->getId(nodemgr->get(nb.n).freezemelt)
+									).liquid_alternative_flowing);
 					if (nb.n.getContent() == liquid_kind) {
 						liquid_levels[i] = nb.n.getLevel(nodemgr); //LIQUID_LEVEL_SOURCE;
 						nb.l = 1;
@@ -1757,7 +1765,8 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 					if (melt_kind_flowing == CONTENT_IGNORE)
 						melt_kind_flowing = nodemgr->getId(nodemgr->get(nb.n).freezemelt);
 					if (melt_kind == CONTENT_IGNORE)
-						melt_kind = nodemgr->getId(nodemgr->get(nodemgr->getId(nodemgr->get(nb.n).freezemelt)).liquid_alternative_source);
+						melt_kind = nodemgr->getId(nodemgr->get(nodemgr->getId(
+							nodemgr->get(nb.n).freezemelt)).liquid_alternative_source);
 					if (nb.n.getContent() == liquid_kind_flowing) {
 						liquid_levels[i] = nb.n.getLevel(nodemgr);
 						nb.l = 1;
@@ -1795,7 +1804,8 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 		}
 
 		//relax up
-		if (relax && ((p0.Y == water_level) || (fast_flood && p0.Y <= water_level)) && liquid_levels[D_TOP] == 0 &&
+		if (relax && ((p0.Y == water_level) || (fast_flood && p0.Y <= water_level)) && 
+			liquid_levels[D_TOP] == 0 &&
 			liquid_levels[D_BOTTOM] == level_max &&
 			total_level >= level_max * can_liquid_same_level-
 			(can_liquid_same_level - relax) &&
@@ -1804,7 +1814,10 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 		}
 
 		// prevent lakes in air above unloaded blocks
-		if (liquid_levels[D_TOP] == 0 && (p0.Y > water_level) && neighbors[D_BOTTOM].n.getContent() == CONTENT_IGNORE && !(loopcount % 3)) {
+		if (	liquid_levels[D_TOP] == 0 &&
+			(p0.Y > water_level) &&
+			neighbors[D_BOTTOM].n.getContent() == CONTENT_IGNORE &&
+			!(loopcount % 3)) {
 			--total_level;
 		}
 
