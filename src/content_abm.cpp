@@ -236,13 +236,13 @@ class LiquidFreeze : public ActiveBlockModifier {
 		LiquidFreeze(ServerEnvironment *env, INodeDefManager *nodemgr) { }
 		virtual std::set<std::string> getTriggerContents() {
 			std::set<std::string> s;
-			s.insert("group:freezes");
+			s.insert("group:freeze");
 			return s;
 		}
 		virtual std::set<std::string> getRequiredNeighbors() {
 			std::set<std::string> s;
 			s.insert("mapgen_air");
-			s.insert("group:melts");
+			s.insert("group:melt");
 			return s;
 		}
 		virtual float getTriggerInterval()
@@ -298,13 +298,13 @@ class LiquidMeltWeather : public ActiveBlockModifier {
 		LiquidMeltWeather(ServerEnvironment *env, INodeDefManager *nodemgr) { }
 		virtual std::set<std::string> getTriggerContents() {
 			std::set<std::string> s;
-			s.insert("group:melts");
+			s.insert("group:melt");
 			return s;
 		}
 		virtual std::set<std::string> getRequiredNeighbors() {
 			std::set<std::string> s;
 			s.insert("mapgen_air");
-			s.insert("group:freezes");
+			s.insert("group:freeze");
 			return s;
 		}
 		virtual float getTriggerInterval()
@@ -330,7 +330,7 @@ class LiquidMeltHot : public ActiveBlockModifier {
 		LiquidMeltHot(ServerEnvironment *env, INodeDefManager *nodemgr) { }
 		virtual std::set<std::string> getTriggerContents() {
 			std::set<std::string> s;
-			s.insert("group:melts");
+			s.insert("group:melt");
 			return s;
 		}
 		virtual std::set<std::string> getRequiredNeighbors() {
@@ -346,6 +346,7 @@ class LiquidMeltHot : public ActiveBlockModifier {
 		virtual void trigger(ServerEnvironment *env, v3s16 p, MapNode n) {
 			ServerMap *map = &env->getServerMap();
 			INodeDefManager *ndef = env->getGameDef()->ndef();
+//todo - find hot neihbor
 			n.freezeMelt(ndef);
 			map->addNodeWithEvent(p, n);
 			env->getScriptIface()->node_falling_update(p);
