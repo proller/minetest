@@ -632,6 +632,7 @@ struct ActiveABM
 {
 	ActiveBlockModifier *abm;
 	int chance;
+	int neighbors_range;
 	std::set<content_t> required_neighbors;
 };
 
@@ -671,6 +672,7 @@ public:
 				chance = 1;
 			ActiveABM aabm;
 			aabm.abm = abm;
+			aabm.neighbors_range = abm->getNeighborsRange();
 			aabm.chance = chance / intervals;
 			if(aabm.chance == 0)
 				aabm.chance = 1;
@@ -734,12 +736,13 @@ public:
 					continue;
 
 				// Check neighbors
+				MapNode neighbor;
 				if(!i->required_neighbors.empty())
 				{
 					v3s16 p1;
-					for(p1.X = p.X-1; p1.X <= p.X+1; p1.X++)
-					for(p1.Y = p.Y-1; p1.Y <= p.Y+1; p1.Y++)
-					for(p1.Z = p.Z-1; p1.Z <= p.Z+1; p1.Z++)
+					for(p1.X = p.X-i->neighbors_range; p1.X <= p.X+i->neighbors_range; p1.X++)
+					for(p1.Y = p.Y-i->neighbors_range; p1.Y <= p.Y+i->neighbors_range; p1.Y++)
+					for(p1.Z = p.Z-i->neighbors_range; p1.Z <= p.Z+i->neighbors_range; p1.Z++)
 					{
 						if(p1 == p)
 							continue;
@@ -748,6 +751,7 @@ public:
 						std::set<content_t>::const_iterator k;
 						k = i->required_neighbors.find(c);
 						if(k != i->required_neighbors.end()){
+							neighbor = n;
 							goto neighbor_found;
 						}
 					}
@@ -760,7 +764,7 @@ neighbor_found:
 				u32 active_object_count = block->m_static_objects.m_active.size();
 				// Find out how many objects this and all the neighbors contain
 				u32 active_object_count_wider = 0;
-				u32 wider_unknown_count = 0;
+				//u32 wider_unknown_count = 0;
 				for(s16 x=-1; x<=1; x++)
 				for(s16 y=-1; y<=1; y++)
 				for(s16 z=-1; z<=1; z++)
@@ -768,7 +772,7 @@ neighbor_found:
 					MapBlock *block2 = map->getBlockNoCreateNoEx(
 							block->getPos() + v3s16(x,y,z));
 					if(block2==NULL){
-						wider_unknown_count = 0;
+						//wider_unknown_count = 0;
 						continue;
 					}
 					active_object_count_wider +=
@@ -776,13 +780,12 @@ neighbor_found:
 							+ block2->m_static_objects.m_stored.size();
 				}
 				// Extrapolate
-				u32 wider_known_count = 3*3*3 - wider_unknown_count;
-				active_object_count_wider += wider_unknown_count * active_object_count_wider / wider_known_count;
+				//u32 wider_known_count = 3*3*3; // - wider_unknown_count;
+				//active_object_count_wider += wider_unknown_count * active_object_count_wider / wider_known_count;
 				
-				// Call all the trigger variations
-				i->abm->trigger(m_env, p, n);
+				// Call trigger
 				i->abm->trigger(m_env, p, n,
-						active_object_count, active_object_count_wider);
+						active_object_count, active_object_count_wider, neighbor);
 			}
 		}
 	}

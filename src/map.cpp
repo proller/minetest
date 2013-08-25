@@ -4116,6 +4116,8 @@ s16 ServerMap::getHeat(ServerEnvironment *env, v3s16 p, MapBlock *block)
 	// daily change, hotter at sun +4, colder at night -4
 	heat += 8 * (sin(cycle_shift(env->getTimeOfDayF(), -0.25) * M_PI) - 0.5); //-44..20..54
 
+	if (p.Y < -30000) heat += 6000 * (1-((float)(p.Y - -31000)/1000)); //hot core
+
 	if(block != NULL) {
 		block->heat = heat;
 		block->heat_time = env->getGameTime();

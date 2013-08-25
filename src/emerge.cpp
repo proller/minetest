@@ -354,6 +354,7 @@ MapgenParams *EmergeManager::getParamsFromSettings(Settings *settings) {
 	mgparams->mg_name     = mg_name;
 	mgparams->seed        = settings->getU64(settings == g_settings ? "fixed_map_seed" : "seed");
 	mgparams->water_level = settings->getS16("water_level");
+	mgparams->liquid_finite = settings->getS16("liquid_finite");
 	mgparams->chunksize   = settings->getS16("chunksize");
 	mgparams->flags       = settings->getFlagStr("mg_flags", flagdesc_mapgen);
 
@@ -369,6 +370,7 @@ void EmergeManager::setParamsToSettings(Settings *settings) {
 	settings->set("mg_name",         params->mg_name);
 	settings->setU64("seed",         params->seed);
 	settings->setS16("water_level",  params->water_level);
+	settings->setS16("liquid_finite",  params->liquid_finite);
 	settings->setS16("chunksize",    params->chunksize);
 	settings->setFlagStr("mg_flags", params->flags, flagdesc_mapgen);
 
