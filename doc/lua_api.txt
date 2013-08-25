@@ -1889,10 +1889,12 @@ ABM (ActiveBlockModifier) definition (register_abm)
     -- In the following two fields, also group:groupname will work.
     nodenames = {"default:lava_source"},
     neighbors = {"default:water_source", "default:water_flowing"}, -- (any of these)
-     ^ If left out or empty, any neighbor will do
+    ^ If left out or empty, any neighbor will do
+    neighbors_range = 1,
+    ^ find neighbors in max range from node, do not set big values (>3) - it can eat cpu
     interval = 1.0, -- (operation interval)
     chance = 1, -- (chance of trigger is 1.0/this)
-    action = func(pos, node, active_object_count, active_object_count_wider),
+    action = func(pos, node, active_object_count, active_object_count_wider, neighbor),
 }
 
 Item definition (register_node, register_craftitem, register_tool)
