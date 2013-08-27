@@ -1,37 +1,8 @@
 #!/usr/bin/perl
 use 5.16.0;
 
-sub sy (@) {
-    #warn @_;
-    system @_;
-    if ($? == -1) {
-        #print "failed to execute: $!\n";
-        return $?;
-    } elsif ($? & 127) {
-        #printf "child died with signal %d, %s coredump\n",($? & 127),  ($? & 128) ? 'with' : 'without';
-        return $?;
-    } else {
-        printf "child [@_] exited with value %d\n", $? >> 8 if $?;
-        return $? >> 8;
-    }
-}
-my $target = 'next';
-my $pullroot = 'https://github.com/minetest/minetest/pull/';
-sy "git clone https://github.com/proller/minetest.git next";
-#sy "mkdir -p next";
-chdir 'next';
-sy "
-git reset --hard
-git remote add upstream https://github.com/minetest/minetest.git
-git fetch upstream
-git checkout upstream/master
-git branch -D $target
-git checkout -b $target
-";
-my $error;
-my $report = [];
-#branch pull
-for my $from (split /\n+/, qq{
+my $what = {
+    minetest => qq{
 proller:next_tools
 proller:liquid63			882
 proller:math				645
@@ -47,7 +18,7 @@ Zeg9:slippery				817
 Zeg9:wieldlight				816
 MirceaKitsune:sun_moon_coloring		799
 khonkhortisan:diagonal_rail		528
-Novatux:master				606
+Novatux:forceload			606
 PilzAdam:vbo
 sapier:pathfinder_bugfixes		887
 sweetbomber:spawn			744
@@ -59,32 +30,89 @@ sapier:fix_anaglyph_mode_selectionbox_not_beeing_honored	893
 WilliamBundy:jump_fix			866
 ShadowNinja:protection_support		856
 sapier:fix_multiplayer_server_not_saved	846
-}
-  )
-{
-    next if $from =~ /^(?:\s*#|$)/;
-    $from =~ m{^\s*(?<repo>\S+)[:/](?<branch>\S+)(\s+(?<pull>\S+))?};
-    my $i = {%+};
-    #$i->{branch} = $i->{repo}, $i->{repo} = undef if !$i->{branch};
-    my $path = join '/', grep {$_} $i->{repo}, $i->{branch};
+},
 
-    if ($i->{repo}) {
-        sy "git remote add $i->{repo} https://github.com/$i->{repo}/minetest.git";
-        sy "git fetch $i->{repo}";
+    minetest_game => qq{
+proller:sponge		185
+proller:weather
+Zeg9:wieldlight		188
+Jordach:moonflower	169
+},
+
+};
+
+sub sy (@) {
+    #warn @_;
+    system @_;
+    if ($? == -1) {
+        #print "failed to execute: $!\n";
+        return $?;
+    } elsif ($? & 127) {
+        #printf "child died with signal %d, %s coredump\n",($? & 127),  ($? & 128) ? 'with' : 'without';
+        return $?;
+    } else {
+        printf "child [@_] exited with value %d\n", $? >> 8 if $?;
+        return $? >> 8;
+    }
+}
+my $target = 'next';
+my $report = [];
+REPO: for my $repo ('minetest', 'minetest_game') {
+    my $log = "$repo.log";
+    unlink $log;
+    my $pullroot = "https://github.com/minetest/$repo/pull/";
+    my $dir      = $repo . '_' . $target;
+    sy "git clone https://github.com/proller/$repo.git $dir";
+#sy "mkdir -p next";
+    chdir $dir;
+    sy "
+git reset --hard
+git remote add upstream https://github.com/minetest/$repo.git
+git fetch upstream
+git checkout upstream/master
+git branch -D $target
+git checkout -b $target
+";
+    my $error;
+
+    for my $from (split /\n+/, $what->{$repo}) {
+        next if $from =~ /^(?:\s*#|$)/;
+        $from =~ m{^\s*(?<user>\S+)[:/](?<branch>\S+)(\s+(?<pull>\S+))?};
+        my $i = {%+, repo => $repo, pullfull => "$pullroot$+{pull}"};
+        #$i->{branch} = $i->{user}, $i->{user} = undef if !$i->{branch};
+        my $path = join '/', grep {$_} $i->{user}, $i->{branch};
+
+        if ($i->{repo}) {
+            sy "git remote add $i->{user} https://github.com/$i->{user}/$repo.git";
+            sy "git fetch $i->{user}";
+        }
+
+        say "merging $path to $target";
+        if (local $_ = sy "git merge --no-edit $path") {
+            push @$report, {%$i, status => 'fail', code => $_};
+            sy "git status >> ../$log";
+            sy "git diff >> ../$log";
+            ++$error, last REPO if 'fail' ~~ @ARGV;
+            sy "git reset --hard";
+        } else {
+            push @$report, {%$i, status => 'ok'};
+        }
+
+    }
+    my $diff = qx{git diff --stat origin/next};
+    unless ($diff) {
+        say "no changes";
+	next;
     }
 
-    say "merging $path to $target";
-    if (local $_ = sy "git merge --no-edit $path") {
-        push @$report, {%$i, status => 'fail', code => $_};
-	++$error, last if 'stop' ~~ @ARGV;
-        sy "git reset --hard";
-    } else {
-
-    push @$report, {%$i, status => 'ok'};
-}
+    say "changed $diff";
+    my $test = sy "cmake . && make -j4" if $repo eq 'minetest' and !$error and !'nomake' ~~ @ARGV;
+    say "test = [$test]";
+    sy "git push -f" if !$test and !'nopush' ~~ @ARGV;
+    chdir '..';
 
 }
-sy "cmake . && make -j4 && git push -f" if !$error and !'nomake' ~~ @ARGV;
+
 for my $r (@$report) {
-    say join "\t",$r->{status},"$r->{repo}:$r->{branch}",$r->{code}, ($r->{pull} ? "$pullroot$r->{pull}" : ());
+    say join "\t", $r->{status}, "$r->{repo} $r->{user}:$r->{branch}", $r->{code}, ($r->{pull} ? $r->{pullfull} : ());
 }
