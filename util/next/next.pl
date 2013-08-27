@@ -28,6 +28,7 @@ git checkout upstream/master
 git branch -D $target
 git checkout -b $target
 ";
+my $error;
 my $report = [];
 #branch pull
 for my $from (split /\n+/, qq{
@@ -75,15 +76,15 @@ sapier:fix_multiplayer_server_not_saved	846
     say "merging $path to $target";
     if (local $_ = sy "git merge --no-edit $path") {
         push @$report, {%$i, status => 'fail', code => $_};
+	++$error, last if 'stop' ~~ @ARGV;
         sy "git reset --hard";
-        #last;
     } else {
 
     push @$report, {%$i, status => 'ok'};
 }
 
 }
-sy "cmake . && make -j4 && git push -f";
+sy "cmake . && make -j4 && git push -f" if !$error and !'nomake' ~~ @ARGV;
 for my $r (@$report) {
     say join "\t",$r->{status},"$r->{repo}:$r->{branch}",$r->{code}, ($r->{pull} ? "$pullroot$r->{pull}" : ());
 }
