@@ -1,0 +1,395 @@
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   client/shaders/test_shader_1/opengl_fragment.glsl
+#	modified:   client/shaders/test_shader_2/opengl_fragment.glsl
+#	modified:   client/shaders/test_shader_3/opengl_fragment.glsl
+#	modified:   doc/lua_api.txt
+#	modified:   minetest.conf.example
+#	modified:   src/camera.cpp
+#	modified:   src/camera.h
+#	modified:   src/defaultsettings.cpp
+#	modified:   src/itemdef.h
+#	modified:   src/script/common/c_content.cpp
+#	modified:   src/tile.cpp
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/game.cpp
+#	both modified:      src/itemdef.cpp
+#
+diff --cc src/game.cpp
+index db6244c,421546b..0000000
+--- a/src/game.cpp
++++ b/src/game.cpp
+@@@ -806,12 -809,21 +808,29 @@@ public
+  		
+  		// Normal map texture layer
+  		int layer = 1;
+ +		// before 1.8 there isn't a "integer interface", only float
+ +#if (IRRLICHT_VERSION_MAJOR == 1 && IRRLICHT_VERSION_MINOR < 8)
+  		services->setPixelShaderConstant("normalTexture" , (irr::f32*)&layer, 1);
+++<<<<<<< HEAD
+ +#else
+ +		services->setPixelShaderConstant("normalTexture" , (irr::s32*)&layer, 1);
+ +#endif
+++=======
++ 		
++ 		
++ 		ItemStack playeritem;
++ 		{
++ 			InventoryList *mlist = m_local_inventory->getList("main");
++ 			if(mlist != NULL)
++ 			{
++ 				playeritem = mlist->getItem(m_client->getPlayerItem());
++ 			}
++ 		}
++ 		irr::f32 wieldLight = 0;
++ 		if (g_settings->getBool("disable_wieldlight") == false)
++ 			wieldLight = (irr::f32)m_client->idef()->get(playeritem.name).wield_light;
++ 		services->setPixelShaderConstant("wieldLight", &wieldLight, 1);
+++>>>>>>> Zeg9/wieldlight
+  	}
+  };
+  
+diff --cc src/itemdef.cpp
+index 83a70f1,f57f437..0000000
+--- a/src/itemdef.cpp
++++ b/src/itemdef.cpp
+@@@ -150,10 -148,8 +152,11 @@@ void ItemDefinition::serialize(std::ost
+  		//serializeSimpleSoundSpec(sound_place, os);
+  		os<<serializeString(sound_place.name);
+  		writeF1000(os, sound_place.gain);
++ 		writeU8(os, wield_light);
+  	}
+ +	if(protocol_version > 20){
+ +		writeF1000(os, range);
+ +	}
+  }
+  
+  void ItemDefinition::deSerialize(std::istream &is)
+@@@ -196,15 -192,14 +199,21 @@@
+  		// Set the old default sound
+  		sound_place.name = "default_place_node";
+  		sound_place.gain = 0.5;
+++<<<<<<< HEAD
+ +	} else if(version >= 2) {
+++=======
++ 		wield_light = 0;
++ 	} else if(version == 2) {
+++>>>>>>> Zeg9/wieldlight
+  		node_placement_prediction = deSerializeString(is);
+  		//deserializeSimpleSoundSpec(sound_place, is);
+  		sound_place.name = deSerializeString(is);
+  		sound_place.gain = readF1000(is);
++ 		wield_light = readU8(is);
+  	}
+ +	if(version == 3) {
+ +		range = readF1000(is);
+ +	}
+  	// If you add anything here, insert it primarily inside the try-catch
+  	// block to not need to increase the version.
+  	try{
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/content_mapblock.cpp
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --cc src/content_mapblock.cpp
+index 632cb4a,16c832e..0000000
+--- a/src/content_mapblock.cpp
++++ b/src/content_mapblock.cpp
+@@@ -1147,205 -1174,7 +1462,209 @@@ void mapblock_mesh_generate_special(Mes
+  		break;}
+  		case NDT_RAILLIKE:
+  		{
+++<<<<<<< HEAD
+ +			bool is_rail_x [] = { false, false };  /* x-1, x+1 */
+ +			bool is_rail_z [] = { false, false };  /* z-1, z+1 */
+ +
+ +			bool is_rail_z_minus_y [] = { false, false };  /* z-1, z+1; y-1 */
+ +			bool is_rail_x_minus_y [] = { false, false };  /* x-1, z+1; y-1 */
+ +			bool is_rail_z_plus_y [] = { false, false };  /* z-1, z+1; y+1 */
+ +			bool is_rail_x_plus_y [] = { false, false };  /* x-1, x+1; y+1 */
+ +
+ +			MapNode n_minus_x = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x-1,y,z));
+ +			MapNode n_plus_x = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x+1,y,z));
+ +			MapNode n_minus_z = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y,z-1));
+ +			MapNode n_plus_z = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y,z+1));
+ +			MapNode n_plus_x_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x+1, y+1, z));
+ +			MapNode n_plus_x_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x+1, y-1, z));
+ +			MapNode n_minus_x_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x-1, y+1, z));
+ +			MapNode n_minus_x_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x-1, y-1, z));
+ +			MapNode n_plus_z_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y+1, z+1));
+ +			MapNode n_minus_z_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y+1, z-1));
+ +			MapNode n_plus_z_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y-1, z+1));
+ +			MapNode n_minus_z_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y-1, z-1));
+ +
+ +			content_t thiscontent = n.getContent();
+ +			std::string groupname = "connect_to_raillike"; // name of the group that enables connecting to raillike nodes of different kind
+ +			bool self_connect_to_raillike = ((ItemGroupList) nodedef->get(n).groups)[groupname] != 0;
+ +
+ +			if ((nodedef->get(n_minus_x).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_minus_x).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_minus_x.getContent() == thiscontent)
+ +				is_rail_x[0] = true;
+ +
+ +			if ((nodedef->get(n_minus_x_minus_y).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_minus_x_minus_y).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_minus_x_minus_y.getContent() == thiscontent)
+ +				is_rail_x_minus_y[0] = true;
+ +
+ +			if ((nodedef->get(n_minus_x_plus_y).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_minus_x_plus_y).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_minus_x_plus_y.getContent() == thiscontent)
+ +				is_rail_x_plus_y[0] = true;
+ +
+ +			if ((nodedef->get(n_plus_x).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_plus_x).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_plus_x.getContent() == thiscontent)
+ +				is_rail_x[1] = true;
+ +
+ +			if ((nodedef->get(n_plus_x_minus_y).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_plus_x_minus_y).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_plus_x_minus_y.getContent() == thiscontent)
+ +				is_rail_x_minus_y[1] = true;
+ +
+ +			if ((nodedef->get(n_plus_x_plus_y).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_plus_x_plus_y).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_plus_x_plus_y.getContent() == thiscontent)
+ +				is_rail_x_plus_y[1] = true;
+ +
+ +			if ((nodedef->get(n_minus_z).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_minus_z).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_minus_z.getContent() == thiscontent)
+ +				is_rail_z[0] = true;
+ +
+ +			if ((nodedef->get(n_minus_z_minus_y).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_minus_z_minus_y).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_minus_z_minus_y.getContent() == thiscontent)
+ +				is_rail_z_minus_y[0] = true;
+ +
+ +			if ((nodedef->get(n_minus_z_plus_y).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_minus_z_plus_y).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_minus_z_plus_y.getContent() == thiscontent)
+ +				is_rail_z_plus_y[0] = true;
+ +
+ +			if ((nodedef->get(n_plus_z).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_plus_z).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_plus_z.getContent() == thiscontent)
+ +				is_rail_z[1] = true;
+ +
+ +			if ((nodedef->get(n_plus_z_minus_y).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_plus_z_minus_y).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_plus_z_minus_y.getContent() == thiscontent)
+ +				is_rail_z_minus_y[1] = true;
+ +
+ +			if ((nodedef->get(n_plus_z_plus_y).drawtype == NDT_RAILLIKE
+ +					&& ((ItemGroupList) nodedef->get(n_plus_z_plus_y).groups)[groupname] != 0
+ +					&& self_connect_to_raillike)
+ +					|| n_plus_z_plus_y.getContent() == thiscontent)
+ +				is_rail_z_plus_y[1] = true;
+ +
+ +			bool is_rail_x_all[] = {false, false};
+ +			bool is_rail_z_all[] = {false, false};
+ +			is_rail_x_all[0]=is_rail_x[0] || is_rail_x_minus_y[0] || is_rail_x_plus_y[0];
+ +			is_rail_x_all[1]=is_rail_x[1] || is_rail_x_minus_y[1] || is_rail_x_plus_y[1];
+ +			is_rail_z_all[0]=is_rail_z[0] || is_rail_z_minus_y[0] || is_rail_z_plus_y[0];
+ +			is_rail_z_all[1]=is_rail_z[1] || is_rail_z_minus_y[1] || is_rail_z_plus_y[1];
+ +
+ +			// reasonable default, flat straight unrotated rail
+ +			bool is_straight = true;
+ +			int adjacencies = 0;
+ +			int angle = 0;
+ +			u8 tileindex = 0;
+ +
+ +			// check for sloped rail
+ +			if (is_rail_x_plus_y[0] || is_rail_x_plus_y[1] || is_rail_z_plus_y[0] || is_rail_z_plus_y[1])
+ +			{
+ +				adjacencies = 5; //5 means sloped
+ +				is_straight = true; // sloped is always straight
+ +			}
+ +			else
+ +			{
+ +				// is really straight, rails on both sides
+ +				is_straight = (is_rail_x_all[0] && is_rail_x_all[1]) || (is_rail_z_all[0] && is_rail_z_all[1]);
+ +				adjacencies = is_rail_x_all[0] + is_rail_x_all[1] + is_rail_z_all[0] + is_rail_z_all[1];
+ +			}
+ +
+ +			switch (adjacencies) {
+ +			case 1:
+ +				if(is_rail_x_all[0] || is_rail_x_all[1])
+ +					angle = 90;
+ +				break;
+ +			case 2:
+ +				if(!is_straight)
+ +					tileindex = 1; // curved
+ +				if(is_rail_x_all[0] && is_rail_x_all[1])
+ +					angle = 90;
+ +				if(is_rail_z_all[0] && is_rail_z_all[1]){
+ +					if (is_rail_z_plus_y[0])
+ +						angle = 180;
+ +				}
+ +				else if(is_rail_x_all[0] && is_rail_z_all[0])
+ +					angle = 270;
+ +				else if(is_rail_x_all[0] && is_rail_z_all[1])
+ +					angle = 180;
+ +				else if(is_rail_x_all[1] && is_rail_z_all[1])
+ +					angle = 90;
+ +				break;
+ +			case 3:
+ +				// here is where the potential to 'switch' a junction is, but not implemented at present
+ +				tileindex = 2; // t-junction
+ +				if(!is_rail_x_all[1])
+ +					angle=180;
+ +				if(!is_rail_z_all[0])
+ +					angle=90;
+ +				if(!is_rail_z_all[1])
+ +					angle=270;
+ +				break;
+ +			case 4:
+ +				tileindex = 3; // crossing
+ +				break;
+ +			case 5: //sloped
+ +				if(is_rail_z_plus_y[0])
+ +					angle = 180;
+ +				if(is_rail_x_plus_y[0])
+ +					angle = 90;
+ +				if(is_rail_x_plus_y[1])
+ +					angle = -90;
+ +				break;
+ +			default:
+ +				break;
+ +			}
+ +
+ +			TileSpec tile = getNodeTileN(n, p, tileindex, data);
+ +			tile.material_flags &= ~MATERIAL_FLAG_BACKFACE_CULLING;
+ +			tile.material_flags |= MATERIAL_FLAG_CRACK_OVERLAY;
+ +
+ +			u16 l = getInteriorLight(n, 0, data);
+ +			video::SColor c = MapBlock_LightColor(255, l, decode_light(f.light_source));
+ +
+ +			float d = (float)BS/64;
+ +			
+ +			char g=-1;
+ +			if (is_rail_x_plus_y[0] || is_rail_x_plus_y[1] || is_rail_z_plus_y[0] || is_rail_z_plus_y[1])
+ +				g=1; //Object is at a slope
+ +
+ +			video::S3DVertex vertices[4] =
+ +			{
+ +					video::S3DVertex(-BS/2,-BS/2+d,-BS/2, 0,0,0, c, 0,1),
+ +					video::S3DVertex(BS/2,-BS/2+d,-BS/2, 0,0,0, c, 1,1),
+ +					video::S3DVertex(BS/2,g*BS/2+d,BS/2, 0,0,0, c, 1,0),
+ +					video::S3DVertex(-BS/2,g*BS/2+d,BS/2, 0,0,0, c, 0,0),
+ +			};
+ +
+ +			for(s32 i=0; i<4; i++)
+ +			{
+ +				if(angle != 0)
+ +					vertices[i].Pos.rotateXZBy(angle);
+ +				vertices[i].Pos += intToFloat(p, BS);
+ +			}
+ +
+ +			u16 indices[] = {0,1,2,2,3,0};
+ +			collector.append(tile, vertices, 4, indices, 6);
+++=======
++ 			recurseRail(p, data, collector);
+++>>>>>>> khonkhortisan/diagonal_rail
+  		break;}
+  		case NDT_NODEBOX:
+  		{
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/hud.cpp
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --cc src/hud.cpp
+index 273da9c,e8e76ed..0000000
+--- a/src/hud.cpp
++++ b/src/hud.cpp
+@@@ -94,7 -90,7 +94,11 @@@ void Hud::drawItem(v2s32 upperleftpos, 
+  	core::rect<s32> imgrect(0, 0, imgsize, imgsize);
+  	const video::SColor hbar_color(255, 255, 255, 255);
+  	const video::SColor hbar_colors[] = {hbar_color, hbar_color, hbar_color, hbar_color};
+++<<<<<<< HEAD
+ +
+++=======
++ 	
+++>>>>>>> BlockMen/hotbar
+  	if (use_hotbar_bg_img) {
+  		core::rect<s32> imgrect2(-padding/2, -padding/2, width+padding/2, height+padding/2);
+  		core::rect<s32> rect2 = imgrect2 + pos;
+@@@ -136,7 -132,7 +140,11 @@@
+  					core::rect<s32>(core::position2d<s32>(0,0), imgsize),
+  					NULL, hbar_colors, true);
+  				rect = imgrect + pos + steppos;
+++<<<<<<< HEAD
+ +			} else {
+++=======
++ 		 	} else {
+++>>>>>>> BlockMen/hotbar
+  				rect = imgrect + pos + steppos;
+  				video::SColor c_outside(255,255,0,0);
+  				//video::SColor c_outside(255,0,0,0);
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   builtin/item.lua
+#	modified:   doc/lua_api.txt
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      builtin/misc.lua
+#
+diff --cc builtin/misc.lua
+index 82a0ba2,46426ac..0000000
+--- a/builtin/misc.lua
++++ b/builtin/misc.lua
+@@@ -99,3 -99,15 +99,18 @@@ function minetest.setting_get_pos(name
+  	return minetest.string_to_pos(value)
+  end
+  
+++<<<<<<< HEAD
+++=======
++ -- To be overriden by protection mods
++ function minetest.can_interact(pos, name)
++ 	return true
++ end
++ 
++ function minetest.formspec_escape(str)
++ 	str = string.gsub(str, "\\", "\\\\")
++ 	str = string.gsub(str, "%[", "\\[")
++ 	str = string.gsub(str, "%]", "\\]")
++ 	return str
++ end
++ 
+++>>>>>>> ShadowNinja/protection_support

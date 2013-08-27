@@ -10,6 +10,7 @@ proller:sqlite
 proller:json
 proller:heat				883
 proller:weather				892
+proller:liquid_default
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 ShadowNinja:bind_address		862
@@ -106,9 +107,9 @@ git checkout -b $target
     }
 
     say "changed $diff";
-    my $test = sy "cmake . && make -j4" if $repo eq 'minetest' and !$error and !'nomake' ~~ @ARGV;
+    my $test = sy "cmake . && make -j4" if $repo eq 'minetest' and !$error and !('nomake' ~~ @ARGV);
     say "test = [$test]";
-    sy "git push -f" if !$test and !'nopush' ~~ @ARGV;
+    sy "git push -f" if !$test and !('nopush' ~~ @ARGV);
     chdir '..';
 
 }
