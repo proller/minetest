@@ -33,7 +33,6 @@ sweetbomber:spawn			744
 MirceaKitsune:brighter_sun_faces	772
 sapier:fix_crash_on_lua_exception	890
 sapier:lua_show_backtrace_on_error	891
-BlockMen:hotbar				849
 sapier:fix_anaglyph_mode_selectionbox_not_beeing_honored	893
 WilliamBundy:jump_fix			866
 ShadowNinja:protection_support		856
