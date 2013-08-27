@@ -1,5 +1,12 @@
 #!/usr/bin/perl
 use 5.16.0;
+#use strict;
+no strict qw(refs);
+use warnings "NONFATAL" => "all";
+no warnings qw(uninitialized);
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
+use utf8;
+
 
 my $what = {
     minetest => qq{
@@ -13,7 +20,7 @@ proller:weather				892
 proller:liquid_default
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
-ShadowNinja:bind_address		862
+#ShadowNinja:bind_address		862 #crash on connect
 proller:clouds				855
 Zeg9:slippery				817
 Zeg9:wieldlight				816
@@ -78,7 +85,7 @@ git checkout -b $target
 
     for my $from (split /\n+/, $what->{$repo}) {
         next if $from =~ /^(?:\s*#|$)/;
-        $from =~ m{^\s*(?<user>\S+)[:/](?<branch>\S+)(\s+(?<pull>\S+))?};
+        $from =~ m{^\s*(?<user>\S+)[:/](?<branch>\S+)(\s+(?<pull>\S+))?(\s+(?<comment>.+))?};
         my $i = {%+, repo => $repo, pullfull => "$pullroot$+{pull}"};
         #$i->{branch} = $i->{user}, $i->{user} = undef if !$i->{branch};
         my $path = join '/', grep {$_} $i->{user}, $i->{branch};
@@ -107,7 +114,7 @@ git checkout -b $target
     }
 
     say "changed $diff";
-    my $test = sy "cmake . && make -j4" if $repo eq 'minetest' and !$error and !('nomake' ~~ @ARGV);
+    my $test = sy "cmake . -DRUN_IN_PLACE=1 && make -j4" if $repo eq 'minetest' and !$error and !('nomake' ~~ @ARGV);
     say "test = [$test]";
     sy "git push -f" if !$test and !('nopush' ~~ @ARGV);
     chdir '..';
