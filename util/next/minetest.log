@@ -17,20 +17,14 @@ nnnn!!!!!!!!!!!!!!!!! Merge proller/liquid_send to next failed
 #	both modified:      src/map.cpp
 #
 diff --cc src/map.cpp
-index 2ef28de,fef7e1d..0000000
+index 2ef28de,148bcc7..0000000
 --- a/src/map.cpp
 +++ b/src/map.cpp
-@@@ -1988,11 -1991,11 +1991,17 @@@ s32 Map::transformLiquidsFinite(std::ma
-  	while (must_reflow_second.size() > 0)
-  		m_transforming_liquid.push_back(must_reflow_second.pop_front());
-  	updateLighting(lighting_modified_blocks, modified_blocks);
-+ 
-+ 	return ret;
-  }
+@@@ -1992,7 -1995,7 +1997,11 @@@ s32 Map::transformLiquidsFinite(std::ma
+  
+  #define WATER_DROP_BOOST 4
   
 ++<<<<<<< HEAD
- +#define WATER_DROP_BOOST 4
- +
  +void Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
 ++=======
 + s32 Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
