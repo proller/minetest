@@ -11,6 +11,7 @@ use utf8;
 my $what = {
     minetest => qq{
 proller:next_tools
+
 proller:liquid63			882
 proller:math				645
 proller:sqlite
@@ -98,6 +99,7 @@ git checkout -b $target
         say "merging $path to $target";
         if (local $_ = sy "git merge --no-edit $path") {
             push @$report, {%$i, status => 'fail', code => $_};
+	    sy "echo ======== Merge $path to $target failed >> ../$log";
             sy "git status >> ../$log";
             sy "git diff >> ../$log";
             ++$error, last REPO if 'fail' ~~ @ARGV;
@@ -110,16 +112,18 @@ git checkout -b $target
     my $diff = qx{git diff --stat origin/next};
     unless ($diff) {
         say "no changes";
-	next;
+	goto UP;
     }
 
     say "changed $diff";
     my $test = sy "cmake . -DRUN_IN_PLACE=1 && make -j4" if $repo eq 'minetest' and !$error and !('nomake' ~~ @ARGV);
     say "test = [$test]";
     sy "git push -f" if !$test and !('nopush' ~~ @ARGV);
+UP:
     chdir '..';
-
+    sy qq{git commit -m "merge log" $log};
 }
+sy "git push";
 
 for my $r (@$report) {
     say join "\t", $r->{status}, "$r->{repo} $r->{user}:$r->{branch}", $r->{code}, ($r->{pull} ? $r->{pullfull} : ());
