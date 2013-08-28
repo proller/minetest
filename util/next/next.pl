@@ -27,6 +27,7 @@ Zeg9:wieldlight				816
 MirceaKitsune:sun_moon_coloring		799
 khonkhortisan:diagonal_rail		528
 Novatux:forceload			606
+Novatux:tool_callback			688
 PilzAdam:vbo
 sapier:pathfinder_bugfixes		887
 sweetbomber:spawn			744
