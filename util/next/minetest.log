@@ -1,3 +1,4 @@
+======== Merge Zeg9/wieldlight to next failed
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
@@ -94,6 +95,7 @@ index 83a70f1,f57f437..0000000
   	// If you add anything here, insert it primarily inside the try-catch
   	// block to not need to increase the version.
   	try{
+======== Merge khonkhortisan/diagonal_rail to next failed
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
@@ -318,44 +320,52 @@ index 632cb4a,16c832e..0000000
   		break;}
   		case NDT_NODEBOX:
   		{
+======== Merge Novatux/tool_callback to next failed
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
 #
+# Changes to be committed:
+#
+#	modified:   doc/lua_api.txt
+#
 # Unmerged paths:
 #   (use "git add <file>..." to mark resolution)
 #
-#	both modified:      src/hud.cpp
+#	both modified:      builtin/item.lua
 #
-no changes added to commit (use "git add" and/or "git commit -a")
-diff --cc src/hud.cpp
-index 273da9c,e8e76ed..0000000
---- a/src/hud.cpp
-+++ b/src/hud.cpp
-@@@ -94,7 -90,7 +94,11 @@@ void Hud::drawItem(v2s32 upperleftpos, 
-  	core::rect<s32> imgrect(0, 0, imgsize, imgsize);
-  	const video::SColor hbar_color(255, 255, 255, 255);
-  	const video::SColor hbar_colors[] = {hbar_color, hbar_color, hbar_color, hbar_color};
+diff --cc builtin/item.lua
+index 6a01f37,4d5eaeb..0000000
+--- a/builtin/item.lua
++++ b/builtin/item.lua
+@@@ -384,13 -329,16 +384,26 @@@ function minetest.node_dig(pos, node, d
+  	local wielded = digger:get_wielded_item()
+  	local drops = minetest.get_node_drops(node.name, wielded:get_name())
+  
 ++<<<<<<< HEAD
- +
+ +	-- Wear out tool
+ +	if not minetest.setting_getbool("creative_mode") then
+ +		local tp = wielded:get_tool_capabilities()
+ +		local dp = minetest.get_dig_params(def.groups, tp)
+ +		wielded:add_wear(dp.wear)
+ +		digger:set_wielded_item(wielded)
+ +	end
 ++=======
-+ 	
-++>>>>>>> BlockMen/hotbar
-  	if (use_hotbar_bg_img) {
-  		core::rect<s32> imgrect2(-padding/2, -padding/2, width+padding/2, height+padding/2);
-  		core::rect<s32> rect2 = imgrect2 + pos;
-@@@ -136,7 -132,7 +140,11 @@@
-  					core::rect<s32>(core::position2d<s32>(0,0), imgsize),
-  					NULL, hbar_colors, true);
-  				rect = imgrect + pos + steppos;
-++<<<<<<< HEAD
- +			} else {
-++=======
-+ 		 	} else {
-++>>>>>>> BlockMen/hotbar
-  				rect = imgrect + pos + steppos;
-  				video::SColor c_outside(255,255,0,0);
-  				//video::SColor c_outside(255,0,0,0);
++ 	local wdef = wielded:get_definition()
++ 	local tp = wielded:get_tool_capabilities()
++ 	local dp = minetest.get_dig_params(def.groups, tp)
++ 	if wdef and wdef.after_use then
++ 		wielded = wdef.after_use(wielded, digger, node, dp) or wielded
++ 	else
++ 		-- Wear out tool
++ 		wielded:add_wear(dp.wear)
++ 	end
++ 	digger:set_wielded_item(wielded)
+++>>>>>>> Novatux/tool_callback
+  	
+  	-- Handle drops
+  	minetest.handle_node_drops(pos, drops, digger)
+======== Merge ShadowNinja/protection_support to next failed
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
