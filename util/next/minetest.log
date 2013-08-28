@@ -1,37 +1,3 @@
-nnnn!!!!!!!!!!!!!!!!! Merge proller/liquid_send to next failed
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   minetest.conf.example
-#	modified:   src/defaultsettings.cpp
-#	modified:   src/map.h
-#	modified:   src/server.cpp
-#	modified:   src/server.h
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      src/map.cpp
-#
-diff --cc src/map.cpp
-index 2ef28de,148bcc7..0000000
---- a/src/map.cpp
-+++ b/src/map.cpp
-@@@ -1992,7 -1995,7 +1997,11 @@@ s32 Map::transformLiquidsFinite(std::ma
-  
-  #define WATER_DROP_BOOST 4
-  
-++<<<<<<< HEAD
- +void Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
-++=======
-+ s32 Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
-++>>>>>>> proller/liquid_send
-  {
-  
-  	if (g_settings->getBool("liquid_finite"))
 nnnn!!!!!!!!!!!!!!!!! Merge Zeg9/wieldlight to next failed
 # On branch next
 # You have unmerged paths.
