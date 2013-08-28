@@ -7,7 +7,6 @@ no warnings qw(uninitialized);
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use utf8;
 
-
 my $what = {
     minetest => qq{
 proller:next_tools
@@ -19,6 +18,7 @@ proller:json
 proller:heat				883
 proller:weather				892
 proller:liquid_default
+proller:liquid_send
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
@@ -97,9 +97,10 @@ git checkout -b $target
         }
 
         say "merging $path to $target";
-        if (local $_ = sy "git merge --no-edit $path") {
+        #if (local $_ = sy "git merge --no-edit $path") {
+        if (local $_ = sy "git merge --no-edit -s recursive -X patience $path") {
             push @$report, {%$i, status => 'fail', code => $_};
-	    sy "echo ======== Merge $path to $target failed >> ../$log";
+            sy "echo \\n\\n\\n\\n!!!!!!!!!!!!!!!!! Merge $path to $target failed >> ../$log";
             sy "git status >> ../$log";
             sy "git diff >> ../$log";
             ++$error, last REPO if 'fail' ~~ @ARGV;
@@ -112,14 +113,14 @@ git checkout -b $target
     my $diff = qx{git diff --stat origin/next};
     unless ($diff) {
         say "no changes";
-	goto UP;
+        goto UP;
     }
 
     say "changed $diff";
     my $test = sy "cmake . -DRUN_IN_PLACE=1 && make -j4" if $repo eq 'minetest' and !$error and !('nomake' ~~ @ARGV);
     say "test = [$test]";
     sy "git push -f" if !$test and !('nopush' ~~ @ARGV);
-UP:
+  UP:
     chdir '..';
     sy qq{git commit -m "merge log" $log};
 }
