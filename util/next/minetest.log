@@ -1,4 +1,44 @@
-======== Merge Zeg9/wieldlight to next failed
+nnnn!!!!!!!!!!!!!!!!! Merge proller/liquid_send to next failed
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   minetest.conf.example
+#	modified:   src/defaultsettings.cpp
+#	modified:   src/map.h
+#	modified:   src/server.cpp
+#	modified:   src/server.h
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/map.cpp
+#
+diff --cc src/map.cpp
+index 2ef28de,fef7e1d..0000000
+--- a/src/map.cpp
++++ b/src/map.cpp
+@@@ -1988,11 -1991,11 +1991,17 @@@ s32 Map::transformLiquidsFinite(std::ma
+  	while (must_reflow_second.size() > 0)
+  		m_transforming_liquid.push_back(must_reflow_second.pop_front());
+  	updateLighting(lighting_modified_blocks, modified_blocks);
++ 
++ 	return ret;
+  }
+  
+++<<<<<<< HEAD
+ +#define WATER_DROP_BOOST 4
+ +
+ +void Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
+++=======
++ s32 Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
+++>>>>>>> proller/liquid_send
+  {
+  
+  	if (g_settings->getBool("liquid_finite"))
+nnnn!!!!!!!!!!!!!!!!! Merge Zeg9/wieldlight to next failed
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
@@ -95,7 +135,7 @@ index 83a70f1,f57f437..0000000
   	// If you add anything here, insert it primarily inside the try-catch
   	// block to not need to increase the version.
   	try{
-======== Merge khonkhortisan/diagonal_rail to next failed
+nnnn!!!!!!!!!!!!!!!!! Merge khonkhortisan/diagonal_rail to next failed
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
@@ -320,7 +360,7 @@ index 632cb4a,16c832e..0000000
   		break;}
   		case NDT_NODEBOX:
   		{
-======== Merge Novatux/tool_callback to next failed
+nnnn!!!!!!!!!!!!!!!!! Merge Novatux/tool_callback to next failed
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
@@ -365,7 +405,7 @@ index 6a01f37,4d5eaeb..0000000
   	
   	-- Handle drops
   	minetest.handle_node_drops(pos, drops, digger)
-======== Merge ShadowNinja/protection_support to next failed
+nnnn!!!!!!!!!!!!!!!!! Merge ShadowNinja/protection_support to next failed
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
