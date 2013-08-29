@@ -134,8 +134,9 @@ git checkout -b $target
 }
 sy "git push";
 
+unlink $root . 'report.log';
 for my $r (@$report) {
-    local $_ = join "\t", $r->{status}, "$r->{repo} $r->{user}:$r->{branch}", $r->{code}, ($r->{pull} ? $r->{pullfull} : ());
-    say;
+    local $_ = join "\t", $r->{status}, "$r->{repo} $r->{user}:$r->{branch}", $r->{code}, ($r->{pull} ? $r->{pullfull} : ()), "\n";
+    print;
     file_append $root . 'report.log', $_;
 }
