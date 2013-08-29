@@ -6,6 +6,7 @@ use warnings "NONFATAL" => "all";
 no warnings qw(uninitialized);
 no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use utf8;
+use lib::abs;
 
 my $what = {
     minetest => qq{
@@ -18,7 +19,7 @@ proller:json
 proller:heat				883
 proller:weather				892
 proller:liquid_default
-proller:liquid_send
+proller:liquid_send			895
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
@@ -50,6 +51,13 @@ Jordach:moonflower	169
 
 };
 
+sub file_rewrite(;$@) {
+    my $n = shift;
+    return unless open my $fh, '>', $n;
+    print $fh @_ ? @_ : $_;
+    @_           ? @_ : $_;
+}
+
 sub sy (@) {
     #warn @_;
     system @_;
@@ -66,13 +74,13 @@ sub sy (@) {
 }
 my $target = 'next';
 my $report = [];
+my $root   = lib::abs::path('.') . '/';
 REPO: for my $repo ('minetest', 'minetest_game') {
-    my $log = "$repo.log";
+    my $log = "$root$repo.log";
     unlink $log;
     my $pullroot = "https://github.com/minetest/$repo/pull/";
-    my $dir      = $repo . '_' . $target;
+    my $dir      = $root . $repo . '_' . $target;
     sy "git clone https://github.com/proller/$repo.git $dir";
-#sy "mkdir -p next";
     chdir $dir;
     sy "
 git reset --hard
@@ -100,9 +108,9 @@ git checkout -b $target
         #if (local $_ = sy "git merge --no-edit $path") {
         if (local $_ = sy "git merge --no-edit -s recursive -X patience $path") {
             push @$report, {%$i, status => 'fail', code => $_};
-            sy "echo \\n\\n\\n\\n!!!!!!!!!!!!!!!!! Merge $path to $target failed >> ../$log";
-            sy "git status >> ../$log";
-            sy "git diff >> ../$log";
+            file_append $log, "\n\n\n\n!!!!!!!!!!!!!!!!!\n Merge $path to $target failed:";
+            sy "git status >> $log";
+            sy "git diff >> $log";
             ++$error, last REPO if 'fail' ~~ @ARGV;
             sy "git reset --hard";
         } else {
@@ -127,5 +135,7 @@ git checkout -b $target
 sy "git push";
 
 for my $r (@$report) {
-    say join "\t", $r->{status}, "$r->{repo} $r->{user}:$r->{branch}", $r->{code}, ($r->{pull} ? $r->{pullfull} : ());
+    local $_ = join "\t", $r->{status}, "$r->{repo} $r->{user}:$r->{branch}", $r->{code}, ($r->{pull} ? $r->{pullfull} : ());
+    say;
+    file_append $root . 'report.log', $_;
 }
