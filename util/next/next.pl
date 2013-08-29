@@ -51,9 +51,9 @@ Jordach:moonflower	169
 
 };
 
-sub file_rewrite(;$@) {
+sub file_append(;$@) {
     my $n = shift;
-    return unless open my $fh, '>', $n;
+    return unless open my $fh, '>>', $n;
     print $fh @_ ? @_ : $_;
     @_           ? @_ : $_;
 }
