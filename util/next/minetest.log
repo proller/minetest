@@ -320,51 +320,6 @@ index 632cb4a,16c832e..0000000
   		break;}
   		case NDT_NODEBOX:
   		{
-nnnn!!!!!!!!!!!!!!!!! Merge Novatux/tool_callback to next failed
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   doc/lua_api.txt
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      builtin/item.lua
-#
-diff --cc builtin/item.lua
-index 6a01f37,4d5eaeb..0000000
---- a/builtin/item.lua
-+++ b/builtin/item.lua
-@@@ -384,13 -329,16 +384,26 @@@ function minetest.node_dig(pos, node, d
-  	local wielded = digger:get_wielded_item()
-  	local drops = minetest.get_node_drops(node.name, wielded:get_name())
-  
-++<<<<<<< HEAD
- +	-- Wear out tool
- +	if not minetest.setting_getbool("creative_mode") then
- +		local tp = wielded:get_tool_capabilities()
- +		local dp = minetest.get_dig_params(def.groups, tp)
- +		wielded:add_wear(dp.wear)
- +		digger:set_wielded_item(wielded)
- +	end
-++=======
-+ 	local wdef = wielded:get_definition()
-+ 	local tp = wielded:get_tool_capabilities()
-+ 	local dp = minetest.get_dig_params(def.groups, tp)
-+ 	if wdef and wdef.after_use then
-+ 		wielded = wdef.after_use(wielded, digger, node, dp) or wielded
-+ 	else
-+ 		-- Wear out tool
-+ 		wielded:add_wear(dp.wear)
-+ 	end
-+ 	digger:set_wielded_item(wielded)
-++>>>>>>> Novatux/tool_callback
-  	
-  	-- Handle drops
-  	minetest.handle_node_drops(pos, drops, digger)
 nnnn!!!!!!!!!!!!!!!!! Merge ShadowNinja/protection_support to next failed
 # On branch next
 # You have unmerged paths.
