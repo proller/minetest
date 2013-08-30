@@ -3,17 +3,13 @@
 
 
 !!!!!!!!!!!!!!!!!
- Merge proller/liquid_send to next failed:# On branch next
+ Merge proller/liquid_default to next failed:# On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
 #
 # Changes to be committed:
 #
 #	modified:   minetest.conf.example
-#	modified:   src/map.cpp
-#	modified:   src/map.h
-#	modified:   src/server.cpp
-#	modified:   src/server.h
 #
 # Unmerged paths:
 #   (use "git add <file>..." to mark resolution)
@@ -21,23 +17,23 @@
 #	both modified:      src/defaultsettings.cpp
 #
 diff --cc src/defaultsettings.cpp
-index 3d72ec6,796f914..0000000
+index 4eadb26,852fb9f..0000000
 --- a/src/defaultsettings.cpp
 +++ b/src/defaultsettings.cpp
-@@@ -218,9 -217,10 +218,16 @@@ void set_default_settings(Settings *set
+@@@ -218,10 -217,9 +218,16 @@@ void set_default_settings(Settings *set
   	settings->setDefault("movement_gravity", "9.81");
   
   	//liquid stuff
 ++<<<<<<< HEAD
- +	settings->setDefault("liquid_finite", "true");
- +	settings->setDefault("liquid_loop_max", "1000");
- +	settings->setDefault("liquid_update", "1.0");
+ +	settings->setDefault("liquid_finite", "false");
+ +	settings->setDefault("liquid_loop_max", "500");
+ +	settings->setDefault("liquid_update", "0.4");
+ +	settings->setDefault("liquid_send", "1.0");
 ++=======
-+ 	settings->setDefault("liquid_finite", "false");
-+ 	settings->setDefault("liquid_loop_max", "500");
-+ 	settings->setDefault("liquid_update", "0.4");
-+ 	settings->setDefault("liquid_send", "1.0");
-++>>>>>>> proller/liquid_send
++ 	settings->setDefault("liquid_finite", "true");
++ 	settings->setDefault("liquid_loop_max", "1000");
++ 	settings->setDefault("liquid_update", "1.0");
+++>>>>>>> proller/liquid_default
   	settings->setDefault("liquid_relax", "2");
   	settings->setDefault("liquid_fast_flood", "1");
   	settings->setDefault("underground_springs", "1");
