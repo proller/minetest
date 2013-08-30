@@ -67,7 +67,7 @@ index 4eadb26,852fb9f..0000000
 #	both modified:      src/itemdef.cpp
 #
 diff --cc src/game.cpp
-index 650b5e2,421546b..0000000
+index 61b756a,421546b..0000000
 --- a/src/game.cpp
 +++ b/src/game.cpp
 @@@ -806,12 -809,21 +808,29 @@@ public
