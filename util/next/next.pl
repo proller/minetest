@@ -16,10 +16,10 @@ proller:liquid63			882
 proller:math				645
 proller:sqlite
 proller:json
-proller:heat				883
 proller:weather				892
-proller:liquid_default
 proller:liquid_send			895
+proller:liquid_default
+proller:huge_cave
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
@@ -45,6 +45,7 @@ sapier:fix_multiplayer_server_not_saved	846
     minetest_game => qq{
 proller:sponge		185
 proller:weather
+proller:liquid63
 Zeg9:wieldlight		188
 Jordach:moonflower	169
 },
@@ -125,14 +126,14 @@ git checkout -b $target
     }
 
     say "changed $diff";
-    my $test = sy "cmake . -DRUN_IN_PLACE=1 && make -j4" if $repo eq 'minetest' and !$error and !('nomake' ~~ @ARGV);
+    my $test = sy "cmake . -DRUN_IN_PLACE=1 && make -j4" if $repo eq 'minetest' and !$error and !('notest' ~~ @ARGV);
     say "test = [$test]";
     sy "git push -f" if !$test and !('nopush' ~~ @ARGV);
   UP:
     chdir '..';
     sy qq{git commit -m "merge log" $log};
 }
-sy "git push";
+sy "git push" if !('nopush' ~~ @ARGV);
 
 unlink $root . 'report.log';
 for my $r (@$report) {
