@@ -20,18 +20,20 @@ proller:weather				892
 proller:liquid_send			895
 proller:liquid_default
 proller:huge_cave
+proller:weather_fog
+proller:wingsuit
+proller:collision
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
 proller:clouds				855
 Zeg9:slippery				817
-Zeg9:wieldlight				816
+#Zeg9:wieldlight				816
 MirceaKitsune:sun_moon_coloring		799
 khonkhortisan:diagonal_rail		528
 Novatux:forceload			606
 Novatux:tool_callback			688
 PilzAdam:vbo
-sapier:pathfinder_bugfixes		887
 sweetbomber:spawn			744
 MirceaKitsune:brighter_sun_faces	772
 sapier:fix_crash_on_lua_exception	890
@@ -46,7 +48,7 @@ sapier:fix_multiplayer_server_not_saved	846
 proller:sponge		185
 proller:weather
 proller:liquid63
-Zeg9:wieldlight		188
+#Zeg9:wieldlight		188
 Jordach:moonflower	169
 },
 
@@ -133,7 +135,6 @@ git checkout -b $target
     chdir '..';
     sy qq{git commit -m "merge log" $log};
 }
-sy "git push" if !('nopush' ~~ @ARGV);
 
 unlink $root . 'report.log';
 for my $r (@$report) {
@@ -141,3 +142,5 @@ for my $r (@$report) {
     print;
     file_append $root . 'report.log', $_;
 }
+sy qq{git commit -m "report log" ${root}report.log};
+sy "git push" if !('nopush' ~~ @ARGV);
