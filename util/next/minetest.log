@@ -111,50 +111,6 @@ index 89f5879,16d0cc3..0000000
 
 
 !!!!!!!!!!!!!!!!!
- Merge ShadowNinja/protection_support to next failed:
-
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   builtin/item.lua
-#	modified:   doc/lua_api.txt
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      builtin/misc.lua
-#
-diff --cc builtin/misc.lua
-index 82a0ba2,46426ac..0000000
---- a/builtin/misc.lua
-+++ b/builtin/misc.lua
-@@@ -99,3 -99,15 +99,18 @@@ function minetest.setting_get_pos(name
-  	return minetest.string_to_pos(value)
-  end
-  
-++<<<<<<< HEAD
-++=======
-+ -- To be overriden by protection mods
-+ function minetest.can_interact(pos, name)
-+ 	return true
-+ end
-+ 
-+ function minetest.formspec_escape(str)
-+ 	str = string.gsub(str, "\\", "\\\\")
-+ 	str = string.gsub(str, "%[", "\\[")
-+ 	str = string.gsub(str, "%]", "\\]")
-+ 	return str
-+ end
-+ 
-++>>>>>>> ShadowNinja/protection_support
-
-
-
-
-!!!!!!!!!!!!!!!!!
  Merge sapier/add_surface_detection_function to next failed:
 
 # On branch next
