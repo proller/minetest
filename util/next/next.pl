@@ -28,7 +28,7 @@ sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
 proller:clouds				855
 Zeg9:slippery				817
-#Zeg9:wieldlight				816
+#Zeg9:wieldlight				816 #no light range BUG
 MirceaKitsune:sun_moon_coloring		799
 khonkhortisan:diagonal_rail		528
 Novatux:forceload			606
@@ -45,11 +45,12 @@ sapier:fix_multiplayer_server_not_saved	846
 },
 
     minetest_game => qq{
-proller:sponge		185
+proller:sponge			185
 proller:weather
 proller:liquid63
 #Zeg9:wieldlight		188
-Jordach:moonflower	169
+Jordach:moonflower		169
+khonkhortisan:diagonal_rail	135
 },
 
 };
