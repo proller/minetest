@@ -3,7 +3,9 @@
 
 
 !!!!!!!!!!!!!!!!!
- Merge proller/liquid_default to next failed:# On branch next
+ Merge proller/liquid_default to next failed:
+
+# On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
 #
@@ -42,7 +44,9 @@ index 4eadb26,852fb9f..0000000
 
 
 !!!!!!!!!!!!!!!!!
- Merge ShadowNinja/protection_support to next failed:# On branch next
+ Merge ShadowNinja/protection_support to next failed:
+
+# On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
 #
