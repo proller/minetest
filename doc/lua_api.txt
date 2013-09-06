@@ -1998,7 +1998,12 @@ Node definition (register_node)
     liquid_viscosity = 0, -- Higher viscosity = slower flow (max. 7)
     liquid_renewable = true, -- Can new liquid source be created by placing two or more sources nearby?
     freezemelt = "", -- water for snow/ice, ice/snow for water
-    leveled = 0, -- Block contain level in param2. value - default level, used for snow. Dont forget use "leveled" type nodebox
+    leveled = 0, -- Block contain level in param2. value - default level, used for snow.
+    ^ Dont forget use "leveled" type nodebox.
+    ^ Special sense for liquids with paramtype2="leveled" and global liquid_finite=1 :
+    ^ defines number of liquid levels in node (default=8)
+    ^ Less levels -> faster flooding, more levels -> smoother and more cpu use for flow.
+    ^ possible values for liquids 2..63
     liquid_range = 8, -- number of flowing nodes arround source (max. 8)
     drowning = 0, -- Player will take this amount of damage if no bubbles are left
     light_source = 0, -- Amount of light emitted by node
