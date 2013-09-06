@@ -109,10 +109,9 @@ git checkout -b $target
         }
 
         say "merging $path to $target";
-        #if (local $_ = sy "git merge --no-edit $path") {
-        if (local $_ = sy "git merge --no-edit -s recursive -X patience $path") {
+        if (local $_ = sy "git merge --no-edit -s recursive -X patience -X ignore-all-space $path") {
             push @$report, {%$i, status => 'fail', code => $_};
-            file_append $log, "\n\n\n\n!!!!!!!!!!!!!!!!!\n Merge $path to $target failed:";
+            file_append $log, "\n\n\n\n!!!!!!!!!!!!!!!!!\n Merge $path to $target failed:\n\n";
             sy "git status >> $log";
             sy "git diff >> $log";
             ++$error, last REPO if 'fail' ~~ @ARGV;
