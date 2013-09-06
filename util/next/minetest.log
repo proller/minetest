@@ -3,6 +3,114 @@
 
 
 !!!!!!!!!!!!!!!!!
+ Merge proller/sqlite to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   minetest.conf.example
+#	modified:   src/defaultsettings.cpp
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/map.cpp
+#
+diff --cc src/map.cpp
+index 89f5879,16d0cc3..0000000
+--- a/src/map.cpp
++++ b/src/map.cpp
+@@@ -3216,8 -3167,78 +3216,81 @@@ plan_b
+  	//return (s16)level;
+  }
+  
+++<<<<<<< HEAD
+++=======
++ void ServerMap::createDatabase() {
++ 	int e;
++ 	assert(m_database);
++ 	e = sqlite3_exec(m_database,
++ 		"CREATE TABLE IF NOT EXISTS `blocks` ("
++ 			"`pos` INT NOT NULL PRIMARY KEY,"
++ 			"`data` BLOB"
++ 		");"
++ 	, NULL, NULL, NULL);
++ 	if(e == SQLITE_ABORT)
++ 		throw FileNotGoodException("Could not create database structure");
++ 	else
++ 		infostream<<"ServerMap: Database structure was created";
++ }
++ 
++ void ServerMap::verifyDatabase() {
++ 	if(m_database)
++ 		return;
++ 
++ 	{
++ 		std::string dbp = m_savedir + DIR_DELIM + "map.sqlite";
++ 		bool needs_create = false;
++ 		int d;
++ 
++ 		/*
++ 			Open the database connection
++ 		*/
++ 
++ 		createDirs(m_savedir);
++ 
++ 		if(!fs::PathExists(dbp))
++ 			needs_create = true;
++ 
++ 		d = sqlite3_open_v2(dbp.c_str(), &m_database, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
++ 		if(d != SQLITE_OK) {
++ 			infostream<<"WARNING: Database failed to open: "<<sqlite3_errmsg(m_database)<<std::endl;
++ 			throw FileNotGoodException("Cannot open database file");
++ 		}
++ 
++ 		if(needs_create)
++ 			createDatabase();
++ 
++ 		d = sqlite3_exec(m_database, (std::string("PRAGMA synchronous = ") + g_settings->get("sqlite_synchronous")).c_str(), NULL, NULL, NULL);
++ 		if(d != SQLITE_OK) {
++ 			infostream<<"WARNING: Database pragma set failed: "<<sqlite3_errmsg(m_database)<<std::endl;
++ 			throw FileNotGoodException("Cannot set pragma");
++ 		}
++ 
++ 		d = sqlite3_prepare(m_database, "SELECT `data` FROM `blocks` WHERE `pos`=? LIMIT 1", -1, &m_database_read, NULL);
++ 		if(d != SQLITE_OK) {
++ 			infostream<<"WARNING: Database read statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
++ 			throw FileNotGoodException("Cannot prepare read statement");
++ 		}
++ 
++ 		d = sqlite3_prepare(m_database, "REPLACE INTO `blocks` VALUES(?, ?)", -1, &m_database_write, NULL);
++ 		if(d != SQLITE_OK) {
++ 			infostream<<"WARNING: Database write statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
++ 			throw FileNotGoodException("Cannot prepare write statement");
++ 		}
++ 
++ 		d = sqlite3_prepare(m_database, "SELECT `pos` FROM `blocks`", -1, &m_database_list, NULL);
++ 		if(d != SQLITE_OK) {
++ 			infostream<<"WARNING: Database list statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
++ 			throw FileNotGoodException("Cannot prepare read statement");
++ 		}
++ 
++ 		infostream<<"ServerMap: Database opened"<<std::endl;
++ 	}
++ }
++ 
+++>>>>>>> proller/sqlite
+  bool ServerMap::loadFromFolders() {
+ -	if(!m_database && !fs::PathExists(m_savedir + DIR_DELIM + "map.sqlite"))
+ +	if(!dbase->Initialized() && !fs::PathExists(m_savedir + DIR_DELIM + "map.sqlite")) // ?
+  		return true;
+  	return false;
+  }
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge ShadowNinja/protection_support to next failed:
 
 # On branch next
@@ -670,384 +778,3 @@ index 6b00914,bcb8286..0000000
   							texture);
   		lua_pushnumber(L, id);
   	}
-
-
-
-
-!!!!!!!!!!!!!!!!!
- Merge sfan5/leveldb to next failed:
-
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   src/CMakeLists.txt
-#	modified:   src/cmake_config.h.in
-#	modified:   src/config.h
-#	new file:   src/database-dummy.cpp
-#	new file:   src/database-dummy.h
-#	new file:   src/database-leveldb.cpp
-#	new file:   src/database-leveldb.h
-#	new file:   src/database-sqlite3.cpp
-#	new file:   src/database-sqlite3.h
-#	new file:   src/database.cpp
-#	new file:   src/database.h
-#	new file:   src/leveldb/.gitignore
-#	new file:   src/leveldb/AUTHORS
-#	new file:   src/leveldb/CMakeLists.txt
-#	new file:   src/leveldb/LICENSE
-#	new file:   src/leveldb/NEWS
-#	new file:   src/leveldb/README
-#	new file:   src/leveldb/TODO
-#	new file:   src/leveldb/build_detect_platform
-#	new file:   src/leveldb/db/builder.cc
-#	new file:   src/leveldb/db/builder.h
-#	new file:   src/leveldb/db/c.cc
-#	new file:   src/leveldb/db/c_test.c
-#	new file:   src/leveldb/db/corruption_test.cc
-#	new file:   src/leveldb/db/db_bench.cc
-#	new file:   src/leveldb/db/db_impl.cc
-#	new file:   src/leveldb/db/db_impl.h
-#	new file:   src/leveldb/db/db_iter.cc
-#	new file:   src/leveldb/db/db_iter.h
-#	new file:   src/leveldb/db/db_test.cc
-#	new file:   src/leveldb/db/dbformat.cc
-#	new file:   src/leveldb/db/dbformat.h
-#	new file:   src/leveldb/db/dbformat_test.cc
-#	new file:   src/leveldb/db/filename.cc
-#	new file:   src/leveldb/db/filename.h
-#	new file:   src/leveldb/db/filename_test.cc
-#	new file:   src/leveldb/db/log_format.h
-#	new file:   src/leveldb/db/log_reader.cc
-#	new file:   src/leveldb/db/log_reader.h
-#	new file:   src/leveldb/db/log_test.cc
-#	new file:   src/leveldb/db/log_writer.cc
-#	new file:   src/leveldb/db/log_writer.h
-#	new file:   src/leveldb/db/memtable.cc
-#	new file:   src/leveldb/db/memtable.h
-#	new file:   src/leveldb/db/repair.cc
-#	new file:   src/leveldb/db/skiplist.h
-#	new file:   src/leveldb/db/skiplist_test.cc
-#	new file:   src/leveldb/db/snapshot.h
-#	new file:   src/leveldb/db/table_cache.cc
-#	new file:   src/leveldb/db/table_cache.h
-#	new file:   src/leveldb/db/version_edit.cc
-#	new file:   src/leveldb/db/version_edit.h
-#	new file:   src/leveldb/db/version_edit_test.cc
-#	new file:   src/leveldb/db/version_set.cc
-#	new file:   src/leveldb/db/version_set.h
-#	new file:   src/leveldb/db/version_set_test.cc
-#	new file:   src/leveldb/db/write_batch.cc
-#	new file:   src/leveldb/db/write_batch_internal.h
-#	new file:   src/leveldb/db/write_batch_test.cc
-#	new file:   src/leveldb/doc/bench/db_bench_sqlite3.cc
-#	new file:   src/leveldb/doc/bench/db_bench_tree_db.cc
-#	new file:   src/leveldb/doc/benchmark.html
-#	new file:   src/leveldb/doc/doc.css
-#	new file:   src/leveldb/doc/impl.html
-#	new file:   src/leveldb/doc/index.html
-#	new file:   src/leveldb/doc/log_format.txt
-#	new file:   src/leveldb/doc/table_format.txt
-#	new file:   src/leveldb/helpers/memenv/memenv.cc
-#	new file:   src/leveldb/helpers/memenv/memenv.h
-#	new file:   src/leveldb/helpers/memenv/memenv_test.cc
-#	new file:   src/leveldb/include/leveldb/c.h
-#	new file:   src/leveldb/include/leveldb/cache.h
-#	new file:   src/leveldb/include/leveldb/comparator.h
-#	new file:   src/leveldb/include/leveldb/db.h
-#	new file:   src/leveldb/include/leveldb/env.h
-#	new file:   src/leveldb/include/leveldb/filter_policy.h
-#	new file:   src/leveldb/include/leveldb/iterator.h
-#	new file:   src/leveldb/include/leveldb/options.h
-#	new file:   src/leveldb/include/leveldb/slice.h
-#	new file:   src/leveldb/include/leveldb/status.h
-#	new file:   src/leveldb/include/leveldb/table.h
-#	new file:   src/leveldb/include/leveldb/table_builder.h
-#	new file:   src/leveldb/include/leveldb/write_batch.h
-#	new file:   src/leveldb/port/README
-#	new file:   src/leveldb/port/atomic_pointer.h
-#	new file:   src/leveldb/port/port.h
-#	new file:   src/leveldb/port/port_example.h
-#	new file:   src/leveldb/port/port_posix.cc
-#	new file:   src/leveldb/port/port_posix.h
-#	new file:   src/leveldb/port/thread_annotations.h
-#	new file:   src/leveldb/port/win/stdint.h
-#	new file:   src/leveldb/table/block.cc
-#	new file:   src/leveldb/table/block.h
-#	new file:   src/leveldb/table/block_builder.cc
-#	new file:   src/leveldb/table/block_builder.h
-#	new file:   src/leveldb/table/filter_block.cc
-#	new file:   src/leveldb/table/filter_block.h
-#	new file:   src/leveldb/table/filter_block_test.cc
-#	new file:   src/leveldb/table/format.cc
-#	new file:   src/leveldb/table/format.h
-#	new file:   src/leveldb/table/iterator.cc
-#	new file:   src/leveldb/table/iterator_wrapper.h
-#	new file:   src/leveldb/table/merger.cc
-#	new file:   src/leveldb/table/merger.h
-#	new file:   src/leveldb/table/table.cc
-#	new file:   src/leveldb/table/table_builder.cc
-#	new file:   src/leveldb/table/table_test.cc
-#	new file:   src/leveldb/table/two_level_iterator.cc
-#	new file:   src/leveldb/table/two_level_iterator.h
-#	new file:   src/leveldb/util/arena.cc
-#	new file:   src/leveldb/util/arena.h
-#	new file:   src/leveldb/util/arena_test.cc
-#	new file:   src/leveldb/util/bloom.cc
-#	new file:   src/leveldb/util/bloom_test.cc
-#	new file:   src/leveldb/util/cache.cc
-#	new file:   src/leveldb/util/cache_test.cc
-#	new file:   src/leveldb/util/coding.cc
-#	new file:   src/leveldb/util/coding.h
-#	new file:   src/leveldb/util/coding_test.cc
-#	new file:   src/leveldb/util/comparator.cc
-#	new file:   src/leveldb/util/crc32c.cc
-#	new file:   src/leveldb/util/crc32c.h
-#	new file:   src/leveldb/util/crc32c_test.cc
-#	new file:   src/leveldb/util/env.cc
-#	new file:   src/leveldb/util/env_posix.cc
-#	new file:   src/leveldb/util/env_test.cc
-#	new file:   src/leveldb/util/filter_policy.cc
-#	new file:   src/leveldb/util/hash.cc
-#	new file:   src/leveldb/util/hash.h
-#	new file:   src/leveldb/util/histogram.cc
-#	new file:   src/leveldb/util/histogram.h
-#	new file:   src/leveldb/util/logging.cc
-#	new file:   src/leveldb/util/logging.h
-#	new file:   src/leveldb/util/mutexlock.h
-#	new file:   src/leveldb/util/options.cc
-#	new file:   src/leveldb/util/posix_logger.h
-#	new file:   src/leveldb/util/random.h
-#	new file:   src/leveldb/util/status.cc
-#	new file:   src/leveldb/util/testharness.cc
-#	new file:   src/leveldb/util/testharness.h
-#	new file:   src/leveldb/util/testutil.cc
-#	new file:   src/leveldb/util/testutil.h
-#	modified:   src/main.cpp
-#	modified:   src/map.h
-#	modified:   src/server.h
-#	modified:   src/subgame.cpp
-#	modified:   src/util/string.h
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      src/map.cpp
-#
-diff --cc src/map.cpp
-index ef9cadd,e2191f9..0000000
---- a/src/map.cpp
-+++ b/src/map.cpp
-@@@ -3176,129 -3143,52 +3196,132 @@@ MapBlock * ServerMap::emergeBlock(v3s1
-  	return NULL;
-  }
-  
- -s16 ServerMap::findGroundLevel(v2s16 p2d)
- -{
- -#if 0
- -	/*
- -		Uh, just do something random...
- +/**
- +		Get the ground level by searching for a non CONTENT_AIR node in a column from top to bottom
-  	*/
- -	// Find existing map from top to down
- -	s16 max=63;
- -	s16 min=-64;
- -	v3s16 p(p2d.X, max, p2d.Y);
- -	for(; p.Y>min; p.Y--)
- -	{
- -		MapNode n = getNodeNoEx(p);
- -		if(n.getContent() != CONTENT_IGNORE)
- -			break;
- -	}
- -	if(p.Y == min)
- -		goto plan_b;
- -	// If this node is not air, go to plan b
- -	if(getNodeNoEx(p).getContent() != CONTENT_AIR)
- -		goto plan_b;
- -	// Search existing walkable and return it
- -	for(; p.Y>min; p.Y--)
- +s16 ServerMap::findGroundLevel(v2s16 p2d, bool cacheBlocks)
-  	{
- -		MapNode n = getNodeNoEx(p);
- -		if(content_walkable(n.d) && n.getContent() != CONTENT_IGNORE)
- -			return p.Y;
- +	
- +	s16 level;
- +
- +	// The reference height is the original mapgen height
- +	s16 referenceHeight = m_emerge->getGroundLevelAtPoint(p2d);
- +	s16 maxSearchHeight =  63 + referenceHeight;
- +	s16 minSearchHeight = -63 + referenceHeight;
- +	v3s16 probePosition(p2d.X, maxSearchHeight, p2d.Y);
- +	v3s16 blockPosition = getNodeBlockPos(probePosition);
- +	v3s16 prevBlockPosition = blockPosition;
- +
- +	// Cache the block to be inspected.
- +	if(cacheBlocks) {
- +		emergeBlock(blockPosition, true);
-  	}
-  
- -	// Move to plan b
- -plan_b:
- -#endif
- +	// Probes the nodes in the given column
- +	for(; probePosition.Y > minSearchHeight; probePosition.Y--)
- +	{
- +		if(cacheBlocks) {
- +			// Calculate the block position of the given node
- +			blockPosition = getNodeBlockPos(probePosition); 
-  
- -	/*
- -		Determine from map generator noise functions
- -	*/
- +			// If the node is in an different block, cache it
- +			if(blockPosition != prevBlockPosition) {
- +				emergeBlock(blockPosition, true);
- +				prevBlockPosition = blockPosition;
- +			}
- +		}
- +
- +		MapNode node = getNodeNoEx(probePosition);
- +		if(node.getContent() != CONTENT_IGNORE && node.getContent() != CONTENT_AIR)
- +			break;
- +	}
- +
- +	// Could not determine the ground. Use map generator noise functions.
- +	if(probePosition.Y == minSearchHeight) {
- +		level = referenceHeight; 
- +	}
- +	else {
- +		level = probePosition.Y;
- +	}
-  
- -	s16 level = m_emerge->getGroundLevelAtPoint(p2d);
-  	return level;
- +}
- +
-++<<<<<<< HEAD
- +void ServerMap::createDatabase() {
- +	int e;
- +	assert(m_database);
- +	e = sqlite3_exec(m_database,
- +		"CREATE TABLE IF NOT EXISTS `blocks` ("
- +			"`pos` INT NOT NULL PRIMARY KEY,"
- +			"`data` BLOB"
- +		");"
- +	, NULL, NULL, NULL);
- +	if(e == SQLITE_ABORT)
- +		throw FileNotGoodException("Could not create database structure");
- +	else
- +		infostream<<"ServerMap: Database structure was created";
- +}
- +
- +void ServerMap::verifyDatabase() {
- +	if(m_database)
- +		return;
- +
- +	{
- +		std::string dbp = m_savedir + DIR_DELIM + "map.sqlite";
- +		bool needs_create = false;
- +		int d;
- +
- +		/*
- +			Open the database connection
- +		*/
- +
- +		createDirs(m_savedir);
- +
- +		if(!fs::PathExists(dbp))
- +			needs_create = true;
- +
- +		d = sqlite3_open_v2(dbp.c_str(), &m_database, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
- +		if(d != SQLITE_OK) {
- +			infostream<<"WARNING: Database failed to open: "<<sqlite3_errmsg(m_database)<<std::endl;
- +			throw FileNotGoodException("Cannot open database file");
- +		}
-  
- -	//double level = base_rock_level_2d(m_seed, p2d) + AVERAGE_MUD_AMOUNT;
- -	//return (s16)level;
- +		if(needs_create)
- +			createDatabase();
- +
- +		d = sqlite3_exec(m_database, (std::string("PRAGMA synchronous = ") + g_settings->get("sqlite_synchronous")).c_str(), NULL, NULL, NULL);
- +		if(d != SQLITE_OK) {
- +			infostream<<"WARNING: Database pragma set failed: "<<sqlite3_errmsg(m_database)<<std::endl;
- +			throw FileNotGoodException("Cannot set pragma");
- +		}
- +
- +		d = sqlite3_prepare(m_database, "SELECT `data` FROM `blocks` WHERE `pos`=? LIMIT 1", -1, &m_database_read, NULL);
- +		if(d != SQLITE_OK) {
- +			infostream<<"WARNING: Database read statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
- +			throw FileNotGoodException("Cannot prepare read statement");
- +		}
- +
- +		d = sqlite3_prepare(m_database, "REPLACE INTO `blocks` VALUES(?, ?)", -1, &m_database_write, NULL);
- +		if(d != SQLITE_OK) {
- +			infostream<<"WARNING: Database write statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
- +			throw FileNotGoodException("Cannot prepare write statement");
- +		}
- +
- +		d = sqlite3_prepare(m_database, "SELECT `pos` FROM `blocks`", -1, &m_database_list, NULL);
- +		if(d != SQLITE_OK) {
- +			infostream<<"WARNING: Database list statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
- +			throw FileNotGoodException("Cannot prepare read statement");
- +		}
- +
- +		infostream<<"ServerMap: Database opened"<<std::endl;
- +	}
-  }
-  
-++=======
-++>>>>>>> sfan5/leveldb
-  bool ServerMap::loadFromFolders() {
-- 	if(!m_database && !fs::PathExists(m_savedir + DIR_DELIM + "map.sqlite"))
-+ 	if(!dbase->Initialized() && !fs::PathExists(m_savedir + DIR_DELIM + "map.sqlite")) // ?
-  		return true;
-  	return false;
-  }
-@@@ -4044,38 -3820,11 +3953,11 @@@ MapBlock* ServerMap::loadBlock(v3s16 bl
-  
-  	v2s16 p2d(blockpos.X, blockpos.Z);
-  
-- 	if(!loadFromFolders()) {
-- 		verifyDatabase();
-- 
-- 		if(sqlite3_bind_int64(m_database_read, 1, getBlockAsInteger(blockpos)) != SQLITE_OK)
-- 			infostream<<"WARNING: Could not bind block position for load: "
-- 				<<sqlite3_errmsg(m_database)<<std::endl;
-- 		if(sqlite3_step(m_database_read) == SQLITE_ROW) {
-- 			/*
-- 				Make sure sector is loaded
-- 			*/
-- 			MapSector *sector = createSector(p2d);
-- 
-- 			/*
-- 				Load block
-- 			*/
-- 			const char * data = (const char *)sqlite3_column_blob(m_database_read, 0);
-- 			size_t len = sqlite3_column_bytes(m_database_read, 0);
-- 
-- 			std::string datastr(data, len);
-- 
-- 			loadBlock(&datastr, blockpos, sector, false);
-- 
-- 			sqlite3_step(m_database_read);
-- 			// We should never get more than 1 row, so ok to reset
-- 			sqlite3_reset(m_database_read);
-- 
-- 			return getBlockNoCreateNoEx(blockpos);
-- 		}
-- 		sqlite3_reset(m_database_read);
-+ 	MapBlock *ret;
-  
-+ 	ret = dbase->loadBlock(blockpos);
-+ 	if (ret) return (ret);
- -	// Not found in database, try the files
- +		// Not found in database, try the files
-- 	}
-  
-  	// The directory layout we're going to load from.
-  	//  1 - original sectors/xxxxzzzz/
