@@ -131,10 +131,10 @@ index 89f5879,16d0cc3..0000000
 #	both modified:      src/script/lua_api/l_env.h
 #
 diff --cc src/script/lua_api/l_env.cpp
-index 0f2a409,47e9963..0000000
+index 731e730,47e9963..0000000
 --- a/src/script/lua_api/l_env.cpp
 +++ b/src/script/lua_api/l_env.cpp
-@@@ -771,39 -937,49 +795,83 @@@ int ModApiEnvMod::l_get_humidity(lua_St
+@@@ -781,40 -937,49 +805,84 @@@ int ModApiEnvMod::l_get_humidity(lua_St
   }
   
   
@@ -164,6 +164,7 @@ index 0f2a409,47e9963..0000000
  +	API_FCT(get_objects_inside_radius);
  +	API_FCT(set_timeofday);
  +	API_FCT(get_timeofday);
+ +	API_FCT(get_gametime);
  +	API_FCT(find_node_near);
  +	API_FCT(find_nodes_in_area);
  +	API_FCT(get_perlin);
@@ -223,10 +224,10 @@ index 0f2a409,47e9963..0000000
  -
  -ModApiEnvMod modapienv_prototype;
 diff --cc src/script/lua_api/l_env.h
-index fe2883b,b01fe5a..0000000
+index 5f3467f,b01fe5a..0000000
 --- a/src/script/lua_api/l_env.h
 +++ b/src/script/lua_api/l_env.h
-@@@ -144,8 -159,13 +144,16 @@@ private
+@@@ -147,8 -159,13 +147,16 @@@ private
   	static int l_get_heat(lua_State *L);
   	static int l_get_humidity(lua_State *L);
   	
