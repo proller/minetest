@@ -201,6 +201,25 @@ endif(LUA_LIBRARY AND LUA_INCLUDE_DIR)
 mark_as_advanced(LUA_LIBRARY)
 mark_as_advanced(LUA_INCLUDE_DIR)
 
+set(USE_LEVELDB 0)
+
+OPTION(ENABLE_LEVELDB "Enable LevelDB backend")
+
+if(ENABLE_LEVELDB)
+	find_library(LEVELDB_LIBRARY leveldb)
+	find_path(LEVELDB_INCLUDE_DIR db.h PATH_SUFFIXES leveldb)
+	message (STATUS "LevelDB library: ${LEVELDB_LIBRARY}")
+	message (STATUS "LevelDB headers: ${LEVELDB_INCLUDE_DIR}")
+	if(LEVELDB_LIBRARY AND LEVELDB_INCLUDE_DIR)
+		set(USE_LEVELDB 1)
+		message(STATUS "LevelDB backend enabled")
+		include_directories(${LEVELDB_INCLUDE_DIR})
+	else(LEVELDB_LIBRARY AND LEVELDB_INCLUDE_DIR)
+		set(USE_LEVELDB 0)
+		message(STATUS "LevelDB not found!")
+	endif(LEVELDB_LIBRARY AND LEVELDB_INCLUDE_DIR)
+endif(ENABLE_LEVELDB)
+
 configure_file(
 	"${PROJECT_SOURCE_DIR}/cmake_config.h.in"
 	"${PROJECT_BINARY_DIR}/cmake_config.h"
@@ -261,6 +280,10 @@ set(common_SRCS
 	mapblock.cpp
 	mapsector.cpp
 	map.cpp
+	database.cpp
+	database-dummy.cpp
+	database-leveldb.cpp
+	database-sqlite3.cpp
 	player.cpp
 	test.cpp
 	sha1.cpp
@@ -414,6 +437,9 @@ if(BUILD_CLIENT)
 			${CGUITTFONT_LIBRARY}
 		)
 	endif(USE_FREETYPE)
+	if (USE_LEVELDB)
+		target_link_libraries(${PROJECT_NAME} ${LEVELDB_LIBRARY})
+	endif(USE_LEVELDB)
 endif(BUILD_CLIENT)
 
 if(BUILD_SERVER)
@@ -428,6 +454,9 @@ if(BUILD_SERVER)
 		${LUA_LIBRARY}
 		${PLATFORM_LIBS}
 	)
+	if (USE_LEVELDB)
+		target_link_libraries(${PROJECT_NAME}server ${LEVELDB_LIBRARY})
+	endif(USE_LEVELDB)
 	if(USE_CURL)
 		target_link_libraries(
 			${PROJECT_NAME}server
