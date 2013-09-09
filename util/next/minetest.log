@@ -20,10 +20,10 @@
 #	both modified:      src/map.cpp
 #
 diff --cc src/map.cpp
-index 89f5879,16d0cc3..0000000
+index f0e85d4,16d0cc3..0000000
 --- a/src/map.cpp
 +++ b/src/map.cpp
-@@@ -3216,8 -3167,78 +3216,81 @@@ plan_b
+@@@ -3218,8 -3167,78 +3218,81 @@@ plan_b
   	//return (s16)level;
   }
   
