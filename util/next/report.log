@@ -35,4 +35,3 @@ ok	minetest_game proller:weather
 ok	minetest_game proller:liquid63		
 ok	minetest_game Jordach:moonflower		https://github.com/minetest/minetest_game/pull/169	
 ok	minetest_game khonkhortisan:diagonal_rail		https://github.com/minetest/minetest_game/pull/135	
-ok	minetest_game Novatux:furnace		https://github.com/minetest/minetest_game/pull/200	
