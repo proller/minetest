@@ -20,7 +20,7 @@
 #	both modified:      src/map.cpp
 #
 diff --cc src/map.cpp
-index f0e85d4,16d0cc3..0000000
+index 70fcaf0,16d0cc3..0000000
 --- a/src/map.cpp
 +++ b/src/map.cpp
 @@@ -3218,8 -3167,78 +3218,81 @@@ plan_b
