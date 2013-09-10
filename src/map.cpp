@@ -2078,12 +2078,12 @@ void Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
 			case LIQUID_SOURCE:
 				liquid_level = n0.getLevel(nodemgr);
 				liquid_kind = nodemgr->getId(nodemgr->get(n0).liquid_alternative_flowing);
-errorstream<<" src="<<(int)liquid_level<<std::endl;
+errorstream<<" ME src="<<(int)liquid_level<<" n="<<nodemgr->get(n0).name<<std::endl;
 				break;
 			case LIQUID_FLOWING:
 				liquid_level = n0.getLevel(nodemgr);
 				liquid_kind = n0.getContent();
-errorstream<<" flo="<<(int)liquid_level<<std::endl;
+errorstream<<" ME flo="<<(int)liquid_level<<" n="<<nodemgr->get(n0).name<<std::endl;
 				break;
 			case LIQUID_NONE:
 				// if this is an air node, it *could* be transformed into a liquid. otherwise,
@@ -2093,7 +2093,6 @@ errorstream<<" flo="<<(int)liquid_level<<std::endl;
 				liquid_kind = CONTENT_AIR;
 				break;
 		}
-		u16 level_max = nodemgr->get(liquid_kind).getMaxLevel();
 
 		/*
 			Collect information about the environment
@@ -2163,6 +2162,7 @@ errorstream<<" flo="<<(int)liquid_level<<std::endl;
 					break;
 			}
 		}
+		u16 level_max = nodemgr->get(liquid_kind).getMaxLevel();
 
 		/*
 			decide on the type (and possibly level) of the current node
@@ -2183,6 +2183,7 @@ errorstream<<" flo="<<(int)liquid_level<<std::endl;
 			// no surrounding sources, so get the maximum level that can flow into this node
 			for (u16 i = 0; i < num_flows; i++) {
 				u8 nb_liquid_level = (flows[i].n.getLevel(nodemgr));
+errorstream << " nblev="<<(int)nb_liquid_level<<std::endl;
 				switch (flows[i].t) {
 					case NEIGHBOR_UPPER:
 						if (nb_liquid_level + WATER_DROP_BOOST > max_node_level) {
@@ -2237,7 +2238,7 @@ errorstream<<" flo="<<(int)liquid_level<<std::endl;
 										 ((n0.param2 & LIQUID_FLOW_DOWN_MASK) == LIQUID_FLOW_DOWN_MASK)
 										 == flowing_down)))
 */
-errorstream << " was="<<(int)liquid_level<<" new="<< (int)new_node_level<< " ncon="<< (int)new_node_content << " flodo="<<(int)flowing_down<< " lmax="<<level_max<<std::endl;
+errorstream << " was="<<(int)liquid_level<<" new="<< (int)new_node_level<< " ncon="<< (int)new_node_content << " flodo="<<(int)flowing_down<< " lmax="<<level_max<< " nameNE="<<nodemgr->get(new_node_content).name<<std::endl;
 		if (liquid_level == new_node_level)
 			continue;
 
