@@ -2078,12 +2078,10 @@ void Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
 			case LIQUID_SOURCE:
 				liquid_level = n0.getLevel(nodemgr);
 				liquid_kind = nodemgr->getId(nodemgr->get(n0).liquid_alternative_flowing);
-errorstream<<" ME src="<<(int)liquid_level<<" n="<<nodemgr->get(n0).name<<std::endl;
 				break;
 			case LIQUID_FLOWING:
 				liquid_level = n0.getLevel(nodemgr);
 				liquid_kind = n0.getContent();
-errorstream<<" ME flo="<<(int)liquid_level<<" n="<<nodemgr->get(n0).name<<std::endl;
 				break;
 			case LIQUID_NONE:
 				// if this is an air node, it *could* be transformed into a liquid. otherwise,
@@ -2162,7 +2160,7 @@ errorstream<<" ME flo="<<(int)liquid_level<<" n="<<nodemgr->get(n0).name<<std::e
 					break;
 			}
 		}
-		u16 level_max = nodemgr->get(liquid_kind).getMaxLevel();
+		u16 level_max = nodemgr->get(liquid_kind).getMaxLevel() - 1; // source - 1
 
 		/*
 			decide on the type (and possibly level) of the current node
@@ -2175,15 +2173,16 @@ errorstream<<" ME flo="<<(int)liquid_level<<" n="<<nodemgr->get(n0).name<<std::e
 			// or the flowing alternative of the first of the surrounding sources (if it's air), so
 			// it's perfectly safe to use liquid_kind here to determine the new node content.
 			new_node_content = nodemgr->getId(nodemgr->get(liquid_kind).liquid_alternative_source);
+			max_node_level = level_max + 1;
 		} else if (num_sources >= 1 && sources[0].t != NEIGHBOR_LOWER) {
 			// liquid_kind is set properly, see above
 			new_node_content = liquid_kind;
 			max_node_level = new_node_level = level_max;
+
 		} else {
 			// no surrounding sources, so get the maximum level that can flow into this node
 			for (u16 i = 0; i < num_flows; i++) {
 				u8 nb_liquid_level = (flows[i].n.getLevel(nodemgr));
-errorstream << " nblev="<<(int)nb_liquid_level<<std::endl;
 				switch (flows[i].t) {
 					case NEIGHBOR_UPPER:
 						if (nb_liquid_level + WATER_DROP_BOOST > max_node_level) {
@@ -2220,13 +2219,16 @@ errorstream << " nblev="<<(int)nb_liquid_level<<std::endl;
 			} else
 				new_node_level = max_node_level;
 
+/*
 			u8 range = rangelim(nodemgr->get(liquid_kind).liquid_range, 0, level_max+1);
-
 			if (new_node_level >= (level_max+1-range))
+*/
+
+			if (new_node_level >= 1)
 				new_node_content = liquid_kind;
 			else
 				new_node_content = CONTENT_AIR;
-
+				//new_node_content = liquid_kind;
 		}
 
 		/*
@@ -2238,8 +2240,7 @@ errorstream << " nblev="<<(int)nb_liquid_level<<std::endl;
 										 ((n0.param2 & LIQUID_FLOW_DOWN_MASK) == LIQUID_FLOW_DOWN_MASK)
 										 == flowing_down)))
 */
-errorstream << " was="<<(int)liquid_level<<" new="<< (int)new_node_level<< " ncon="<< (int)new_node_content << " flodo="<<(int)flowing_down<< " lmax="<<level_max<< " nameNE="<<nodemgr->get(new_node_content).name<<std::endl;
-		if (liquid_level == new_node_level)
+		if (liquid_level == new_node_level || new_node_level < 0)
 			continue;
 
 		/*
@@ -2256,7 +2257,6 @@ errorstream << " was="<<(int)liquid_level<<" new="<< (int)new_node_level<< " nco
 			n0.param2 = ~(LIQUID_LEVEL_MASK | LIQUID_FLOW_DOWN_MASK);
 		}
 */
-		//n0.setContent(new_node_content);
 		n0.setContent(new_node_content);
 		n0.setLevel(nodemgr, new_node_level);
 //		n0.param2 |= (flowing_down ? LIQUID_FLOW_DOWN_MASK : 0x00);
