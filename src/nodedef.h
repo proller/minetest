@@ -227,7 +227,6 @@ struct ContentFeatures
 	// Ice for water, water for ice
 	std::string freezemelt;
 	// Number of flowing liquids surrounding source
-	u8 liquid_range;
 	u8 drowning;
 	// Amount of light the node emits
 	u8 light_source;

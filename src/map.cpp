@@ -2264,8 +2264,9 @@ void Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
 		}
 */
 		n0.setContent(new_node_content);
-		n0.setLevel(nodemgr, new_node_level);
-		n0.param2 |= (flowing_down ? LIQUID_FLOW_DOWN_MASK : 0x00);
+		n0.setLevel(nodemgr, new_node_level); // set air, flowing, source depend on level
+		if (nodemgr->get(n0).liquid_type == LIQUID_FLOWING)
+			n0.param2 |= (flowing_down ? LIQUID_FLOW_DOWN_MASK : 0x00);
 
 		// Find out whether there is a suspect for this action
 		std::string suspect;

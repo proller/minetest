@@ -397,8 +397,6 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 				l = getInteriorLight(n, 0, data);
 			video::SColor c = MapBlock_LightColor(f.alpha, l, decode_light(f.light_source));
 
-			//u8 range = rangelim(nodedef->get(c_flowing).liquid_range, 0, 8);
-
 			// Neighbor liquid levels (key = relative position)
 			// Includes current node
 			std::map<v3s16, f32> neighbor_levels;
@@ -431,8 +429,6 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 					if(n2.getContent() == c_source)
 						level = (-0.5+node_liquid_level) * BS;
 					else if(n2.getContent() == c_flowing){
-						//u8 liquid_level = n2.getLevel(nodedef) - (n2.getMaxLevel(nodedef)+1-range);
-						//level = (-0.5 + ((float)liquid_level+ 0.5) / (float)range * node_liquid_level) * BS;
 						level = (-0.5 + ((float)n2.getLevel(nodedef)
 							 + 0.5) / n2.getMaxLevel(nodedef) * node_liquid_level) * BS;
 					}
