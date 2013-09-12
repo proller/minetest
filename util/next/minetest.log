@@ -3,6 +3,1097 @@
 
 
 !!!!!!!!!!!!!!!!!
+ Merge proller/math to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   minetest.conf.example
+#	modified:   src/defaultsettings.cpp
+#	new file:   src/mandelbulber/algebra.cpp
+#	new file:   src/mandelbulber/algebra.hpp
+#	new file:   src/mandelbulber/common_math.h
+#	new file:   src/mandelbulber/fractal.cpp
+#	new file:   src/mandelbulber/fractal.h
+#	new file:   src/mandelbulber/fractparams.h
+#	modified:   src/mapgen_math.cpp
+#	modified:   src/mapgen_math.h
+#	modified:   src/script/lua_api/CMakeLists.txt
+#	modified:   src/settings.h
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      builtin/gamemgr.lua
+#	both modified:      builtin/mainmenu.lua
+#	both modified:      builtin/modmgr.lua
+#	both modified:      doc/lua_api.txt
+#	both modified:      doc/menu_lua_api.txt
+#	both modified:      src/clientserver.h
+#	both modified:      src/content_cao.cpp
+#	both modified:      src/content_mapblock.cpp
+#	both modified:      src/content_sao.cpp
+#	both modified:      src/guiEngine.cpp
+#	both modified:      src/guiEngine.h
+#	both modified:      src/guiFormSpecMenu.cpp
+#	both modified:      src/guiFormSpecMenu.h
+#	both modified:      src/main.cpp
+#	both modified:      src/map.h
+#	both modified:      src/object_properties.cpp
+#	both modified:      src/object_properties.h
+#	both modified:      src/script/common/c_content.cpp
+#	both modified:      src/script/lua_api/l_env.cpp
+#	both modified:      src/script/lua_api/l_mainmenu.cpp
+#	both added:         src/script/lua_api/l_util.cpp
+#	both added:         src/script/lua_api/l_util.h
+#	both added:         src/script/scripting_game.cpp
+#	both added:         src/script/scripting_mainmenu.cpp
+#	both modified:      src/server.cpp
+#	both modified:      src/server.h
+#	both modified:      src/subgame.cpp
+#
+diff --cc builtin/gamemgr.lua
+index 7a5e979,cb3e8d4..0000000
+--- a/builtin/gamemgr.lua
++++ b/builtin/gamemgr.lua
+@@@ -234,7 -220,7 +234,11 @@@ function gamemgr.tab(
+  			"label[6,1.4;" .. fgettext("Mods:") .."]" ..
+  			"button[9.7,1.5;2,0.2;btn_game_mgr_edit_game;" .. fgettext("edit game") .. "]" ..
+  			"textlist[6,2;5.5,3.3;game_mgr_modlist;"
+++<<<<<<< HEAD
+ +			.. gamemgr.get_game_modlist(current_game) ..";0]" ..
+++=======
++ 			.. gamemgr.get_game_mods(current_game) ..";0]" ..
+++>>>>>>> proller/math
+  			"button[1,4.75;3.2,0.5;btn_game_mgr_new_game;" .. fgettext("new game") .. "]"
+  	end
+  	return retval
+diff --cc builtin/mainmenu.lua
+index 5a1b6e9,6772224..0000000
+--- a/builtin/mainmenu.lua
++++ b/builtin/mainmenu.lua
+@@@ -635,18 -632,27 +635,22 @@@ function tabbuilder.handle_server_butto
+  end
+  
+  --------------------------------------------------------------------------------
+ -function tabbuilder.tobool(text)
+ -	if text == "true" then
+ -		return true
+ -	else
+ -		return false
+ -	end
+ -end
+ -
+ ---------------------------------------------------------------------------------
+  function tabbuilder.handle_settings_buttons(fields)
+  	if fields["cb_fancy_trees"] then
+ -		engine.setting_setbool("new_style_leaves",tabbuilder.tobool(fields["cb_fancy_trees"]))
+ +		engine.setting_set("new_style_leaves", fields["cb_fancy_trees"])
+  	end
+  	if fields["cb_smooth_lighting"] then
+ -		engine.setting_setbool("smooth_lighting",tabbuilder.tobool(fields["cb_smooth_lighting"]))
+ +		engine.setting_set("smooth_lighting", fields["cb_smooth_lighting"])
+  	end
+  	if fields["cb_3d_clouds"] then
+ -		engine.setting_setbool("enable_3d_clouds",tabbuilder.tobool(fields["cb_3d_clouds"]))
+ +		engine.setting_set("enable_3d_clouds", fields["cb_3d_clouds"])
+  	end
+  	if fields["cb_opaque_water"] then
+++<<<<<<< HEAD
+ +		engine.setting_set("opaque_water", fields["cb_opaque_water"])
+++=======
++ 		engine.setting_setbool("opaque_water",tabbuilder.tobool(fields["cb_opaque_water"]))
+++>>>>>>> proller/math
+  	end
+  	
+  	if fields["cb_mipmapping"] then
+@@@ -1047,7 -1053,7 +1051,11 @@@ function tabbuilder.tab_texture_packs(
+  	return	retval ..
+  			menu.render_texture_pack_list(list) ..
+  			";" .. index .. "]" ..
+++<<<<<<< HEAD
+ +			"image[0.65,0.25;4.0,3.7;"..engine.formspec_escape(screenfile or no_screenshot).."]"..
+++=======
++ 			"image[0.65,0.25;4.0,3.7;"..(screenfile or no_screenshot).."]"..
+++>>>>>>> proller/math
+  			"textarea[1.0,3.25;3.7,1.5;;"..engine.formspec_escape(infotext or "")..";]"
+  end
+  
+diff --cc builtin/modmgr.lua
+index d9579c6,9f5e687..0000000
+--- a/builtin/modmgr.lua
++++ b/builtin/modmgr.lua
+@@@ -405,7 -401,7 +405,11 @@@ function modmgr.dialog_configure_world(
+  		"button[9.25,6.35;2,0.5;btn_config_world_save;" .. fgettext("Save") .. "]" ..
+  		"button[7.4,6.35;2,0.5;btn_config_world_cancel;" .. fgettext("Cancel") .. "]"
+  	
+++<<<<<<< HEAD
+ +	if mod ~= nil and mod.name ~= "" and mod.typ ~= "game_mod" then
+++=======
++ 	if mod ~= nil and mod.name ~= "" then
+++>>>>>>> proller/math
+  		if mod.is_modpack then
+  			local rawlist = filterlist.get_raw_list(modmgr.modlist)
+  			
+@@@ -649,12 -662,29 +653,20 @@@ function modmgr.handle_configure_world_
+  		modmgr.world_config_selected_mod = event.index
+  
+  		if event.typ == "DCL" then
+ -			local mod = filterlist.get_list(modmgr.modlist)[event.index]
+ -			
+ -			if mod.typ == "game_mod" then
+ -				return nil
+ -			end
+ -			
+ -			if not mod.is_modpack then
+ -				mod.enabled = not mod.enabled
+ -			else
+ -				local list = filterlist.get_raw_list(modmgr.modlist)
+ -				local toset = nil
+ -				
+ -				for i=1,#list,1 do
+ -					if list[i].modpack == mod.name then
+ -						if toset == nil then
+ -							toset = not list[i].enabled
+ -						end
+ -						
+ +			modmgr.world_config_enable_mod(nil)
+ +		end
+ +	end
+ +	
+++<<<<<<< HEAD
+ +	if fields["key_enter"] ~= nil then
+ +		modmgr.world_config_enable_mod(nil)
+++=======
++ 						list[i].enabled = toset
++ 					end
++ 				end
++ 			end
++ 		end
+++>>>>>>> proller/math
+  	end
+  	
+  	if fields["cb_mod_enable"] ~= nil then
+@@@ -664,8 -699,20 +676,25 @@@
+  	
+  	if fields["btn_mp_enable"] ~= nil or
+  		fields["btn_mp_disable"] then
+++<<<<<<< HEAD
+ +		local toset = (fields["btn_mp_enable"] ~= nil)
+ +		modmgr.world_config_enable_mod(toset)
+++=======
++ 		local mod = filterlist.get_list(modmgr.modlist)
++ 			[engine.get_textlist_index("world_config_modlist")]
++ 		
++ 		local toset=false
++ 		if fields["btn_mp_enable"] ~= nil then
++ 			toset = true
++ 		end
++ 		local list = filterlist.get_raw_list(modmgr.modlist)
++ 		
++ 		for i=1,#list,1 do
++ 			if list[i].modpack == mod.name then
++ 				list[i].enabled = toset
++ 			end
++ 		end
+++>>>>>>> proller/math
+  	end
+  	
+  	if fields["cb_hide_gamemods"] ~= nil then
+diff --cc doc/lua_api.txt
+index 85e6704,bd465bb..0000000
+--- a/doc/lua_api.txt
++++ b/doc/lua_api.txt
+@@@ -1069,8 -1069,6 +1069,11 @@@ minetest.pos_to_string({x=X,y=Y,z=Z}) -
+  minetest.string_to_pos(string) -> position
+  ^ Same but in reverse
+  ^ escapes characters [ ] \ , ;  that can not be used in formspecs
+++<<<<<<< HEAD
+ +minetest.is_yes(arg)
+ +^ returns whether arg can be interpreted as yes
+++=======
+++>>>>>>> proller/math
+  
+  minetest namespace reference
+  -----------------------------
+@@@ -1888,8 -1863,7 +1891,12 @@@ Object Propertie
+      makes_footstep_sound = false,
+      automatic_rotate = false,
+      stepheight = 0,
+++<<<<<<< HEAD
+ +    automatic_face_movement_dir = 0.0,
+ +    ^ automatically set yaw to movement direction; offset in degrees; false to disable
+++=======
++     automatic_face_movement_dir = false,
+++>>>>>>> proller/math
+  }
+  
+  Entity definition (register_entity)
+diff --cc doc/menu_lua_api.txt
+index ca81586,014e689..0000000
+--- a/doc/menu_lua_api.txt
++++ b/doc/menu_lua_api.txt
+@@@ -174,8 -174,6 +174,11 @@@ engine.gettext(string) -> strin
+  fgettext(string, ...) -> string
+  ^ call engine.gettext(string), replace "$1"..."$9" with the given
+  ^ extra arguments, call engine.formspec_escape and return the result
+++<<<<<<< HEAD
+ +engine.parse_json(string[, nullvalue]) -> something
+ +^ see minetest.parse_json (lua_api.txt)
+++=======
+++>>>>>>> proller/math
+  dump(obj, dumped={})
+  ^ Return object serialized as a string
+  string:split(separator)
+diff --cc src/clientserver.h
+index f8746df,fb442cf..0000000
+--- a/src/clientserver.h
++++ b/src/clientserver.h
+@@@ -95,11 -95,10 +95,15 @@@ with this program; if not, write to th
+  		TOCLIENT_BREATH
+  		TOSERVER_BREATH
+  		range added to ItemDefinition
+ -		drowning, leveled and liquid_range added to ContentFeatures
+ +		drowning, leveled added to ContentFeatures
+  		stepheight and collideWithObjects added to object properties
+  		version, heat and humidity transfer in MapBock
+++<<<<<<< HEAD
+ +		automatic_face_movement_dir and automatic_face_movement_dir_offset
+ +			added to object properties
+++=======
++ 		added new property to entities automatic_face_movement_dir
+++>>>>>>> proller/math
+  */
+  
+  #define LATEST_PROTOCOL_VERSION 21
+diff --cc src/content_cao.cpp
+index e97e3a1,bb8dad0..0000000
+--- a/src/content_cao.cpp
++++ b/src/content_cao.cpp
+@@@ -1211,9 -1211,8 +1211,14 @@@ public
+  			updateNodePos();
+  		}
+  
+++<<<<<<< HEAD
+ +		if (getParent() == NULL && m_prop.automatic_face_movement_dir &&
+ +				(fabs(m_velocity.Z) > 0.001 || fabs(m_velocity.X) > 0.001)){
+ +			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
+++=======
++ 		if (getParent() == NULL && m_prop.automatic_face_movement_dir){
++ 			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI;
+++>>>>>>> proller/math
+  			updateNodePos();
+  		}
+  	}
+diff --cc src/content_mapblock.cpp
+index 768f0ae,929682e..0000000
+--- a/src/content_mapblock.cpp
++++ b/src/content_mapblock.cpp
+@@@ -681,6 -677,6 +681,7 @@@ void mapblock_mesh_generate_special(Mes
+  							tcoord_angle,
+  							tcoord_center);
+  					vertices[i].TCoords += tcoord_translate;
+++<<<<<<< HEAD
+  				}
+  
+  				v2f t = vertices[0].TCoords;
+@@@ -689,32 -685,8 +690,39 @@@
+  
+  				u16 indices[] = {0,1,2,2,3,0};
+  				// Add to mesh collector
+ -				collector.append(tile_liquid, vertices, 4, indices, 6);
+ +				collector.append(*current_tile, vertices, 4, indices, 6);
+  			}
+ +
+ +			/*
+ +				Generate bottom side, if appropriate
+ +			*/
+ +			MapNode n_bottom = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y-1,z));
+ +			const ContentFeatures &f_bottom = nodedef->get(n_bottom);
+ +			if (!f_bottom.walkable && n_bottom.getContent() != c_flowing &&
+ +				n_bottom.getContent() != c_source) {
+ +				video::S3DVertex vertices[4] = {
+ +					video::S3DVertex(-BS/2,0,BS/2, 0,0,0, c, 0,1),
+ +					video::S3DVertex(BS/2,0,BS/2, 0,0,0, c, 1,1),
+ +					video::S3DVertex(BS/2,0,-BS/2, 0,0,0, c, 1,0),
+ +					video::S3DVertex(-BS/2,0,-BS/2, 0,0,0, c, 0,0),
+ +				};
+ +
+ +				v3f offset(p.X*BS, p.Y*BS + -0.5*BS, p.Z*BS);
+ +				for(s32 i=0; i<4; i++) {
+ +					vertices[i].Pos += offset;
+ +				}
+++=======
+++				}
+++
+++				v2f t = vertices[0].TCoords;
+++				vertices[0].TCoords = vertices[2].TCoords;
+++				vertices[2].TCoords = t;
+++>>>>>>> proller/math
+ +
+ +				u16 indices[] = {0,1,2,2,3,0};
+ +				// Add to mesh collector
+ +				collector.append(tile_liquid, vertices, 4, indices, 6);
+ +                        }
+  		break;}
+  		case NDT_GLASSLIKE:
+  		{
+diff --cc src/content_sao.cpp
+index 85ab8d3,9b4ae61..0000000
+--- a/src/content_sao.cpp
++++ b/src/content_sao.cpp
+@@@ -527,9 -527,8 +527,14 @@@ void LuaEntitySAO::step(float dtime, bo
+  			m_velocity += dtime * m_acceleration;
+  		}
+  
+++<<<<<<< HEAD
+ +		if((m_prop.automatic_face_movement_dir) &&
+ +				(fabs(m_velocity.Z) > 0.001 || fabs(m_velocity.X) > 0.001)){
+ +			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
+++=======
++ 		if(m_prop.automatic_face_movement_dir){
++ 			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI;
+++>>>>>>> proller/math
+  		}
+  	}
+  
+diff --cc src/guiEngine.cpp
+index 547f393,f89ad87..0000000
+--- a/src/guiEngine.cpp
++++ b/src/guiEngine.cpp
+@@@ -38,8 -37,6 +38,11 @@@ with this program; if not, write to th
+  #endif
+  
+  /******************************************************************************/
+++<<<<<<< HEAD
+ +/** TextDestGuiEngine                                                         */
+ +/******************************************************************************/
+++=======
+++>>>>>>> proller/math
+  TextDestGuiEngine::TextDestGuiEngine(GUIEngine* engine)
+  {
+  	m_engine = engine;
+@@@ -55,36 -52,6 +58,59 @@@ void TextDestGuiEngine::gotText(std::ma
+  void TextDestGuiEngine::gotText(std::wstring text)
+  {
+  	m_engine->getScriptIface()->handleMainMenuEvent(wide_to_narrow(text));
+++<<<<<<< HEAD
+++=======
+++}
+++
+++/******************************************************************************/
+++void MenuMusicFetcher::fetchSounds(const std::string &name,
+++			std::set<std::string> &dst_paths,
+++			std::set<std::string> &dst_datas)
+++{
+++	if(m_fetched.count(name))
+++		return;
+++	m_fetched.insert(name);
+++	std::string base;
+++	base = porting::path_share + DIR_DELIM + "sounds";
+++	dst_paths.insert(base + DIR_DELIM + name + ".ogg");
+++	int i;
+++	for(i=0; i<10; i++)
+++		dst_paths.insert(base + DIR_DELIM + name + "."+itos(i)+".ogg");
+++	base = porting::path_user + DIR_DELIM + "sounds";
+++	dst_paths.insert(base + DIR_DELIM + name + ".ogg");
+++	for(i=0; i<10; i++)
+++		dst_paths.insert(base + DIR_DELIM + name + "."+itos(i)+".ogg");
+++>>>>>>> proller/math
+ +}
+ +
+ +/******************************************************************************/
+ +/** MenuTextureSource                                                         */
+ +/******************************************************************************/
+ +MenuTextureSource::MenuTextureSource(video::IVideoDriver *driver)
+ +{
+ +	m_driver = driver;
+ +}
+ +
+ +/******************************************************************************/
+ +MenuTextureSource::~MenuTextureSource()
+ +{
+ +	for (std::set<std::string>::iterator it = m_to_delete.begin();
+ +			it != m_to_delete.end(); ++it) {
+ +		const char *tname = (*it).c_str();
+ +		video::ITexture *texture = m_driver->getTexture(tname);
+ +		m_driver->removeTexture(texture);
+ +	}
+ +}
+ +
+ +/******************************************************************************/
+ +video::ITexture* MenuTextureSource::getTexture(const std::string &name, u32 *id)
+ +{
+ +	if(id)
+ +		*id = 0;
+ +	if(name.empty())
+ +		return NULL;
+ +	m_to_delete.insert(name);
+ +	return m_driver->getTexture(name.c_str());
+  }
+  
+  /******************************************************************************/
+@@@ -143,9 -103,6 +169,12 @@@ GUIEngine::GUIEngine(	irr::IrrlichtDevi
+  	// is deleted by guiformspec!
+  	m_buttonhandler = new TextDestGuiEngine(this);
+  
+++<<<<<<< HEAD
+ +	//create texture source
+ +	m_texture_source = new MenuTextureSource(m_device->getVideoDriver());
+ +
+++=======
+++>>>>>>> proller/math
+  	//create soundmanager
+  	MenuMusicFetcher soundfetcher;
+  #if USE_SOUND
+diff --cc src/guiEngine.h
+index 4844593,3987b52..0000000
+--- a/src/guiEngine.h
++++ b/src/guiEngine.h
+@@@ -25,9 -25,9 +25,13 @@@ with this program; if not, write to th
+  /******************************************************************************/
+  #include "irrlichttypes.h"
+  #include "modalMenu.h"
+++<<<<<<< HEAD
+++=======
++ #include "clouds.h"
+++>>>>>>> proller/math
+  #include "guiFormSpecMenu.h"
+  #include "sound.h"
+ +#include "tile.h"
+  
+  /******************************************************************************/
+  /* Typedefs and macros                                                        */
+@@@ -46,8 -50,8 +50,11 @@@ typedef enum 
+  /******************************************************************************/
+  class GUIEngine;
+  class MainMenuScripting;
+++<<<<<<< HEAD
+ +class Clouds;
+++=======
+++>>>>>>> proller/math
+  struct MainMenuData;
+ -struct SimpleSoundSpec;
+  
+  /******************************************************************************/
+  /* declarations                                                               */
+@@@ -80,52 -82,13 +87,58 @@@ private
+  	GUIEngine* m_engine;
+  };
+  
+ +/** GUIEngine specific implementation of ISimpleTextureSource */
+ +class MenuTextureSource : public ISimpleTextureSource
+ +{
+ +public:
+ +	/**
+ +	 * default constructor
+ +	 * @param driver the video driver to load textures from
+ +	 */
+ +	MenuTextureSource(video::IVideoDriver *driver);
+ +
+ +	/**
+ +	 * destructor, removes all loaded textures
+ +	 */
+ +	virtual ~MenuTextureSource();
+ +
+ +	/**
+ +	 * get a texture, loading it if required
+ +	 * @param name path to the texture
+ +	 * @param id receives the texture ID, always 0 in this implementation
+ +	 */
+ +	video::ITexture* getTexture(const std::string &name, u32 *id = NULL);
+ +
+ +private:
+ +	/** driver to get textures from */
+ +	video::IVideoDriver *m_driver;
+ +	/** set of texture names to delete */
+ +	std::set<std::string> m_to_delete;
+ +};
+ +
+ +/** GUIEngine specific implementation of OnDemandSoundFetcher */
+  class MenuMusicFetcher: public OnDemandSoundFetcher
+  {
+ -	std::set<std::string> m_fetched;
+  public:
+++<<<<<<< HEAD
+ +	/**
+ +	 * get sound file paths according to sound name
+ +	 * @param name sound name
+ +	 * @param dst_paths receives possible paths to sound files
+ +	 * @param dst_datas receives binary sound data (not used here)
+ +	 */
+  	void fetchSounds(const std::string &name,
+  			std::set<std::string> &dst_paths,
+  			std::set<std::string> &dst_datas);
+ +
+ +private:
+ +	/** set of fetched sound names */
+ +	std::set<std::string> m_fetched;
+++=======
+++	void fetchSounds(const std::string &name,
+++			std::set<std::string> &dst_paths,
+++			std::set<std::string> &dst_datas);
+++>>>>>>> proller/math
+  };
+  
+  /** implementation of main menu based uppon formspecs */
+diff --cc src/guiFormSpecMenu.cpp
+index 28cb674,e420f7b..0000000
+--- a/src/guiFormSpecMenu.cpp
++++ b/src/guiFormSpecMenu.cpp
+@@@ -1082,11 -989,12 +1082,16 @@@ void GUIFormSpecMenu::parseVertLabel(pa
+  		if(data->bp_set != 2)
+  			errorstream<<"WARNING: invalid use of label without a size[] element"<<std::endl;
+  
+++<<<<<<< HEAD
+ +		std::wstring label = L"";
+++=======
++ 		text = unescape_string(text);
++ 		std::string label = "";
+++>>>>>>> proller/math
+  
+  		for (unsigned int i=0; i < text.length(); i++) {
+ -			label += text.c_str()[i];
+ -			label += "\n";
+ +			label += text[i];
+ +			label += L"\n";
+  		}
+  
+  		FieldSpec spec = FieldSpec(
+@@@ -1240,8 -1151,7 +1245,12 @@@ void GUIFormSpecMenu::parseTabHeader(pa
+  		for (unsigned int i=0; i< buttons.size(); i++) {
+  			wchar_t* wbutton = 0;
+  
+++<<<<<<< HEAD
+ +			std::wstring wlabel = narrow_to_wide(buttons[i]); //Needed for displaying text on windows
+ +			wbutton = (wchar_t*) wlabel.c_str();
+++=======
++ 			wbutton = (wchar_t*) narrow_to_wide(buttons[i].c_str()).c_str();
+++>>>>>>> proller/math
+  
+  			e->addTab(wbutton,-1);
+  		}
+@@@ -1493,21 -1398,6 +1502,24 @@@ void GUIFormSpecMenu::regenerateGui(v2u
+  		if (scrollbar) {
+  			mydata.listbox_scroll[listboxname] = scrollbar->getPos();
+  		}
+++<<<<<<< HEAD
+ +	}
+ +
+ +	//preserve focus
+ +	gui::IGUIElement *focused_element = Environment->getFocus();
+ +	if (focused_element && focused_element->getParent() == this) {
+ +		s32 focused_id = focused_element->getID();
+ +		if (focused_id > 257) {
+ +			for (u32 i=0; i<m_fields.size(); i++) {
+ +				if (m_fields[i].fid == focused_id) {
+ +					mydata.focused_fieldname =
+ +						m_fields[i].fname;
+ +					break;
+ +				}
+ +			}
+ +		}
+++=======
+++>>>>>>> proller/math
+  	}
+  
+  	// Remove children
+diff --cc src/guiFormSpecMenu.h
+index c244e45,640c35c..0000000
+--- a/src/guiFormSpecMenu.h
++++ b/src/guiFormSpecMenu.h
+@@@ -228,7 -225,6 +228,10 @@@ public
+  	ItemStack verifySelectedItem();
+  
+  	void acceptInput();
+++<<<<<<< HEAD
+ +	bool preprocessEvent(const SEvent& event);
+++=======
+++>>>>>>> proller/math
+  	bool OnEvent(const SEvent& event);
+  
+  	int getListboxIndex(std::string listboxname);
+diff --cc src/main.cpp
+index dfe1e5c,7450593..0000000
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@@ -1216,65 -1195,6 +1216,68 @@@ int main(int argc, char *argv[]
+  
+  		// Create server
+  		Server server(world_path, gamespec, false);
+++<<<<<<< HEAD
+ +
+ +		// Database migration
+ +		if (cmd_args.exists("migrate")) {
+ +			std::string migrate_to = cmd_args.get("migrate");
+ +			Settings world_mt;
+ +			bool success = world_mt.readConfigFile((world_path + DIR_DELIM + "world.mt").c_str());
+ +			if (!success) {
+ +				errorstream << "Cannot read world.mt" << std::endl;
+ +				return 1;
+ +			}
+ +			if (!world_mt.exists("backend")) {
+ +				errorstream << "Please specify your current backend in world.mt file:"
+ +					<< std::endl << "	backend = {sqlite3|leveldb|dummy}" << std::endl;
+ +				return 1;
+ +			}
+ +			std::string backend = world_mt.get("backend");
+ +			Database *new_db;
+ +			if (backend == migrate_to) {
+ +				errorstream << "Cannot migrate: new backend is same as the old one" << std::endl;
+ +				return 1;
+ +			}
+ +			if (migrate_to == "sqlite3")
+ +				new_db = new Database_SQLite3(&(ServerMap&)server.getMap(), world_path);
+ +			#if USE_LEVELDB
+ +			else if (migrate_to == "leveldb")
+ +				new_db = new Database_LevelDB(&(ServerMap&)server.getMap(), world_path);
+ +			#endif
+ +			else {
+ +				errorstream << "Migration to " << migrate_to << " is not supported" << std::endl;
+ +				return 1;
+ +			}
+ +
+ +			std::list<v3s16> blocks;
+ +			ServerMap &old_map = ((ServerMap&)server.getMap());
+ +			old_map.listAllLoadableBlocks(blocks);
+ +			int count = 0;
+ +			new_db->beginSave();
+ +			for (std::list<v3s16>::iterator i = blocks.begin(); i != blocks.end(); ++i) {
+ +				MapBlock *block = old_map.loadBlock(*i);
+ +				new_db->saveBlock(block);
+ +				MapSector *sector = old_map.getSectorNoGenerate(v2s16(i->X, i->Z));
+ +				sector->deleteBlock(block);
+ +				++count;
+ +				if (count % 500 == 0)
+ +					actionstream << "Migrated " << count << " blocks "
+ +						<< (100.0 * count / blocks.size()) << "\% completed" << std::endl;
+ +			}
+ +			new_db->endSave();
+ +
+ +			actionstream << "Successfully migrated " << count << " blocks" << std::endl;
+ +			world_mt.set("backend", migrate_to);
+ +			if(!world_mt.updateConfigFile((world_path + DIR_DELIM + "world.mt").c_str()))
+ +				errorstream<<"Failed to update world.mt!"<<std::endl;
+ +			else
+ +				actionstream<<"world.mt updated"<<std::endl;
+ +
+ +			return 0;
+ +		}
+ +
+++=======
+++>>>>>>> proller/math
+  		server.start(port);
+  		
+  		// Run server
+@@@ -1655,13 -1570,15 +1658,18 @@@
+  					delete temp;
+  					//once finished you'll never end up here
+  					smgr->clear();
+ -					kill = menudata.kill;
+ +				}
+  
+ +				if(menudata.errormessage != ""){
+ +					error_message = narrow_to_wide(menudata.errormessage);
+ +					continue;
+  				}
+  
++ 				if(menudata.errormessage != ""){
++ 					error_message = narrow_to_wide(menudata.errormessage);
++ 					continue;
++ 				}
++ 
+  				//update worldspecs (necessary as new world may have been created)
+  				worldspecs = getAvailableWorlds();
+  
+diff --cc src/map.h
+index 34456d6,2f8bfae..0000000
+--- a/src/map.h
++++ b/src/map.h
+@@@ -33,8 -33,11 +33,15 @@@ with this program; if not, write to th
+  #include "modifiedstate.h"
+  #include "util/container.h"
+  #include "nodetimer.h"
+++<<<<<<< HEAD
+++=======
++ 
++ extern "C" {
++ 	#include "sqlite3.h"
++ }
+++>>>>>>> proller/math
+  
+ +class Database;
+  class ClientMap;
+  class MapSector;
+  class ServerMapSector;
+diff --cc src/object_properties.cpp
+index f560f59,b6ad9f6..0000000
+--- a/src/object_properties.cpp
++++ b/src/object_properties.cpp
+@@@ -41,8 -41,7 +41,12 @@@ ObjectProperties::ObjectProperties()
+  	makes_footstep_sound(false),
+  	automatic_rotate(0),
+  	stepheight(0),
+++<<<<<<< HEAD
+ +	automatic_face_movement_dir(false),
+ +	automatic_face_movement_dir_offset(0.0)
+++=======
++ 	automatic_face_movement_dir(false)
+++>>>>>>> proller/math
+  {
+  	textures.push_back("unknown_object.png");
+  	colors.push_back(video::SColor(255,255,255,255));
+@@@ -105,7 -104,6 +109,10 @@@ void ObjectProperties::serialize(std::o
+  	writeU8(os, collideWithObjects);
+  	writeF1000(os,stepheight);
+  	writeU8(os, automatic_face_movement_dir);
+++<<<<<<< HEAD
+ +	writeF1000(os, automatic_face_movement_dir_offset);
+++=======
+++>>>>>>> proller/math
+  	// Add stuff only at the bottom.
+  	// Never remove anything, because we don't want new versions of this
+  }
+@@@ -141,7 -139,6 +148,10 @@@ void ObjectProperties::deSerialize(std:
+  			collideWithObjects = readU8(is);
+  			stepheight = readF1000(is);
+  			automatic_face_movement_dir = readU8(is);
+++<<<<<<< HEAD
+ +			automatic_face_movement_dir_offset = readF1000(is);
+++=======
+++>>>>>>> proller/math
+  		}catch(SerializationError &e){}
+  	}
+  	else
+diff --cc src/object_properties.h
+index 4b7f9a5,edc9c39..0000000
+--- a/src/object_properties.h
++++ b/src/object_properties.h
+@@@ -46,7 -46,6 +46,10 @@@ struct ObjectPropertie
+  	float automatic_rotate;
+  	f32 stepheight;
+  	bool automatic_face_movement_dir;
+++<<<<<<< HEAD
+ +	f32 automatic_face_movement_dir_offset;
+++=======
+++>>>>>>> proller/math
+  
+  
+  	ObjectProperties();
+diff --cc src/script/common/c_content.cpp
+index 3055c79,2e26adb..0000000
+--- a/src/script/common/c_content.cpp
++++ b/src/script/common/c_content.cpp
+@@@ -191,15 -190,7 +191,19 @@@ void read_object_properties(lua_State *
+  	getfloatfield(L, -1, "automatic_rotate", prop->automatic_rotate);
+  	getfloatfield(L, -1, "stepheight", prop->stepheight);
+  	prop->stepheight*=BS;
+++<<<<<<< HEAD
+ +	lua_getfield(L, -1, "automatic_face_movement_dir");
+ +	if (lua_isnumber(L, -1)) {
+ +		prop->automatic_face_movement_dir = true;
+ +		prop->automatic_face_movement_dir_offset = luaL_checknumber(L, -1);
+ +	} else if (lua_isboolean(L, -1)) {
+ +		prop->automatic_face_movement_dir = lua_toboolean(L, -1);
+ +		prop->automatic_face_movement_dir_offset = 0.0;
+ +	}
+ +	lua_pop(L, 1);
+++=======
++ 	getboolfield(L, -1, "automatic_face_movement_dir", prop->automatic_face_movement_dir);
+++>>>>>>> proller/math
+  }
+  
+  /******************************************************************************/
+diff --cc src/script/lua_api/l_env.cpp
+index 8b0d8cd,dbaf6fb..0000000
+--- a/src/script/lua_api/l_env.cpp
++++ b/src/script/lua_api/l_env.cpp
+@@@ -803,7 -793,6 +803,10 @@@ void ModApiEnvMod::Initialize(lua_Stat
+  	API_FCT(get_objects_inside_radius);
+  	API_FCT(set_timeofday);
+  	API_FCT(get_timeofday);
+++<<<<<<< HEAD
+ +	API_FCT(get_gametime);
+++=======
+++>>>>>>> proller/math
+  	API_FCT(find_node_near);
+  	API_FCT(find_nodes_in_area);
+  	API_FCT(get_perlin);
+diff --cc src/script/lua_api/l_mainmenu.cpp
+index 5537669,65676ea..0000000
+--- a/src/script/lua_api/l_mainmenu.cpp
++++ b/src/script/lua_api/l_mainmenu.cpp
+@@@ -979,8 -983,9 +979,14 @@@ int ModApiMainMenu::l_download_file(lua
+  /******************************************************************************/
+  int ModApiMainMenu::l_gettext(lua_State *L)
+  {
+++<<<<<<< HEAD:src/script/lua_api/l_mainmenu.cpp
+ +	std::wstring wtext = wstrgettext((std::string) luaL_checkstring(L, 1));
+ +	lua_pushstring(L, wide_to_narrow(wtext).c_str());
+++=======
++ 	const char* str = luaL_checkstring(L, 1);
++ 	str = gettext(str);
++ 	lua_pushstring(L, str);
+++>>>>>>> proller/math:src/script/lua_api/l_mainmenu.cpp
+  
+  	return 1;
+  }
+diff --cc src/script/lua_api/l_util.cpp
+index af9c192,0e4de9e..0000000
+--- a/src/script/lua_api/l_util.cpp
++++ b/src/script/lua_api/l_util.cpp
+@@@ -26,7 -26,6 +26,10 @@@ with this program; if not, write to th
+  #include "tool.h"
+  #include "settings.h"
+  #include "main.h"  //required for g_settings, g_settings_path
+++<<<<<<< HEAD
+ +#include "json/json.h"
+++=======
+++>>>>>>> proller/math
+  
+  // debug(...)
+  // Writes a line to dstream
+@@@ -139,45 -138,6 +142,48 @@@ int ModApiUtil::l_setting_save(lua_Stat
+  	return 0;
+  }
+  
+++<<<<<<< HEAD
+ +// parse_json(str[, nullvalue])
+ +int ModApiUtil::l_parse_json(lua_State *L)
+ +{
+ +	NO_MAP_LOCK_REQUIRED;
+ +
+ +	const char *jsonstr = luaL_checkstring(L, 1);
+ +
+ +	// Use passed nullvalue or default to nil
+ +	int nullindex = 2;
+ +	if (lua_isnone(L, nullindex)) {
+ +		lua_pushnil(L);
+ +		nullindex = lua_gettop(L);
+ +	}
+ +
+ +	Json::Value root;
+ +
+ +	{
+ +		Json::Reader reader;
+ +		std::istringstream stream(jsonstr);
+ +
+ +		if (!reader.parse(stream, root)) {
+ +			errorstream << "Failed to parse json data "
+ +				<< reader.getFormattedErrorMessages();
+ +			errorstream << "data: \"" << jsonstr << "\""
+ +				<< std::endl;
+ +			lua_pushnil(L);
+ +			return 1;
+ +		}
+ +	}
+ +
+ +	if (!push_json_value(L, root, nullindex)) {
+ +		errorstream << "Failed to parse json data, "
+ +			<< "depth exceeds lua stack limit" << std::endl;
+ +		errorstream << "data: \"" << jsonstr << "\"" << std::endl;
+ +		lua_pushnil(L);
+ +	}
+ +	return 1;
+ +}
+ +
+++=======
+++>>>>>>> proller/math
+  // get_dig_params(groups, tool_capabilities[, time_from_last_punch])
+  int ModApiUtil::l_get_dig_params(lua_State *L)
+  {
+@@@ -220,22 -180,6 +226,25 @@@ int ModApiUtil::l_get_password_hash(lua
+  	return 1;
+  }
+  
+++<<<<<<< HEAD
+ +// is_yes(arg)
+ +int ModApiUtil::l_is_yes(lua_State *L)
+ +{
+ +	NO_MAP_LOCK_REQUIRED;
+ +
+ +	lua_getglobal(L, "tostring"); // function to be called
+ +	lua_pushvalue(L, 1); // 1st argument
+ +	lua_call(L, 1, 1); // execute function
+ +	std::string str(lua_tostring(L, -1)); // get result
+ +	lua_pop(L, 1);
+ +
+ +	bool yes = is_yes(str);
+ +	lua_pushboolean(L, yes);
+ +	return 1;
+ +}
+ +
+++=======
+++>>>>>>> proller/math
+  void ModApiUtil::Initialize(lua_State *L, int top)
+  {
+  	API_FCT(debug);
+@@@ -247,13 -191,9 +256,19 @@@
+  	API_FCT(setting_getbool);
+  	API_FCT(setting_save);
+  
+++<<<<<<< HEAD
+ +	API_FCT(parse_json);
+ +
+++=======
+++>>>>>>> proller/math
+  	API_FCT(get_dig_params);
+  	API_FCT(get_hit_params);
+  
+  	API_FCT(get_password_hash);
+++<<<<<<< HEAD
+ +
+ +	API_FCT(is_yes);
+++=======
+++>>>>>>> proller/math
+  }
+  
+diff --cc src/script/lua_api/l_util.h
+index bb99e15,b102e31..0000000
+--- a/src/script/lua_api/l_util.h
++++ b/src/script/lua_api/l_util.h
+@@@ -59,9 -59,6 +59,12 @@@ private
+  	// setting_save()
+  	static int l_setting_save(lua_State *L);
+  
+++<<<<<<< HEAD
+ +	// parse_json(str[, nullvalue])
+ +	static int l_parse_json(lua_State *L);
+ +
+++=======
+++>>>>>>> proller/math
+  	// get_dig_params(groups, tool_capabilities[, time_from_last_punch])
+  	static int l_get_dig_params(lua_State *L);
+  
+@@@ -71,9 -68,6 +74,12 @@@
+  	// get_password_hash(name, raw_password)
+  	static int l_get_password_hash(lua_State *L);
+  
+++<<<<<<< HEAD
+ +	// is_yes(arg)
+ +	static int l_is_yes(lua_State *L);
+ +
+++=======
+++>>>>>>> proller/math
+  public:
+  	static void Initialize(lua_State *L, int top);
+  
+diff --cc src/script/scripting_game.cpp
+index 043ee4b,dfbf471..0000000
+--- a/src/script/scripting_game.cpp
++++ b/src/script/scripting_game.cpp
+@@@ -35,7 -35,6 +35,10 @@@ with this program; if not, write to th
+  #include "lua_api/l_server.h"
+  #include "lua_api/l_util.h"
+  #include "lua_api/l_vmanip.h"
+++<<<<<<< HEAD
+ +#include "lua_api/l_settings.h"
+++=======
+++>>>>>>> proller/math
+  
+  extern "C" {
+  #include "lualib.h"
+@@@ -97,5 -96,4 +100,8 @@@ void GameScripting::InitializeModApi(lu
+  	NodeMetaRef::Register(L);
+  	NodeTimerRef::Register(L);
+  	ObjectRef::Register(L);
+++<<<<<<< HEAD
+ +	LuaSettings::Register(L);
+++=======
+++>>>>>>> proller/math
+  }
+diff --cc src/script/scripting_mainmenu.cpp
+index 31581a1,47461e7..0000000
+--- a/src/script/scripting_mainmenu.cpp
++++ b/src/script/scripting_mainmenu.cpp
+@@@ -24,7 -24,6 +24,10 @@@ with this program; if not, write to th
+  #include "lua_api/l_base.h"
+  #include "lua_api/l_mainmenu.h"
+  #include "lua_api/l_util.h"
+++<<<<<<< HEAD
+ +#include "lua_api/l_settings.h"
+++=======
+++>>>>>>> proller/math
+  
+  extern "C" {
+  #include "lualib.h"
+@@@ -63,7 -62,4 +66,10 @@@ void MainMenuScripting::InitializeModAp
+  	// Initialize mod api modules
+  	ModApiMainMenu::Initialize(L, top);
+  	ModApiUtil::Initialize(L, top);
+++<<<<<<< HEAD
+ +
+ +	// Register reference classes (userdata)
+ +	LuaSettings::Register(L);
+++=======
+++>>>>>>> proller/math
+  }
+diff --cc src/server.cpp
+index 3bdf9c2,561e03c..0000000
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@@ -1776,13 -1776,12 +1776,22 @@@ void Server::ProcessData(u8 *data, u32 
+  
+  		// drop player if is ip is banned
+  		if(m_banmanager->isIpBanned(addr_s)){
+++<<<<<<< HEAD
+ +			std::string ban_name = m_banmanager->getBanName(addr_s);
+ +			infostream<<"Server: A banned client tried to connect from "
+ +					<<addr_s<<"; banned name was "
+ +					<<ban_name<<std::endl;
+ +			// This actually doesn't seem to transfer to the client
+ +			DenyAccess(peer_id, L"Your ip is banned. Banned name was "
+ +					+narrow_to_wide(ban_name));
+++=======
++ 			infostream<<"Server: A banned client tried to connect from "
++ 					<<addr_s<<"; banned name was "
++ 					<<m_banmanager->getBanName(addr_s)<<std::endl;
++ 			// This actually doesn't seem to transfer to the client
++ 			DenyAccess(peer_id, L"Your ip is banned. Banned name was "
++ 					+narrow_to_wide(m_banmanager->getBanName(addr_s)));
+++>>>>>>> proller/math
+  			m_con.DeletePeer(peer_id);
+  			return;
+  		}
+diff --cc src/server.h
+index d502d68,4e7675e..0000000
+--- a/src/server.h
++++ b/src/server.h
+@@@ -32,7 -32,6 +32,10 @@@ with this program; if not, write to th
+  #include "rollback_interface.h" // Needed for rollbackRevertActions()
+  #include "util/numeric.h"
+  #include "util/thread.h"
+++<<<<<<< HEAD
+ +#include "environment.h"
+++=======
+++>>>>>>> proller/math
+  #include <string>
+  #include <list>
+  #include <map>
+diff --cc src/subgame.cpp
+index 95ae9ef,806d659..0000000
+--- a/src/subgame.cpp
++++ b/src/subgame.cpp
+@@@ -242,7 -242,7 +242,11 @@@ bool initializeWorld(const std::string 
+  		infostream<<"Creating world.mt ("<<worldmt_path<<")"<<std::endl;
+  		fs::CreateAllDirs(path);
+  		std::ostringstream ss(std::ios_base::binary);
+++<<<<<<< HEAD
+ +		ss<<"gameid = "<<gameid<<"\nbackend = sqlite3\n";
+++=======
++ 		ss<<"gameid = "<<gameid<<"\n";
+++>>>>>>> proller/math
+  		fs::safeWriteToFile(worldmt_path, ss.str());
+  	}
+  	return true;
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge proller/sqlite to next failed:
 
 # On branch next
@@ -20,10 +1111,10 @@
 #	both modified:      src/map.cpp
 #
 diff --cc src/map.cpp
-index 70fcaf0,16d0cc3..0000000
+index 6918e52,16d0cc3..0000000
 --- a/src/map.cpp
 +++ b/src/map.cpp
-@@@ -3218,8 -3167,78 +3218,81 @@@ plan_b
+@@@ -3239,8 -3167,78 +3239,81 @@@ plan_b
   	//return (s16)level;
   }
   
@@ -106,6 +1197,195 @@ index 70fcaf0,16d0cc3..0000000
   		return true;
   	return false;
   }
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge sapier/avoid_facedir_if_not_moving to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/content_cao.cpp
+#	both modified:      src/content_sao.cpp
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --cc src/content_cao.cpp
+index e97e3a1,fb4bc95..0000000
+--- a/src/content_cao.cpp
++++ b/src/content_cao.cpp
+@@@ -1211,9 -1211,9 +1211,15 @@@ public
+  			updateNodePos();
+  		}
+  
+++<<<<<<< HEAD
+ +		if (getParent() == NULL && m_prop.automatic_face_movement_dir &&
+ +				(fabs(m_velocity.Z) > 0.001 || fabs(m_velocity.X) > 0.001)){
+ +			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
+++=======
++ 		if ((getParent() == NULL && m_prop.automatic_face_movement_dir) &&
++ 			((m_velocity.Z != 0) || (m_velocity.X != 0))){
++ 			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI;
+++>>>>>>> sapier/avoid_facedir_if_not_moving
+  			updateNodePos();
+  		}
+  	}
+diff --cc src/content_sao.cpp
+index 85ab8d3,92cabfb..0000000
+--- a/src/content_sao.cpp
++++ b/src/content_sao.cpp
+@@@ -527,9 -527,9 +527,14 @@@ void LuaEntitySAO::step(float dtime, bo
+  			m_velocity += dtime * m_acceleration;
+  		}
+  
+ -		if( (m_prop.automatic_face_movement_dir) &&
+ +		if((m_prop.automatic_face_movement_dir) &&
+++<<<<<<< HEAD
+ +				(fabs(m_velocity.Z) > 0.001 || fabs(m_velocity.X) > 0.001)){
+ +			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
+++=======
++ 			((m_velocity.Z != 0) || (m_velocity.X != 0))){
++ 			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI;
+++>>>>>>> sapier/avoid_facedir_if_not_moving
+  		}
+  	}
+  
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge Novatux/forceload to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   doc/lua_api.txt
+#	modified:   minetest.conf.example
+#	modified:   src/defaultsettings.cpp
+#	modified:   src/environment.cpp
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/object_properties.cpp
+#	both modified:      src/object_properties.h
+#
+diff --cc src/object_properties.cpp
+index f560f59,162cc67..0000000
+--- a/src/object_properties.cpp
++++ b/src/object_properties.cpp
+@@@ -42,7 -42,7 +42,11 @@@ ObjectProperties::ObjectProperties()
+  	automatic_rotate(0),
+  	stepheight(0),
+  	automatic_face_movement_dir(false),
+++<<<<<<< HEAD
+ +	automatic_face_movement_dir_offset(0.0)
+++=======
++ 	force_load(false)
+++>>>>>>> Novatux/forceload
+  {
+  	textures.push_back("unknown_object.png");
+  	colors.push_back(video::SColor(255,255,255,255));
+@@@ -105,7 -106,7 +110,11 @@@ void ObjectProperties::serialize(std::o
+  	writeU8(os, collideWithObjects);
+  	writeF1000(os,stepheight);
+  	writeU8(os, automatic_face_movement_dir);
+++<<<<<<< HEAD
+ +	writeF1000(os, automatic_face_movement_dir_offset);
+++=======
++ 	writeU8(os, force_load);
+++>>>>>>> Novatux/forceload
+  	// Add stuff only at the bottom.
+  	// Never remove anything, because we don't want new versions of this
+  }
+@@@ -141,7 -142,7 +150,11 @@@ void ObjectProperties::deSerialize(std:
+  			collideWithObjects = readU8(is);
+  			stepheight = readF1000(is);
+  			automatic_face_movement_dir = readU8(is);
+++<<<<<<< HEAD
+ +			automatic_face_movement_dir_offset = readF1000(is);
+++=======
++ 			force_load = readU8(is);
+++>>>>>>> Novatux/forceload
+  		}catch(SerializationError &e){}
+  	}
+  	else
+diff --cc src/object_properties.h
+index 4b7f9a5,dbcbba5..0000000
+--- a/src/object_properties.h
++++ b/src/object_properties.h
+@@@ -46,7 -46,7 +46,11 @@@ struct ObjectPropertie
+  	float automatic_rotate;
+  	f32 stepheight;
+  	bool automatic_face_movement_dir;
+++<<<<<<< HEAD
+ +	f32 automatic_face_movement_dir_offset;
+++=======
++ 	bool force_load;
+++>>>>>>> Novatux/forceload
+  
+  
+  	ObjectProperties();
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge sapier/autoupdate_anim_speed to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   doc/lua_api.txt
+#	modified:   src/content_cao.cpp
+#	modified:   src/content_sao.cpp
+#	modified:   src/content_sao.h
+#	modified:   src/genericobject.cpp
+#	modified:   src/genericobject.h
+#	modified:   src/script/lua_api/l_object.cpp
+#	modified:   src/serverobject.h
+#	modified:   src/util/numeric.h
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/clientserver.h
+#
+diff --cc src/clientserver.h
+index 6a7cbda,cc5b072..0000000
+--- a/src/clientserver.h
++++ b/src/clientserver.h
+@@@ -95,11 -99,12 +95,17 @@@ with this program; if not, write to th
+  		TOCLIENT_BREATH
+  		TOSERVER_BREATH
+  		range added to ItemDefinition
+ -		drowning, leveled and liquid_range added to ContentFeatures
+ +		drowning, leveled added to ContentFeatures
+  		stepheight and collideWithObjects added to object properties
+  		version, heat and humidity transfer in MapBock
+++<<<<<<< HEAD
+ +		automatic_face_movement_dir and automatic_face_movement_dir_offset
+ +			added to object properties
+++=======
++ 		added new property to entities automatic_face_movement_dir
++ 		Add parameter to GENERIC_CMD_SET_ANIMATION
++ 		Add support for anim framerate prediction based uppon base_velocity
+++>>>>>>> sapier/autoupdate_anim_speed
+  */
+  
+  #define LATEST_PROTOCOL_VERSION 21
 
 
 
