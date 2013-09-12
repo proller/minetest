@@ -1,7 +1,7 @@
 ok	minetest proller:next_tools		
 ok	minetest proller:liquid63		https://github.com/minetest/minetest/pull/882	
 ok	minetest proller:math		https://github.com/minetest/minetest/pull/645	
-fail	minetest proller:sqlite	1	
+ok	minetest proller:sqlite		
 ok	minetest proller:json		
 ok	minetest proller:weather		https://github.com/minetest/minetest/pull/892	
 ok	minetest proller:liquid_send		https://github.com/minetest/minetest/pull/895	
