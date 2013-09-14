@@ -12,6 +12,8 @@ my $what = {
     minetest => qq{
 proller:next_tools
 
+#sfan5:leveldb				907
+
 proller:liquid63			882
 proller:math				645
 proller:sqlite
@@ -20,8 +22,8 @@ proller:weather				892
 proller:liquid_send			895
 proller:liquid_default
 proller:huge_cave
-proller:weather_fog
-proller:wingsuit
+proller:weather_fog			899
+proller:wingsuit			897
 proller:collision
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
@@ -42,6 +44,9 @@ sapier:fix_anaglyph_mode_selectionbox_not_beeing_honored	893
 WilliamBundy:jump_fix			866
 ShadowNinja:protection_support		856
 sapier:fix_multiplayer_server_not_saved	846
+sapier:autoupdate_anim_speed		774
+sapier:add_surface_detection_function	640
+#khonkhortisan:vertical_particles	675 #need protocol versioning
 },
 
     minetest_game => qq{
@@ -51,6 +56,7 @@ proller:liquid63
 #Zeg9:wieldlight		188
 Jordach:moonflower		169
 khonkhortisan:diagonal_rail	135
+Novatux:furnace			200 #can make 100% cpu load
 },
 
 };
