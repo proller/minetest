@@ -306,7 +306,7 @@ class LiquidFreeze : public ActiveBlockModifier {
 			ServerMap *map = &env->getServerMap();
 			INodeDefManager *ndef = env->getGameDef()->ndef();
 
-			float heat = map->getHeat(env, p);
+			float heat = map->updateBlockHeat(env, p);
 			//heater = rare
 			content_t c = map->getNodeNoEx(p - v3s16(0,  -1, 0 )).getContent(); // top
 			//more chance to freeze if air at top
@@ -368,7 +368,7 @@ class LiquidMeltWeather : public ActiveBlockModifier {
 			ServerMap *map = &env->getServerMap();
 			INodeDefManager *ndef = env->getGameDef()->ndef();
 
-			float heat = map->getHeat(env, p);
+			float heat = map->updateBlockHeat(env, p);
 			content_t c = map->getNodeNoEx(p - v3s16(0,  -1, 0 )).getContent(); // top
 			if (heat >= 1 && (heat >= 40 || ((myrand_range(heat, 40)) >= (c == CONTENT_AIR ? 10 : 20)))) {
 				n.freezeMelt(ndef);
@@ -432,7 +432,7 @@ void add_legacy_abms(ServerEnvironment *env, INodeDefManager *nodedef) {
 		env->addActiveBlockModifier(new LiquidDropABM(env, nodedef));
 		env->addActiveBlockModifier(new LiquidMeltHot(env, nodedef));
 		//env->addActiveBlockModifier(new LiquidMeltAround(env, nodedef));
-		if (g_settings->getBool("weather")) {
+		if (env->m_use_weather) {
 			env->addActiveBlockModifier(new LiquidFreeze(env, nodedef));
 			env->addActiveBlockModifier(new LiquidMeltWeather(env, nodedef));
 		}
