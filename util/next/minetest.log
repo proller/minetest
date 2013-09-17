@@ -3,6 +3,56 @@
 
 
 !!!!!!!!!!!!!!!!!
+ Merge proller/weather to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   doc/lua_api.txt
+#	modified:   src/biome.cpp
+#	modified:   src/content_abm.cpp
+#	modified:   src/emerge.cpp
+#	modified:   src/environment.cpp
+#	modified:   src/environment.h
+#	modified:   src/mapgen.h
+#	modified:   src/script/cpp_api/s_env.cpp
+#	modified:   src/script/lua_api/l_env.cpp
+#	modified:   src/script/lua_api/l_env.h
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/map.cpp
+#
+diff --cc src/map.cpp
+index c1f5b7c,210bc58..0000000
+--- a/src/map.cpp
++++ b/src/map.cpp
+@@@ -3988,10 -3935,9 +3988,14 @@@ s16 ServerMap::updateBlockHeat(ServerEn
+  	f32 heat = m_emerge->biomedef->calcBlockHeat(p, m_seed,
+  			env->getTimeOfDayF(), gametime * env->getTimeOfDaySpeed());
+  
+ -	block->heat = heat;
+ -	block->weather_update_time = gametime;
+ +	if(block) {
+ +		block->heat = heat;
+ +		block->weather_update_time = gametime;
+++<<<<<<< HEAD
+ +	}
+++=======
++ 
+++>>>>>>> proller/weather
+  	return heat;
+  }
+  
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge sapier/avoid_facedir_if_not_moving to next failed:
 
 # On branch next
@@ -212,10 +262,10 @@ index 6a7cbda,cc5b072..0000000
 #	both modified:      src/script/lua_api/l_env.h
 #
 diff --cc src/environment.h
-index 67e8872,843a3d9..0000000
+index 8665493,843a3d9..0000000
 --- a/src/environment.h
 +++ b/src/environment.h
-@@@ -304,10 -307,7 +304,13 @@@ public
+@@@ -300,10 -307,7 +300,13 @@@ public
   
   	void reportMaxLagEstimate(float f) { m_max_lag_estimate = f; }
   	float getMaxLagEstimate() { return m_max_lag_estimate; }
@@ -231,10 +281,10 @@ index 67e8872,843a3d9..0000000
   
   	/*
 diff --cc src/script/lua_api/l_env.cpp
-index 375173b,47e9963..0000000
+index 436eb01,47e9963..0000000
 --- a/src/script/lua_api/l_env.cpp
 +++ b/src/script/lua_api/l_env.cpp
-@@@ -781,40 -937,49 +805,84 @@@ int ModApiEnvMod::l_get_humidity(lua_St
+@@@ -780,40 -937,49 +804,84 @@@ int ModApiEnvMod::l_get_humidity(lua_St
   }
   
   
@@ -324,7 +374,7 @@ index 375173b,47e9963..0000000
  -
  -ModApiEnvMod modapienv_prototype;
 diff --cc src/script/lua_api/l_env.h
-index 5f3467f,b01fe5a..0000000
+index 814d121,b01fe5a..0000000
 --- a/src/script/lua_api/l_env.h
 +++ b/src/script/lua_api/l_env.h
 @@@ -147,8 -159,13 +147,16 @@@ private
