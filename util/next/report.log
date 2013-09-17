@@ -27,7 +27,6 @@ ok	minetest ShadowNinja:protection_support		https://github.com/minetest/minetest
 ok	minetest sapier:fix_multiplayer_server_not_saved		https://github.com/minetest/minetest/pull/846	
 fail	minetest sapier:autoupdate_anim_speed	1	https://github.com/minetest/minetest/pull/774	
 fail	minetest sapier:add_surface_detection_function	1	https://github.com/minetest/minetest/pull/640	
-ok	minetest sfan5:minemovie		
 ok	minetest_game proller:sponge		https://github.com/minetest/minetest_game/pull/185	
 ok	minetest_game proller:weather		
 ok	minetest_game proller:liquid63		
