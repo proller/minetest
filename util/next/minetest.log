@@ -345,3 +345,118 @@ index 5f3467f,b01fe5a..0000000
   };
   
   class LuaABM : public ActiveBlockModifier
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge Jeija/rotateto to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   doc/lua_api.txt
+#	modified:   src/content_sao.h
+#	modified:   src/genericobject.cpp
+#	modified:   src/genericobject.h
+#	modified:   src/script/lua_api/l_object.cpp
+#	modified:   src/script/lua_api/l_object.h
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/content_cao.cpp
+#	both modified:      src/content_sao.cpp
+#
+diff --cc src/content_cao.cpp
+index e97e3a1,89b8dc5..0000000
+--- a/src/content_cao.cpp
++++ b/src/content_cao.cpp
+@@@ -1210,12 -1215,28 +1219,37 @@@ public
+  			m_yaw += dtime * m_prop.automatic_rotate * 180 / M_PI;
+  			updateNodePos();
+  		}
+++<<<<<<< HEAD
+ +
+ +		if (getParent() == NULL && m_prop.automatic_face_movement_dir &&
+ +				(fabs(m_velocity.Z) > 0.001 || fabs(m_velocity.X) > 0.001)){
+ +			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
+ +			updateNodePos();
+ +		}
+++=======
++ 		// Automatic rotation overrides continues rotation
++ 		if(getParent() == NULL && m_rotate_yaw_speed != 0 && fabs(m_prop.automatic_rotate) < 0.001){
++ 			float target_yaw = m_yaw + dtime * m_rotate_yaw_speed;
++ 			if ((m_rotate_yaw_speed > 0 && m_yaw < m_dest_yaw
++ 				&& target_yaw > m_dest_yaw) || (m_rotate_yaw_speed < 0 
++ 				&& m_yaw > m_dest_yaw && target_yaw < m_dest_yaw)
++ 				|| (m_rotate_yaw_speed > 0 && m_yaw < m_dest_yaw + 360
++ 				&& target_yaw > m_dest_yaw + 360))
++ 			{
++ 				// destination yaw is reached
++ 				m_yaw = m_dest_yaw;
++ 				m_rotate_yaw_speed = 0;
++ 			}
++ 			else
++ 			{
++ 				m_yaw = target_yaw;
++ 			}
++ 			updateNodePos();
++ 		}
++ 
++ 		if (m_yaw > 360) m_yaw -= 360;
++ 		if (m_yaw < 0  ) m_yaw += 360;
+++>>>>>>> Jeija/rotateto
+  	}
+  
+  	void updateTexturePos()
+diff --cc src/content_sao.cpp
+index 85ab8d3,4bd6a23..0000000
+--- a/src/content_sao.cpp
++++ b/src/content_sao.cpp
+@@@ -527,14 -515,33 +529,39 @@@ void LuaEntitySAO::step(float dtime, bo
+  			m_velocity += dtime * m_acceleration;
+  		}
+  
+++<<<<<<< HEAD
+ +		if((m_prop.automatic_face_movement_dir) &&
+ +				(fabs(m_velocity.Z) > 0.001 || fabs(m_velocity.X) > 0.001)){
+ +			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
+ +		}
+++=======
++ 		// Automatic rotation overrides continues rotation
++ 		// Perform this also on the server to make getyaw() work
++ 		if(fabs(m_prop.automatic_rotate) < 0.001){
++ 			float target_yaw = m_yaw + dtime * m_rotate_yaw_speed;
++ 			if ((m_rotate_yaw_speed > 0 && m_yaw < m_dest_yaw
++ 				&& target_yaw > m_dest_yaw) || (m_rotate_yaw_speed < 0 
++ 				&& m_yaw > m_dest_yaw && target_yaw < m_dest_yaw)
++ 				|| (m_rotate_yaw_speed > 0 && m_yaw < m_dest_yaw + 360
++ 				&& target_yaw > m_dest_yaw + 360))
++ 			{
++ 				// destination yaw is reached
++ 				m_yaw = m_dest_yaw;
++ 				m_rotate_yaw_speed = 0;
+ -			}
+++>>>>>>> Jeija/rotateto
+++	}
++ 			else
++ 			{
++ 				m_yaw = target_yaw;
++ 			}
++ 		}
+  	}
+  
++ 	if (m_yaw > 360) m_yaw -= 360;
++ 	if (m_yaw < 0  ) m_yaw += 360;
++ 
+  	if(m_registered){
+ -		lua_State *L = m_env->getLua();
+ -		scriptapi_luaentity_step(L, m_id, dtime);
+ +		m_env->getScriptIface()->luaentity_Step(m_id, dtime);
+  	}
+  
+  	if(send_recommended == false)
