@@ -9,7 +9,6 @@ ok	minetest proller:huge_cave
 ok	minetest proller:weather_fog		https://github.com/minetest/minetest/pull/899	
 ok	minetest proller:wingsuit		https://github.com/minetest/minetest/pull/897	
 ok	minetest proller:collision		
-ok	minetest proller:light		
 fail	minetest sapier:avoid_facedir_if_not_moving	1	https://github.com/minetest/minetest/pull/879	
 ok	minetest sapier:modmgr_fixes		https://github.com/minetest/minetest/pull/884	
 ok	minetest proller:clouds		https://github.com/minetest/minetest/pull/855	
@@ -28,6 +27,7 @@ ok	minetest ShadowNinja:protection_support		https://github.com/minetest/minetest
 ok	minetest sapier:fix_multiplayer_server_not_saved		https://github.com/minetest/minetest/pull/846	
 fail	minetest sapier:autoupdate_anim_speed	1	https://github.com/minetest/minetest/pull/774	
 fail	minetest sapier:add_surface_detection_function	1	https://github.com/minetest/minetest/pull/640	
+fail	minetest Jeija:rotateto	1	https://github.com/minetest/minetest/pull/651	
 ok	minetest_game proller:sponge		https://github.com/minetest/minetest_game/pull/185	
 ok	minetest_game proller:weather		
 ok	minetest_game proller:liquid63		
