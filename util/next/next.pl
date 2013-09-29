@@ -12,11 +12,8 @@ my $what = {
     minetest => qq{
 proller:next_tools
 
-#sfan5:leveldb				907
-
 proller:liquid63			882
 proller:math				645
-proller:sqlite
 proller:json
 proller:weather				892
 proller:liquid_send			895
@@ -25,6 +22,7 @@ proller:huge_cave
 proller:weather_fog			899
 proller:wingsuit			897
 proller:collision
+#proller:light				931
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
@@ -41,12 +39,14 @@ MirceaKitsune:brighter_sun_faces	772
 sapier:fix_crash_on_lua_exception	890
 sapier:lua_show_backtrace_on_error	891
 sapier:fix_anaglyph_mode_selectionbox_not_beeing_honored	893
-WilliamBundy:jump_fix			866
+#WilliamBundy:jump_fix			866
 ShadowNinja:protection_support		856
 sapier:fix_multiplayer_server_not_saved	846
 sapier:autoupdate_anim_speed		774
 sapier:add_surface_detection_function	640
 #khonkhortisan:vertical_particles	675 #need protocol versioning
+#sfan5:minemovie			
+Jeija:rotateto				651
 },
 
     minetest_game => qq{
