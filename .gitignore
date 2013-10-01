@@ -11,6 +11,7 @@ tags
 /bin/
 /games/*
 !/games/minimal/
+!/games/minetest_game/
 /cache/
 /textures/*
 !/textures/base/
