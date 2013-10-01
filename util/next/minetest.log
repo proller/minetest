@@ -15,6 +15,12 @@
 #	both modified:      src/content_cao.cpp
 #	both modified:      src/content_sao.cpp
 #
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   games/minetest_game (new commits)
+#
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc src/content_cao.cpp
 index e97e3a1,fb4bc95..0000000
@@ -56,6 +62,13 @@ index 85ab8d3,92cabfb..0000000
   		}
   	}
   
+diff --git a/games/minetest_game b/games/minetest_game
+index 7a9c49f..e547d27 160000
+--- a/games/minetest_game
++++ b/games/minetest_game
+@@ -1 +1 @@
+-Subproject commit 7a9c49fd0e6ef4b105de47c4da7b15a686025c70
++Subproject commit e547d279ab91be3249144fc2551fb73955ac9f25
 
 
 
@@ -79,6 +92,12 @@ index 85ab8d3,92cabfb..0000000
 #
 #	both modified:      src/object_properties.cpp
 #	both modified:      src/object_properties.h
+#
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   games/minetest_game (new commits)
 #
 diff --cc src/object_properties.cpp
 index f560f59,162cc67..0000000
@@ -136,6 +155,13 @@ index 4b7f9a5,dbcbba5..0000000
   
   
   	ObjectProperties();
+diff --git a/games/minetest_game b/games/minetest_game
+index 7a9c49f..e547d27 160000
+--- a/games/minetest_game
++++ b/games/minetest_game
+@@ -1 +1 @@
+-Subproject commit 7a9c49fd0e6ef4b105de47c4da7b15a686025c70
++Subproject commit e547d279ab91be3249144fc2551fb73955ac9f25
 
 
 
@@ -164,6 +190,12 @@ index 4b7f9a5,dbcbba5..0000000
 #
 #	both modified:      src/clientserver.h
 #
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   games/minetest_game (new commits)
+#
 diff --cc src/clientserver.h
 index 6a7cbda,cc5b072..0000000
 --- a/src/clientserver.h
@@ -187,6 +219,13 @@ index 6a7cbda,cc5b072..0000000
   */
   
   #define LATEST_PROTOCOL_VERSION 21
+diff --git a/games/minetest_game b/games/minetest_game
+index 7a9c49f..e547d27 160000
+--- a/games/minetest_game
++++ b/games/minetest_game
+@@ -1 +1 @@
+-Subproject commit 7a9c49fd0e6ef4b105de47c4da7b15a686025c70
++Subproject commit e547d279ab91be3249144fc2551fb73955ac9f25
 
 
 
@@ -210,6 +249,12 @@ index 6a7cbda,cc5b072..0000000
 #	both modified:      src/environment.h
 #	both modified:      src/script/lua_api/l_env.cpp
 #	both modified:      src/script/lua_api/l_env.h
+#
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   games/minetest_game (new commits)
 #
 diff --cc src/environment.h
 index 67e8872,843a3d9..0000000
@@ -345,6 +390,13 @@ index 5f3467f,b01fe5a..0000000
   };
   
   class LuaABM : public ActiveBlockModifier
+diff --git a/games/minetest_game b/games/minetest_game
+index 7a9c49f..e547d27 160000
+--- a/games/minetest_game
++++ b/games/minetest_game
+@@ -1 +1 @@
+-Subproject commit 7a9c49fd0e6ef4b105de47c4da7b15a686025c70
++Subproject commit e547d279ab91be3249144fc2551fb73955ac9f25
 
 
 
@@ -370,6 +422,12 @@ index 5f3467f,b01fe5a..0000000
 #
 #	both modified:      src/content_cao.cpp
 #	both modified:      src/content_sao.cpp
+#
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   games/minetest_game (new commits)
 #
 diff --cc src/content_cao.cpp
 index e97e3a1,89b8dc5..0000000
@@ -460,3 +518,10 @@ index 85ab8d3,4bd6a23..0000000
   	}
   
   	if(send_recommended == false)
+diff --git a/games/minetest_game b/games/minetest_game
+index 7a9c49f..e547d27 160000
+--- a/games/minetest_game
++++ b/games/minetest_game
+@@ -1 +1 @@
+-Subproject commit 7a9c49fd0e6ef4b105de47c4da7b15a686025c70
++Subproject commit e547d279ab91be3249144fc2551fb73955ac9f25
