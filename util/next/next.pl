@@ -9,7 +9,12 @@ use utf8;
 use lib::abs;
 
 my $what = {
-    minetest => qq{
+    minetest => {
+submodule=>qq{
+games	proller	minetest_game	next
+},
+
+merge=>qq{
 proller:next_tools
 
 proller:liquid63			882
@@ -47,9 +52,13 @@ sapier:add_surface_detection_function	640
 #khonkhortisan:vertical_particles	675 #need protocol versioning
 #sfan5:minemovie			
 Jeija:rotateto				651
-},
+},},
 
-    minetest_game => qq{
+    minetest_game => {
+submodule=>qq{
+mods	proller	minetest-mod-weather	we
+},
+merge=>qq{
 proller:sponge			185
 proller:weather
 proller:liquid63
@@ -58,7 +67,7 @@ proller:liquid63
 Jordach:moonflower		169
 khonkhortisan:diagonal_rail	135
 Novatux:furnace			200 #can make 100% cpu load
-},
+},},
 
 };
 
@@ -70,7 +79,7 @@ sub file_append(;$@) {
 }
 
 sub sy (@) {
-    #warn @_;
+    warn @_;
     system @_;
     if ($? == -1) {
         #print "failed to execute: $!\n";
@@ -103,7 +112,7 @@ git checkout -b $target
 ";
     my $error;
 
-    for my $from (split /\n+/, $what->{$repo}) {
+    for my $from (split /\n+/, $what->{$repo}{merge}) {
         next if $from =~ /^(?:\s*#|$)/;
         $from =~ m{^\s*(?<user>\S+)[:/](?<branch>\S+)(\s+(?<pull>\S+))?(\s+(?<comment>.+))?};
         my $i = {%+, repo => $repo, pullfull => "$pullroot$+{pull}"};
@@ -126,6 +135,26 @@ git checkout -b $target
         } else {
             push @$report, {%$i, status => 'ok'};
         }
+
+    }
+
+
+    for my $from (split /\n+/, $what->{$repo}{submodule}) {
+        next if $from =~ /^(?:\s*#|$)/;
+        $from =~ m{^\s*(?<dir>\S+)\s+(?<user>\S+)\s+(?<repo>\S+)\s+(?<branch>\S+)(\s+(?<comment>.+))?};
+        my $i = {%+, };
+	$i->{clone} = "https://github.com/$i->{user}/$i->{repo}.git";
+#dmp $i;
+	sy qq{
+cd $i->{dir}
+git submodule add -f $i->{clone} $i->{repo}
+cd $i->{repo}
+git checkout $i->{branch}
+cd ..
+git status
+git ci -a -m "submodule add $i->{user}/$i->{repo}/$i->{branch} to $i->{dir}";
+cd ..
+}
 
     }
     my $diff = qx{git diff --stat origin/next};
