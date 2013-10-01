@@ -53,6 +53,7 @@ Jeija:rotateto				651
 proller:sponge			185
 proller:weather
 proller:liquid63
+proller:mod-weather
 #Zeg9:wieldlight		188
 Jordach:moonflower		169
 khonkhortisan:diagonal_rail	135
