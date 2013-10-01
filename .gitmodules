@@ -1,3 +1,0 @@
-[submodule "games/minetest_game"]
-	path = games/minetest_game
-	url = https://github.com/proller/minetest_game.git

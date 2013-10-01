@@ -53,7 +53,7 @@ Jeija:rotateto				651
 proller:sponge			185
 proller:weather
 proller:liquid63
-proller:mod-weather
+#proller:mod-weather
 #Zeg9:wieldlight		188
 Jordach:moonflower		169
 khonkhortisan:diagonal_rail	135
@@ -86,7 +86,7 @@ sub sy (@) {
 my $target = 'next';
 my $report = [];
 my $root   = lib::abs::path('.') . '/';
-REPO: for my $repo ('minetest', 'minetest_game') {
+REPO: for my $repo (qw(minetest_game minetest)) {
     my $log = "$root$repo.log";
     unlink $log;
     my $pullroot = "https://github.com/minetest/$repo/pull/";
@@ -137,6 +137,7 @@ git checkout -b $target
     say "changed $diff";
     my $test = sy "cmake . -DRUN_IN_PLACE=1 && make -j4" if $repo eq 'minetest' and !$error and !('notest' ~~ @ARGV);
     say "test = [$test]";
+    #sy "git submodule update --init --recursive";
     sy "git push -f" if !$test and !('nopush' ~~ @ARGV);
   UP:
     chdir '..';
