@@ -13,6 +13,7 @@
 #
 #	modified:   CMakeLists.txt
 #	new file:   util/next/minetest.log
+#	new file:   util/next/minetest_game.log
 #	new file:   util/next/next.pl
 #	new file:   util/next/report.log
 #
@@ -2472,141 +2473,6 @@ index 594888c,d4676d4..0000000
 
 
 !!!!!!!!!!!!!!!!!
- Merge proller/weather to next failed:
-
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   doc/lua_api.txt
-#	modified:   src/biome.cpp
-#	modified:   src/biome.h
-#	modified:   src/constants.h
-#	modified:   src/emerge.cpp
-#	modified:   src/environment.cpp
-#	modified:   src/environment.h
-#	modified:   src/map.cpp
-#	modified:   src/mapgen.h
-#	modified:   src/script/cpp_api/s_env.cpp
-#	modified:   src/script/lua_api/l_env.cpp
-#	modified:   src/script/lua_api/l_env.h
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      src/content_abm.cpp
-#
-diff --cc src/content_abm.cpp
-index e3c09e7,422c6f1..0000000
---- a/src/content_abm.cpp
-+++ b/src/content_abm.cpp
-@@@ -281,8 -247,8 +287,13 @@@ class LiquidFreeze : public ActiveBlock
-  		}
-  		virtual std::set<std::string> getRequiredNeighbors() {
-  			std::set<std::string> s;
-++<<<<<<< HEAD
- +			s.insert("air");
- +			s.insert("group:melts");
-++=======
-+ 			s.insert("mapgen_air");
-+ 			s.insert("group:melt");
-++>>>>>>> proller/weather
-  			return s;
-  		}
-  		virtual float getTriggerInterval()
-@@@ -343,8 -312,8 +357,13 @@@ class MeltWeather : public ActiveBlockM
-  		}
-  		virtual std::set<std::string> getRequiredNeighbors() {
-  			std::set<std::string> s;
-++<<<<<<< HEAD
- +			s.insert("air");
- +			s.insert("group:freezes");
-++=======
-+ 			s.insert("mapgen_air");
-+ 			s.insert("group:freeze");
-++>>>>>>> proller/weather
-  			return s;
-  		}
-  		virtual float getTriggerInterval()
-@@@ -379,35 -350,57 +400,57 @@@ class MeltHot : public ActiveBlockModif
-  			s.insert("group:hot");
-  			return s;
-  		}
-+ 		virtual u32 getNeighborsRange()
-+ 		{ return 2; }
-  		virtual float getTriggerInterval()
-- 		{ return 2.0; }
-+ 		{ return 3.0; }
-  		virtual u32 getTriggerChance()
-  		{ return 4; }
-- 		virtual void trigger(ServerEnvironment *env, v3s16 p, MapNode n) {
-+ 		virtual void trigger(ServerEnvironment *env, v3s16 p, MapNode n,
-+ 			u32 active_object_count, u32 active_object_count_wider, MapNode neighbor) {
-  			ServerMap *map = &env->getServerMap();
-  			INodeDefManager *ndef = env->getGameDef()->ndef();
-+ 			int hot = ((ItemGroupList) ndef->get(neighbor).groups)["hot"];
-+ 			int melt = ((ItemGroupList) ndef->get(n).groups)["melt"];
-+ 			if (hot > melt) {
- -				n.freezeMelt(ndef);
- -				map->addNodeWithEvent(p, n);
- -				env->getScriptIface()->node_falling_update(p);
- -			}
- +			n.freezeMelt(ndef);
- +			map->addNodeWithEvent(p, n);
- +			env->getScriptIface()->node_falling_update(p);
- +		}
-+ 		}
-  };
-  
-- /* too buggy, later via liquid flow code
-- class LiquidMeltAround : public LiquidMeltHot {
-+ class LiquidFreezeCold : public ActiveBlockModifier {
-  	public:
-- 		LiquidMeltAround(ServerEnvironment *env, INodeDefManager *nodemgr) 
-- 			: LiquidMeltHot(env, nodemgr) { }
-+ 		LiquidFreezeCold(ServerEnvironment *env, INodeDefManager *nodemgr) { }
-+ 		virtual std::set<std::string> getTriggerContents() {
-+ 			std::set<std::string> s;
-+ 			s.insert("group:freeze");
-+ 			return s;
-+ 		}
-  		virtual std::set<std::string> getRequiredNeighbors() {
-  			std::set<std::string> s;
-- 			s.insert("group:melt_around");
-+ 			s.insert("group:cold");
-  			return s;
-  		}
-+ 		virtual u32 getNeighborsRange()
-+ 		{ return 1; }
-  		virtual float getTriggerInterval()
-- 		{ return 40.0; }
-+ 		{ return 3.0; }
-  		virtual u32 getTriggerChance()
-- 		{ return 60; }
-+ 		{ return 4; }
-+ 		virtual void trigger(ServerEnvironment *env, v3s16 p, MapNode n,
-+ 			u32 active_object_count, u32 active_object_count_wider, MapNode neighbor) {
-+ 			ServerMap *map = &env->getServerMap();
-+ 			INodeDefManager *ndef = env->getGameDef()->ndef();
-+ 			int cold = ((ItemGroupList) ndef->get(neighbor).groups)["cold"];
-+ 			int freeze = ((ItemGroupList) ndef->get(n).groups)["freeze"];
-+ 			if (cold < freeze) {
-+ 				n.freezeMelt(ndef);
-+ 				map->addNodeWithEvent(p, n);
-+ 			}
-+ 		}
-  };
-- */
-  
-  void add_legacy_abms(ServerEnvironment *env, INodeDefManager *nodedef) {
-  	env->addActiveBlockModifier(new GrowGrassABM());
-
-
-
-
-!!!!!!!!!!!!!!!!!
  Merge sapier/avoid_facedir_if_not_moving to next failed:
 
 # On branch next
@@ -2816,10 +2682,10 @@ index 6a7cbda,cc5b072..0000000
 #	both modified:      src/script/lua_api/l_env.h
 #
 diff --cc src/environment.h
-index 8665493,843a3d9..0000000
+index 67e8872,843a3d9..0000000
 --- a/src/environment.h
 +++ b/src/environment.h
-@@@ -300,10 -307,7 +300,13 @@@ public
+@@@ -304,10 -307,7 +304,13 @@@ public
   
   	void reportMaxLagEstimate(float f) { m_max_lag_estimate = f; }
   	float getMaxLagEstimate() { return m_max_lag_estimate; }
@@ -2835,10 +2701,10 @@ index 8665493,843a3d9..0000000
   
   	/*
 diff --cc src/script/lua_api/l_env.cpp
-index 436eb01,47e9963..0000000
+index 375173b,47e9963..0000000
 --- a/src/script/lua_api/l_env.cpp
 +++ b/src/script/lua_api/l_env.cpp
-@@@ -780,40 -937,49 +804,84 @@@ int ModApiEnvMod::l_get_humidity(lua_St
+@@@ -781,40 -937,49 +805,84 @@@ int ModApiEnvMod::l_get_humidity(lua_St
   }
   
   
@@ -2928,7 +2794,7 @@ index 436eb01,47e9963..0000000
  -
  -ModApiEnvMod modapienv_prototype;
 diff --cc src/script/lua_api/l_env.h
-index 814d121,b01fe5a..0000000
+index 5f3467f,b01fe5a..0000000
 --- a/src/script/lua_api/l_env.h
 +++ b/src/script/lua_api/l_env.h
 @@@ -147,8 -159,13 +147,16 @@@ private
