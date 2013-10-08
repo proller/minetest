@@ -4,11 +4,11 @@ ok	minetest_game proller:liquid63
 fail	minetest_game Jordach:moonflower	1	https://github.com/minetest/minetest_game/pull/169	
 ok	minetest_game khonkhortisan:diagonal_rail		https://github.com/minetest/minetest_game/pull/135	
 ok	minetest_game Novatux:furnace		https://github.com/minetest/minetest_game/pull/200	
-ok	minetest proller:next_tools		
+fail	minetest proller:next_tools	1	
 ok	minetest proller:liquid63		https://github.com/minetest/minetest/pull/882	
 ok	minetest proller:math		https://github.com/minetest/minetest/pull/645	
 ok	minetest proller:json		
-ok	minetest proller:weather		https://github.com/minetest/minetest/pull/892	
+fail	minetest proller:weather	1	https://github.com/minetest/minetest/pull/892	
 ok	minetest proller:liquid_send		https://github.com/minetest/minetest/pull/895	
 ok	minetest proller:liquid_default		
 ok	minetest proller:huge_cave		
@@ -34,3 +34,5 @@ ok	minetest sapier:fix_multiplayer_server_not_saved		https://github.com/minetest
 fail	minetest sapier:autoupdate_anim_speed	1	https://github.com/minetest/minetest/pull/774	
 fail	minetest sapier:add_surface_detection_function	1	https://github.com/minetest/minetest/pull/640	
 fail	minetest Jeija:rotateto	1	https://github.com/minetest/minetest/pull/651	
+ok	minetest ShadowNinja:more_break_particles		https://github.com/minetest/minetest/pull/943	
+ok	minetest ShadowNinja:fall_on_unknown		https://github.com/minetest/minetest/pull/942	
