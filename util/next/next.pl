@@ -52,6 +52,8 @@ sapier:add_surface_detection_function	640
 #khonkhortisan:vertical_particles	675 #need protocol versioning
 #sfan5:minemovie			
 Jeija:rotateto				651
+ShadowNinja:more_break_particles	943
+ShadowNinja:fall_on_unknown		942
 },},
 
     minetest_game => {
