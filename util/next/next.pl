@@ -27,6 +27,7 @@ proller:huge_cave
 proller:weather_fog			899
 proller:wingsuit			897
 proller:collision
+proller:masterserver			952
 #proller:light				931
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
@@ -66,7 +67,7 @@ proller:weather
 proller:liquid63
 #proller:mod-weather
 #Zeg9:wieldlight		188
-Jordach:moonflower		169
+MirceaKitsune:moonflower	175
 khonkhortisan:diagonal_rail	135
 Novatux:furnace			200 #can make 100% cpu load
 },},
