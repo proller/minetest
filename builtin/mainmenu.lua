@@ -439,37 +439,42 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 	if fields["favourites"] ~= nil then
 		local event = explode_textlist_event(fields["favourites"])
 		if event.typ == "DCL" then
-			gamedata.address = menu.favorites[event.index].address
-			gamedata.port = menu.favorites[event.index].port
-			gamedata.playername		= fields["te_name"]
-			if fields["te_pwd"] ~= nil then
-				gamedata.password		= fields["te_pwd"]
-			end
-			gamedata.selected_world = 0
-			
-			if menu.favorites ~= nil then
-				gamedata.servername = menu.favorites[event.index].name
-				gamedata.serverdescription = menu.favorites[event.index].description
-			end
-			
-			if gamedata.address ~= nil and
-				gamedata.port ~= nil then
+			if event.index <= #menu.favorites then
+				gamedata.address = menu.favorites[event.index].address
+				gamedata.port = menu.favorites[event.index].port
+				gamedata.playername		= fields["te_name"]
+				if fields["te_pwd"] ~= nil then
+					gamedata.password		= fields["te_pwd"]
+				end
+				gamedata.selected_world = 0
 				
-				engine.start()
+				if menu.favorites ~= nil then
+					gamedata.servername = menu.favorites[event.index].name
+					gamedata.serverdescription = menu.favorites[event.index].description
+				end
+				
+				if gamedata.address ~= nil and
+					gamedata.port ~= nil then
+					engine.setting_set("address",gamedata.address)
+					engine.setting_set("remote_port",gamedata.port)
+					engine.start()
+				end
 			end
 		end
 		
 		if event.typ == "CHG" then
-			local address = menu.favorites[event.index].address
-			local port = menu.favorites[event.index].port
-			
-			if address ~= nil and
-				port ~= nil then
-				engine.setting_set("address",address)
-				engine.setting_set("port",port)
+			if event.index <= #menu.favorites then
+				local address = menu.favorites[event.index].address
+				local port = menu.favorites[event.index].port
+				
+				if address ~= nil and
+					port ~= nil then
+					engine.setting_set("address",address)
+					engine.setting_set("remote_port",port)
+				end
+				
+				menu.fav_selected = event.index
 			end
-			
-			menu.fav_selected = event.index
 		end
 		return
 	end
@@ -491,7 +496,7 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 		if address ~= nil and
 			port ~= nil then
 			engine.setting_set("address",address)
-			engine.setting_set("port",port)
+			engine.setting_set("remote_port",port)
 		end
 		
 		menu.fav_selected = fav_idx
@@ -517,7 +522,7 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 		menu.fav_selected = nil
 		
 		engine.setting_set("address","")
-		engine.setting_set("port","30000")
+		engine.setting_set("remote_port","30000")
 		
 		return
 	end
@@ -546,7 +551,7 @@ function tabbuilder.handle_multiplayer_buttons(fields)
 		gamedata.selected_world = 0
 		
 		engine.setting_set("address",fields["te_address"])
-		engine.setting_set("port",fields["te_port"])
+		engine.setting_set("remote_port",fields["te_port"])
 		
 		engine.start()
 		return
@@ -595,6 +600,7 @@ function tabbuilder.handle_server_buttons(fields)
 			gamedata.address		= ""
 			gamedata.selected_world	= filterlist.get_raw_index(worldlist,selected)
 			
+			engine.setting_set("port",gamedata.port)
 			menu.update_last_game(gamedata.selected_world)
 			engine.start()
 		end
@@ -880,7 +886,7 @@ function tabbuilder.tab_multiplayer()
 		"label[1,4.25;".. fgettext("Address/Port") .. "]"..
 		"label[9,2.75;".. fgettext("Name/Password") .. "]" ..
 		"field[1.25,5.25;5.5,0.5;te_address;;" ..engine.setting_get("address") .."]" ..
-		"field[6.75,5.25;2.25,0.5;te_port;;" ..engine.setting_get("port") .."]" ..
+		"field[6.75,5.25;2.25,0.5;te_port;;" ..engine.setting_get("remote_port") .."]" ..
 		"checkbox[1,3.6;cb_public_serverlist;".. fgettext("Public Serverlist") .. ";" ..
 		dump(engine.setting_getbool("public_serverlist")) .. "]"
 		
@@ -946,7 +952,8 @@ function tabbuilder.tab_server()
 		"field[0.8,3.2;3,0.5;te_playername;".. fgettext("Name") .. ";" ..
 		engine.setting_get("name") .. "]" ..
 		"pwdfield[0.8,4.2;3,0.5;te_passwd;".. fgettext("Password") .. "]" ..
-		"field[0.8,5.2;3,0.5;te_serverport;".. fgettext("Server Port") .. ";30000]" ..
+		"field[0.8,5.2;3,0.5;te_serverport;".. fgettext("Server Port") .. ";" .. 
+		engine.setting_get("port") .."]" ..
 		"textlist[4,0.25;7.5,3.7;srv_worlds;" ..
 		menu.render_world_list() ..
 		";" .. index .. "]"
