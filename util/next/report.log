@@ -31,7 +31,7 @@ ok	minetest sapier:fix_crash_on_lua_exception		https://github.com/minetest/minet
 ok	minetest sapier:lua_show_backtrace_on_error		https://github.com/minetest/minetest/pull/891	
 ok	minetest sapier:fix_anaglyph_mode_selectionbox_not_beeing_honored		https://github.com/minetest/minetest/pull/893	
 ok	minetest ShadowNinja:protection_support		https://github.com/minetest/minetest/pull/856	
-ok	minetest sapier:fix_multiplayer_server_not_saved		https://github.com/minetest/minetest/pull/846	
+fail	minetest sapier:fix_multiplayer_server_not_saved	1	https://github.com/minetest/minetest/pull/846	
 fail	minetest sapier:autoupdate_anim_speed	1	https://github.com/minetest/minetest/pull/774	
 fail	minetest sapier:add_surface_detection_function	1	https://github.com/minetest/minetest/pull/640	
 fail	minetest Jeija:rotateto	1	https://github.com/minetest/minetest/pull/651	
