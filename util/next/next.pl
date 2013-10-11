@@ -58,6 +58,7 @@ ShadowNinja:fall_on_unknown		942
 },},
 
     minetest_game => {
+push_no_diff=>1,
 submodule=>qq{
 mods	proller	minetest-mod-weather	we
 },
@@ -110,6 +111,7 @@ git reset --hard
 git remote add upstream https://github.com/minetest/$repo.git
 git fetch upstream
 git checkout upstream/master
+git clean --ffd
 git branch -D $target
 git checkout -b $target
 ";
@@ -161,9 +163,11 @@ cd ..
 
     }
     my $diff = qx{git diff --stat origin/next};
+    unless ($what->{$repo}{push_no_diff}) {
     unless ($diff) {
         say "no changes";
         goto UP;
+    }
     }
 
     say "changed $diff";
