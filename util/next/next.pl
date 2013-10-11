@@ -10,6 +10,7 @@ use lib::abs;
 
 my $what = {
     minetest => {
+test=>1,
 submodule=>qq{
 games	proller	minetest_game	next
 },
@@ -106,15 +107,15 @@ REPO: for my $repo (qw(minetest_game minetest)) {
     my $dir      = $root . $repo . '_' . $target;
     sy "git clone https://github.com/proller/$repo.git $dir";
     chdir $dir;
-    sy "
-git reset --hard
-git remote add upstream https://github.com/minetest/$repo.git
-git fetch upstream
-git checkout upstream/master
-git clean --ffd
-git branch -D $target
-git checkout -b $target
-";
+    sy $_ for
+"git reset --hard",
+"git remote add upstream https://github.com/minetest/$repo.git",
+"git fetch upstream",
+"git checkout upstream/master",
+"git clean -ffd",
+"git branch -D $target",
+"git checkout -b $target",
+;
     my $error;
 
     for my $from (split /\n+/, $what->{$repo}{merge}) {
@@ -154,7 +155,9 @@ git checkout -b $target
 cd $i->{dir}
 git submodule add -f $i->{clone} $i->{repo}
 cd $i->{repo}
-git checkout $i->{branch}
+git reset --hard
+git fetch --all
+git checkout origin/$i->{branch}
 cd ..
 git status
 git ci -a -m "submodule add $i->{user}/$i->{repo}/$i->{branch} to $i->{dir}";
@@ -171,7 +174,7 @@ cd ..
     }
 
     say "changed $diff";
-    my $test = sy "cmake . -DRUN_IN_PLACE=1 && make -j4" if $repo eq 'minetest' and !$error and !('notest' ~~ @ARGV);
+    my $test = sy "cmake . -DRUN_IN_PLACE=1 && make -j4" if $what->{$repo}{test} and !$error and !('notest' ~~ @ARGV);
     say "test = [$test]";
     #sy "git submodule update --init --recursive";
     sy "git push -f" if !$test and !('nopush' ~~ @ARGV);
