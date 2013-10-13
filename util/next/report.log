@@ -38,3 +38,5 @@ fail	minetest sapier:add_surface_detection_function	1	https://github.com/minetes
 fail	minetest Jeija:rotateto	1	https://github.com/minetest/minetest/pull/651	
 ok	minetest ShadowNinja:more_break_particles		https://github.com/minetest/minetest/pull/943	
 ok	minetest ShadowNinja:fall_on_unknown		https://github.com/minetest/minetest/pull/942	
+ok	minetest Novatux:facedir_to_dir_fix		https://github.com/minetest/minetest/pull/946	
+ok	minetest Sokomine:master		https://github.com/minetest/minetest/pull/951	
