@@ -619,3 +619,42 @@ index 85ab8d3,4bd6a23..0000000
   	}
   
   	if(send_recommended == false)
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge Sokomine/master to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      doc/lua_api.txt
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --cc doc/lua_api.txt
+index 927de19,5c52606..0000000
+--- a/doc/lua_api.txt
++++ b/doc/lua_api.txt
+@@@ -2044,11 -1998,9 +2044,17 @@@ Node definition (register_node
+      <all fields allowed in item definitions>,
+  
+      drawtype = "normal", -- See "Node drawtypes"
+++<<<<<<< HEAD
+ +    visual_scale = 1.0,
+ +    ^ Supported for drawtypes "plantlike", "signlike", "torchlike".
+ +    ^ For plantlike, the image will start at the bottom of the node; for the
+ +    ^ other drawtypes, the image will be centered on the node.
+ +    ^ Note that positioning for "torchlike" may still change.
+++=======
++     visual_scale = 1.0, -- supported for drawtypes "plantlike", "signlike", "torchlike"
++                         -- for plantlike, the image will start at the bottom of the node; for the other drawtypes, the image
++                         -- will be centered on the node
+++>>>>>>> Sokomine/master
+      tiles = {tile definition 1, def2, def3, def4, def5, def6},
+      ^ Textures of node; +Y, -Y, +X, -X, +Z, -Z (old field name: tile_images)
+      ^ List can be shortened to needed length
