@@ -30,6 +30,7 @@ proller:wingsuit			897
 proller:collision
 proller:masterserver			952
 proller:light_ok			931
+proller:net				
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
@@ -39,7 +40,6 @@ Zeg9:slippery				817
 MirceaKitsune:sun_moon_coloring		799
 khonkhortisan:diagonal_rail		528
 Novatux:forceload			606
-Novatux:tool_callback			688
 PilzAdam:vbo
 sweetbomber:spawn			744
 MirceaKitsune:brighter_sun_faces	772
@@ -56,7 +56,6 @@ sapier:add_surface_detection_function	640
 Jeija:rotateto				651
 ShadowNinja:more_break_particles	943
 ShadowNinja:fall_on_unknown		942
-Novatux:facedir_to_dir_fix		946
 Sokomine:master				951
 },},
 
