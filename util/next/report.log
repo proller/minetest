@@ -15,7 +15,6 @@ ok	minetest proller:huge_cave
 ok	minetest proller:weather_fog		https://github.com/minetest/minetest/pull/899	
 ok	minetest proller:wingsuit		https://github.com/minetest/minetest/pull/897	
 ok	minetest proller:collision		
-ok	minetest proller:masterserver		https://github.com/minetest/minetest/pull/952	
 ok	minetest proller:light_ok		https://github.com/minetest/minetest/pull/931	
 ok	minetest proller:net		
 fail	minetest sapier:avoid_facedir_if_not_moving	1	https://github.com/minetest/minetest/pull/879	
