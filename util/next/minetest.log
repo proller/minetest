@@ -637,10 +637,10 @@ index 85ab8d3,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index 927de19,5c52606..0000000
+index 0428656,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -2044,11 -1998,9 +2044,17 @@@ Node definition (register_node
+@@@ -2045,11 -1998,9 +2045,17 @@@ Node definition (register_node
       <all fields allowed in item definitions>,
   
       drawtype = "normal", -- See "Node drawtypes"
