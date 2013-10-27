@@ -3,6 +3,403 @@
 
 
 !!!!!!!!!!!!!!!!!
+ Merge proller/math to next failed:
+
+# On branch next
+nothing to commit, working directory clean
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/json to next failed:
+
+# On branch next
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   src/json/json.h
+#	modified:   src/json/jsoncpp.cpp
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --git a/src/json/json.h b/src/json/json.h
+index 396aafa..5bc18d6 100644
+--- a/src/json/json.h
++++ b/src/json/json.h
+@@ -824,7 +824,7 @@ conditions of the MIT License (see below), or 3) under the terms of dual
+ 
+    /** \brief Experimental and untested: represents an element of the "path" to access a node.
+     */
+-   class PathArgument
++   class JSON_API PathArgument
+    {
+    public:
+       friend class Path;
+@@ -857,7 +857,7 @@ conditions of the MIT License (see below), or 3) under the terms of dual
+     * - ".%" => member name is provided as parameter
+     * - ".[%]" => index is provied as parameter
+     */
+-   class Path
++   class JSON_API Path
+    {
+    public:
+       Path( const std::string &path,
+@@ -1233,9 +1233,10 @@ class DefaultValueArrayAllocator : public ValueArrayAllocator
+    /** \brief base class for Value iterators.
+     *
+     */
+-   class ValueIteratorBase
++   class JSON_API ValueIteratorBase
+    {
+    public:
++      typedef std::bidirectional_iterator_tag iterator_category;
+       typedef unsigned int size_t;
+       typedef int difference_type;
+       typedef ValueIteratorBase SelfType;
+@@ -1303,10 +1304,11 @@ class DefaultValueArrayAllocator : public ValueArrayAllocator
+    /** \brief const iterator for object and array value.
+     *
+     */
+-   class ValueConstIterator : public ValueIteratorBase
++   class JSON_API ValueConstIterator : public ValueIteratorBase
+    {
+       friend class Value;
+    public:
++      typedef const Value value_type;
+       typedef unsigned int size_t;
+       typedef int difference_type;
+       typedef const Value &reference;
+@@ -1361,10 +1363,11 @@ class DefaultValueArrayAllocator : public ValueArrayAllocator
+ 
+    /** \brief Iterator for object and array value.
+     */
+-   class ValueIterator : public ValueIteratorBase
++   class JSON_API ValueIterator : public ValueIteratorBase
+    {
+       friend class Value;
+    public:
++      typedef Value value_type;
+       typedef unsigned int size_t;
+       typedef int difference_type;
+       typedef Value &reference;
+diff --git a/src/json/jsoncpp.cpp b/src/json/jsoncpp.cpp
+index 7a04736..a3fa445 100644
+--- a/src/json/jsoncpp.cpp
++++ b/src/json/jsoncpp.cpp
+@@ -1411,6 +1411,7 @@ class BatchAllocator
+ {
+ #ifndef JSON_VALUE_USE_INTERNAL_MAP
+    current_ = other.current_;
++   isNull_ = other.isNull_;
+ #else
+    if ( isArray_ )
+       iterator_.array_ = other.iterator_.array_;
+@@ -2045,7 +2046,10 @@ static inline bool InRange(double d, T min, U max) {
+          allocated_ = true;
+       }
+       else
++      {
+          value_.string_ = 0;
++         allocated_ = false;
++      }
+       break;
+ #ifndef JSON_VALUE_USE_INTERNAL_MAP
+    case arrayValue:
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/weather to next failed:
+
+# On branch next
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   doc/lua_api.txt
+#	modified:   src/biome.cpp
+#	modified:   src/biome.h
+#	modified:   src/constants.h
+#	modified:   src/content_abm.cpp
+#	modified:   src/emerge.cpp
+#	modified:   src/environment.cpp
+#	modified:   src/environment.h
+#	modified:   src/map.cpp
+#	modified:   src/mapnode.cpp
+#	modified:   src/script/cpp_api/s_env.cpp
+#	modified:   src/script/lua_api/l_env.cpp
+#	modified:   src/script/lua_api/l_env.h
+#
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/liquid_send to next failed:
+
+# On branch next
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   src/map.h
+#	modified:   src/server.cpp
+#	modified:   src/server.h
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --git a/src/map.h b/src/map.h
+index b70b18a..be4e569 100644
+--- a/src/map.h
++++ b/src/map.h
+@@ -298,8 +298,8 @@ class Map /*: public NodeContainer*/
+ 	// For debug printing. Prints "Map: ", "ServerMap: " or "ClientMap: "
+ 	virtual void PrintInfo(std::ostream &out);
+ 
+-	void transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks);
+-	void transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks);
++	s32 transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks);
++	s32 transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks);
+ 
+ 	/*
+ 		Node metadata
+diff --git a/src/server.cpp b/src/server.cpp
+index 8350b70..12bbd41 100644
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@ -667,7 +667,9 @@ void RemoteClient::SetBlocksNotSent(std::map<v3s16, MapBlock*> &blocks)
+ 	m_ignore_map_edit_events_peer_id(0)
+ {
+ 	m_liquid_transform_timer = 0.0;
+-	m_liquid_transform_every = 1.0;
++	m_liquid_transform_interval = 1.0;
++	m_liquid_send_timer = 0.0;
++	m_liquid_send_every = 1.0;
+ 	m_print_info_timer = 0.0;
+ 	m_masterserver_timer = 0.0;
+ 	m_objectdata_timer = 0.0;
+@@ -849,7 +851,8 @@ void RemoteClient::SetBlocksNotSent(std::map<v3s16, MapBlock*> &blocks)
+ 	*/
+ 	add_legacy_abms(m_env, m_nodedef);
+ 
+-	m_liquid_transform_every = g_settings->getFloat("liquid_update");
++	m_liquid_transform_interval = g_settings->getFloat("liquid_update");
++	m_liquid_send_every = g_settings->getFloat("liquid_send");
+ }
+ 
+ Server::~Server()
+@@ -1187,37 +1190,28 @@ void Server::AsyncRunStep()
+ 
+ 	/* Transform liquids */
+ 	m_liquid_transform_timer += dtime;
+-	if(m_liquid_transform_timer >= m_liquid_transform_every)
++	if(m_liquid_transform_timer >= m_liquid_transform_interval)
+ 	{
+-		m_liquid_transform_timer -= m_liquid_transform_every;
++		m_liquid_transform_timer -= m_liquid_transform_interval;
+ 
+ 		JMutexAutoLock lock(m_env_mutex);
+ 
+ 		ScopeProfiler sp(g_profiler, "Server: liquid transform");
+ 
+-		std::map<v3s16, MapBlock*> modified_blocks;
+-		m_env->getMap().transformLiquids(modified_blocks);
+-#if 0
+-		/*
+-			Update lighting
+-		*/
+-		core::map<v3s16, MapBlock*> lighting_modified_blocks;
+-		ServerMap &map = ((ServerMap&)m_env->getMap());
+-		map.updateLighting(modified_blocks, lighting_modified_blocks);
+-
+-		// Add blocks modified by lighting to modified_blocks
+-		for(core::map<v3s16, MapBlock*>::Iterator
+-				i = lighting_modified_blocks.getIterator();
+-				i.atEnd() == false; i++)
+-		{
+-			MapBlock *block = i.getNode()->getValue();
+-			modified_blocks.insert(block->getPos(), block);
++		// not all liquid was processed per step, forcing on next step
++		if (m_env->getMap().transformLiquids(m_modified_blocks) > 0)
++			m_liquid_transform_timer = m_liquid_transform_interval/2;
+ 		}
+-#endif
++
+ 		/*
+ 			Set the modified blocks unsent for all the clients
+ 		*/
+ 
++	m_liquid_send_timer += dtime;
++	if(m_liquid_send_timer >= m_liquid_send_every)
++	{
++		m_liquid_send_timer -= m_liquid_send_every;
++		// ? JMutexAutoLock lock(m_env_mutex);
+ 		JMutexAutoLock lock2(m_con_mutex);
+ 
+ 		for(std::map<u16, RemoteClient*>::iterator
+@@ -1226,12 +1220,13 @@ void Server::AsyncRunStep()
+ 		{
+ 			RemoteClient *client = i->second;
+ 
+-			if(modified_blocks.size() > 0)
++			if(m_modified_blocks.size() > 0)
+ 			{
+ 				// Remove block from sent history
+-				client->SetBlocksNotSent(modified_blocks);
++				client->SetBlocksNotSent(m_modified_blocks);
+ 			}
+ 		}
++		m_modified_blocks.clear();
+ 	}
+ 
+ 	// Periodically print some info
+diff --git a/src/server.h b/src/server.h
+index b52ae02..668f003 100644
+--- a/src/server.h
++++ b/src/server.h
+@@ -665,7 +665,9 @@ class Server : public con::PeerHandler, public MapEventReceiver,
+ 
+ 	// Some timers
+ 	float m_liquid_transform_timer;
+-	float m_liquid_transform_every;
++	float m_liquid_transform_interval;
++	float m_liquid_send_timer;
++	float m_liquid_send_every;
+ 	float m_print_info_timer;
+ 	float m_masterserver_timer;
+ 	float m_objectdata_timer;
+@@ -820,6 +822,8 @@ class Server : public con::PeerHandler, public MapEventReceiver,
+ 		Particles
+ 	*/
+ 	std::vector<u32> m_particlespawner_ids;
++
++	std::map<v3s16, MapBlock*> m_modified_blocks;
+ };
+ 
+ /*
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/liquid_default to next failed:
+
+# On branch next
+nothing to commit, working directory clean
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/huge_cave to next failed:
+
+# On branch next
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   src/cavegen.cpp
+#	modified:   src/cavegen.h
+#	modified:   src/mapgen_indev.cpp
+#	modified:   src/mapgen_v6.cpp
+#	modified:   src/treegen.cpp
+#	modified:   src/treegen.h
+#
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/weather_fog to next failed:
+
+# On branch next
+nothing to commit, working directory clean
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/wingsuit to next failed:
+
+# On branch next
+nothing to commit, working directory clean
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/collision to next failed:
+
+# On branch next
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   src/collision.cpp
+#	modified:   src/test.cpp
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/light_ok to next failed:
+
+# On branch next
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   src/mapgen.cpp
+#
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/net to next failed:
+
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge proller/net to next failed:
+
+# On branch next
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   src/mapgen.cpp
+#
+# On branch next
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   src/mapgen.cpp
+#
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge sapier/avoid_facedir_if_not_moving to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/content_cao.cpp
+#	both modified:      src/content_sao.cpp
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge sapier/avoid_facedir_if_not_moving to next failed:
 
 # On branch next
@@ -56,6 +453,55 @@ index 85ab8d3,92cabfb..0000000
   		}
   	}
   
+diff --cc src/content_cao.cpp
+index e97e3a1,fb4bc95..0000000
+--- a/src/content_cao.cpp
++++ b/src/content_cao.cpp
+@@@ -1211,9 -1211,9 +1211,15 @@@ public
+  			updateNodePos();
+  		}
+  
+++<<<<<<< HEAD
+ +		if (getParent() == NULL && m_prop.automatic_face_movement_dir &&
+ +				(fabs(m_velocity.Z) > 0.001 || fabs(m_velocity.X) > 0.001)){
+ +			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
+++=======
++ 		if ((getParent() == NULL && m_prop.automatic_face_movement_dir) &&
++ 			((m_velocity.Z != 0) || (m_velocity.X != 0))){
++ 			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI;
+++>>>>>>> sapier/avoid_facedir_if_not_moving
+  			updateNodePos();
+  		}
+  	}
+diff --cc src/content_sao.cpp
+index 85ab8d3,92cabfb..0000000
+--- a/src/content_sao.cpp
++++ b/src/content_sao.cpp
+@@@ -527,9 -527,9 +527,14 @@@ void LuaEntitySAO::step(float dtime, bo
+  			m_velocity += dtime * m_acceleration;
+  		}
+  
+ -		if( (m_prop.automatic_face_movement_dir) &&
+ +		if((m_prop.automatic_face_movement_dir) &&
+++<<<<<<< HEAD
+ +				(fabs(m_velocity.Z) > 0.001 || fabs(m_velocity.X) > 0.001)){
+ +			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
+++=======
++ 			((m_velocity.Z != 0) || (m_velocity.X != 0))){
++ 			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI;
+++>>>>>>> sapier/avoid_facedir_if_not_moving
+  		}
+  	}
+  
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge Zeg9/slippery to next failed:
+
+# On branch next
+nothing to commit, working directory clean
 
 
 
@@ -63,6 +509,29 @@ index 85ab8d3,92cabfb..0000000
 !!!!!!!!!!!!!!!!!
  Merge Novatux/forceload to next failed:
 
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge Novatux/forceload to next failed:
+
+# On branch next
+# All conflicts fixed but you are still merging.
+#   (use "git commit" to conclude merge)
+#
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   doc/lua_api.txt
+#	modified:   minetest.conf.example
+#	modified:   src/defaultsettings.cpp
+#	modified:   src/environment.cpp
+#	modified:   src/object_properties.cpp
+#	modified:   src/object_properties.h
+#
+no changes added to commit (use "git add" and/or "git commit -a")
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
@@ -136,6 +605,300 @@ index 4b7f9a5,dbcbba5..0000000
   
   
   	ObjectProperties();
+diff --cc src/object_properties.cpp
+index f560f59,162cc67..0000000
+--- a/src/object_properties.cpp
++++ b/src/object_properties.cpp
+@@@ -42,7 -42,7 +42,11 @@@ ObjectProperties::ObjectProperties()
+  	automatic_rotate(0),
+  	stepheight(0),
+  	automatic_face_movement_dir(false),
+++<<<<<<< HEAD
+ +	automatic_face_movement_dir_offset(0.0)
+++=======
++ 	force_load(false)
+++>>>>>>> Novatux/forceload
+  {
+  	textures.push_back("unknown_object.png");
+  	colors.push_back(video::SColor(255,255,255,255));
+@@@ -105,7 -106,7 +110,11 @@@ void ObjectProperties::serialize(std::o
+  	writeU8(os, collideWithObjects);
+  	writeF1000(os,stepheight);
+  	writeU8(os, automatic_face_movement_dir);
+++<<<<<<< HEAD
+ +	writeF1000(os, automatic_face_movement_dir_offset);
+++=======
++ 	writeU8(os, force_load);
+++>>>>>>> Novatux/forceload
+  	// Add stuff only at the bottom.
+  	// Never remove anything, because we don't want new versions of this
+  }
+@@@ -141,7 -142,7 +150,11 @@@ void ObjectProperties::deSerialize(std:
+  			collideWithObjects = readU8(is);
+  			stepheight = readF1000(is);
+  			automatic_face_movement_dir = readU8(is);
+++<<<<<<< HEAD
+ +			automatic_face_movement_dir_offset = readF1000(is);
+++=======
++ 			force_load = readU8(is);
+++>>>>>>> Novatux/forceload
+  		}catch(SerializationError &e){}
+  	}
+  	else
+diff --cc src/object_properties.h
+index 4b7f9a5,dbcbba5..0000000
+--- a/src/object_properties.h
++++ b/src/object_properties.h
+@@@ -46,7 -46,7 +46,11 @@@ struct ObjectPropertie
+  	float automatic_rotate;
+  	f32 stepheight;
+  	bool automatic_face_movement_dir;
+++<<<<<<< HEAD
+ +	f32 automatic_face_movement_dir_offset;
+++=======
++ 	bool force_load;
+++>>>>>>> Novatux/forceload
+  
+  
+  	ObjectProperties();
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge PilzAdam/vbo to next failed:
+
+# On branch next
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   src/mapblock.cpp
+#	modified:   src/mapblock.h
+#	modified:   src/mapblock_mesh.cpp
+#	modified:   src/mapblock_mesh.h
+#	modified:   src/mapsector.cpp
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --git a/src/mapblock.cpp b/src/mapblock.cpp
+index 3fb2ec5..3218059 100644
+--- a/src/mapblock.cpp
++++ b/src/mapblock.cpp
+@@ -1010,6 +1010,19 @@ void MapBlock::deSerialize_pre22(std::istream &is, u8 version, bool disk)
+ 
+ }
+ 
++void MapBlock::incrementUsageTimer(float dtime)
++{
++	m_usage_timer += dtime;
++#ifndef SERVER
++	if(mesh){
++		if(mesh->getUsageTimer() > 10)
++			mesh->setStatic();
++		else
++			mesh->incrementUsageTimer(dtime);
++	}
++#endif
++}
++
+ /*
+ 	Get a quick string to describe what a block actually contains
+ */
+diff --git a/src/mapblock.h b/src/mapblock.h
+index e0730ff..ff09b4f 100644
+--- a/src/mapblock.h
++++ b/src/mapblock.h
+@@ -417,14 +417,11 @@ class MapBlock /*: public NodeContainer*/
+ 	{
+ 		m_usage_timer = 0;
+ 	}
+-	void incrementUsageTimer(float dtime)
+-	{
+-		m_usage_timer += dtime;
+-	}
+ 	u32 getUsageTimer()
+ 	{
+ 		return m_usage_timer;
+ 	}
++	void incrementUsageTimer(float dtime);
+ 
+ 	/*
+ 		See m_refcount
+diff --git a/src/mapblock_mesh.cpp b/src/mapblock_mesh.cpp
+index 6cbc2c5..6617c40 100644
+--- a/src/mapblock_mesh.cpp
++++ b/src/mapblock_mesh.cpp
+@@ -1031,13 +1031,15 @@ static void updateAllFastFaceRows(MeshMakeData *data,
+ */
+ 
+ MapBlockMesh::MapBlockMesh(MeshMakeData *data):
++	clearHardwareBuffer(false),
+ 	m_mesh(new scene::SMesh()),
+ 	m_gamedef(data->m_gamedef),
+ 	m_animation_force_timer(0), // force initial animation
+ 	m_last_crack(-1),
+ 	m_crack_materials(),
+ 	m_last_daynight_ratio((u32) -1),
+-	m_daynight_diffs()
++	m_daynight_diffs(),
++	m_usage_timer(0)
+ {
+ 	// 4-21ms for MAP_BLOCKSIZE=16  (NOTE: probably outdated)
+ 	// 24-155ms for MAP_BLOCKSIZE=32  (NOTE: probably outdated)
+@@ -1265,16 +1267,6 @@ static void updateAllFastFaceRows(MeshMakeData *data,
+ 				<<"and uses "<<m_mesh->getMeshBufferCount()
+ 				<<" materials (meshbuffers)"<<std::endl;
+ #endif
+-
+-		// Use VBO for mesh (this just would set this for ever buffer)
+-		// This will lead to infinite memory usage because or irrlicht.
+-		//m_mesh->setHardwareMappingHint(scene::EHM_STATIC);
+-
+-		/*
+-			NOTE: If that is enabled, some kind of a queue to the main
+-			thread should be made which would call irrlicht to delete
+-			the hardware buffer and then delete the mesh
+-		*/
+ 	}
+ 	
+ 	//std::cout<<"added "<<fastfaces.getSize()<<" faces."<<std::endl;
+@@ -1288,10 +1280,23 @@ static void updateAllFastFaceRows(MeshMakeData *data,
+ 
+ MapBlockMesh::~MapBlockMesh()
+ {
++	if(clearHardwareBuffer)
++		for(u32 i=0; i<m_mesh->getMeshBufferCount(); i++){
++			scene::IMeshBuffer *buf = m_mesh->getMeshBuffer(i);
++			m_gamedef->tsrc()->getDevice()->getVideoDriver()->removeHardwareBuffer(buf);
++		}
+ 	m_mesh->drop();
+ 	m_mesh = NULL;
+ }
+ 
++void MapBlockMesh::setStatic()
++{
++	if(g_settings->getBool("enable_vbo")){
++		m_mesh->setHardwareMappingHint(scene::EHM_STATIC);
++		clearHardwareBuffer = true;
++	}
++}
++
+ bool MapBlockMesh::animate(bool faraway, float time, int crack, u32 daynight_ratio)
+ {
+ 	bool enable_shaders = g_settings->getBool("enable_shaders");
+@@ -1388,6 +1393,7 @@ bool MapBlockMesh::animate(bool faraway, float time, int crack, u32 daynight_rat
+ 				i != m_daynight_diffs.end(); i++)
+ 		{
+ 			scene::IMeshBuffer *buf = m_mesh->getMeshBuffer(i->first);
++			buf->setDirty(irr::scene::EBT_VERTEX);
+ 			video::S3DVertex *vertices = (video::S3DVertex*)buf->getVertices();
+ 			for(std::map<u32, std::pair<u8, u8 > >::iterator
+ 					j = i->second.begin();
+diff --git a/src/mapblock_mesh.h b/src/mapblock_mesh.h
+index c759840..a540ee6 100644
+--- a/src/mapblock_mesh.h
++++ b/src/mapblock_mesh.h
+@@ -108,6 +108,20 @@ class MapBlockMesh
+ 			m_animation_force_timer--;
+ 	}
+ 
++
++	u32 getUsageTimer()
++	{
++		return m_usage_timer;
++	}
++	void incrementUsageTimer(float dtime)
++	{
++		m_usage_timer += dtime;
++	}
++
++	void setStatic();
++
++	bool clearHardwareBuffer;
++
+ private:
+ 	scene::SMesh *m_mesh;
+ 	IGameDef *m_gamedef;
+@@ -133,6 +147,8 @@ class MapBlockMesh
+ 	u32 m_last_daynight_ratio;
+ 	// For each meshbuffer, maps vertex indices to (day,night) pairs
+ 	std::map<u32, std::map<u32, std::pair<u8, u8> > > m_daynight_diffs;
++
++	u32 m_usage_timer;
+ };
+ 
+ 
+diff --git a/src/mapsector.cpp b/src/mapsector.cpp
+index 0d40a65..bfc2516 100644
+--- a/src/mapsector.cpp
++++ b/src/mapsector.cpp
+@@ -21,6 +21,9 @@
+ #include "exceptions.h"
+ #include "mapblock.h"
+ #include "serialization.h"
++#ifndef SERVER
++#include "mapblock_mesh.h"
++#endif
+ 
+ MapSector::MapSector(Map *parent, v2s16 pos, IGameDef *gamedef):
+ 		differs_from_disk(false),
+@@ -33,7 +36,23 @@
+ 
+ MapSector::~MapSector()
+ {
+-	deleteBlocks();
++	// Clear cache
++	m_block_cache = NULL;
++
++	// Delete all
++	for(std::map<s16, MapBlock*>::iterator i = m_blocks.begin();
++		i != m_blocks.end(); ++i)
++	{
++#ifndef SERVER
++		// We dont have gamedef here anymore, so we cant remove the hardwarebuffers
++		if(i->second->mesh)
++			i->second->mesh->clearHardwareBuffer = false;
++#endif
++		delete i->second;
++	}
++
++	// Clear container
++	m_blocks.clear();
+ }
+ 
+ void MapSector::deleteBlocks()
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge sweetbomber/spawn to next failed:
+
+# On branch next
+nothing to commit, working directory clean
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge MirceaKitsune/brighter_sun_faces to next failed:
+
+# On branch next
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	modified:   client/shaders/test_shader_1/opengl_vertex.glsl
+#	modified:   src/mapblock_mesh.cpp
+#
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge sapier/fix_crash_on_lua_exception to next failed:
+
+# On branch next
+nothing to commit, working directory clean
 
 
 
@@ -158,6 +921,13 @@ index 4b7f9a5,dbcbba5..0000000
 #
 #	both modified:      builtin/mainmenu.lua
 #
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge sapier/fix_multiplayer_server_not_saved to next failed:
+
 diff --cc builtin/mainmenu.lua
 index 5a1b6e9,683ef6f..0000000
 --- a/builtin/mainmenu.lua
@@ -295,6 +1065,96 @@ index 5a1b6e9,683ef6f..0000000
   		"textlist[4,0.25;7.5,3.7;srv_worlds;" ..
   		menu.render_world_list() ..
   		";" .. index .. "]"
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   minetest.conf.example
+#	modified:   src/defaultsettings.cpp
+#	modified:   src/main.cpp
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      builtin/mainmenu.lua
+#
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge sapier/autoupdate_anim_speed to next failed:
+
+# On branch next
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   src/genericobject.cpp
+#	modified:   src/genericobject.h
+#	modified:   src/serverobject.h
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --git a/src/genericobject.cpp b/src/genericobject.cpp
+index e2fbde8..4b76e2e 100644
+--- a/src/genericobject.cpp
++++ b/src/genericobject.cpp
+@@ -129,7 +129,7 @@ ObjectProperties gob_read_set_properties(std::istream &is)
+ 	return os.str();
+ }
+ 
+-std::string gob_cmd_update_animation(v2f frames, float frame_speed, float frame_blend)
++std::string gob_cmd_update_animation(v2f frames, float frame_speed, float frame_blend,float base_velocity)
+ {
+ 	std::ostringstream os(std::ios::binary);
+ 	// command 
+@@ -138,6 +138,7 @@ ObjectProperties gob_read_set_properties(std::istream &is)
+ 	writeV2F1000(os, frames);
+ 	writeF1000(os, frame_speed);
+ 	writeF1000(os, frame_blend);
++	writeF1000(os, base_velocity);
+ 	return os.str();
+ }
+ 
+@@ -165,4 +166,3 @@ ObjectProperties gob_read_set_properties(std::istream &is)
+ 	writeV3F1000(os, rotation);
+ 	return os.str();
+ }
+-
+diff --git a/src/genericobject.h b/src/genericobject.h
+index 276865a..811c5bd 100644
+--- a/src/genericobject.h
++++ b/src/genericobject.h
+@@ -65,11 +65,13 @@
+ 
+ std::string gob_cmd_update_physics_override(float physics_override_speed, float physics_override_jump, float physics_override_gravity);
+ 
+-std::string gob_cmd_update_animation(v2f frames, float frame_speed, float frame_blend);
++std::string gob_cmd_update_animation(v2f frames, float frame_speed, float frame_blend, float base_velocity);
+ 
+ std::string gob_cmd_update_bone_position(std::string bone, v3f position, v3f rotation);
+ 
+ std::string gob_cmd_update_attachment(int parent_id, std::string bone, v3f position, v3f rotation);
+ 
++std::string gob_cmd_update_animation_base_velocity(float base_velocity);
++
+ #endif
+ 
+diff --git a/src/serverobject.h b/src/serverobject.h
+index 13a075a..f34b61c 100644
+--- a/src/serverobject.h
++++ b/src/serverobject.h
+@@ -154,7 +154,7 @@ class ServerActiveObject : public ActiveObject
+ 	{}
+ 	virtual void setPhysicsOverride(float physics_override_speed, float physics_override_jump, float physics_override_gravity)
+ 	{}
+-	virtual void setAnimation(v2f frames, float frame_speed, float frame_blend)
++	virtual void setAnimation(v2f frames, float frame_speed, float frame_blend,float base_velocity)
+ 	{}
+ 	virtual void setBonePosition(std::string bone, v3f position, v3f rotation)
+ 	{}
 
 
 
@@ -354,6 +1214,161 @@ index 6a7cbda,cc5b072..0000000
  Merge sapier/add_surface_detection_function to next failed:
 
 # On branch next
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   src/map.h
+#	modified:   src/script/lua_api/l_env.cpp
+#	modified:   src/script/lua_api/l_env.h
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --git a/src/map.h b/src/map.h
+index 5e26723..b1e7829 100644
+--- a/src/map.h
++++ b/src/map.h
+@@ -334,6 +334,10 @@ class Map /*: public NodeContainer*/
+ 	virtual s16 getHeat(v3s16 p);
+ 	virtual s16 getHumidity(v3s16 p);
+ 
++	virtual int getSurface(v3s16 basepos, int searchup, bool walkable_only) {
++		return basepos.Y -1;
++	}
++
+ protected:
+ 	friend class LuaVoxelManip;
+ 
+@@ -480,6 +484,12 @@ class ServerMap : public Map
+ 	virtual s16 updateBlockHeat(ServerEnvironment *env, v3s16 p, MapBlock *block = NULL);
+ 	virtual s16 updateBlockHumidity(ServerEnvironment *env, v3s16 p, MapBlock *block = NULL);
+ 
++	//getSurface level starting on basepos.y up to basepos.y + searchup
++	//returns basepos.y -1 if no surface has been found
++	// (due to limited data range of basepos.y this will always give a unique
++	// return value as long as minetest is compiled at least on 32bit architecture)
++	int getSurface(v3s16 basepos, int searchup, bool walkable_only);
++
+ private:
+ 	// Seed used for all kinds of randomness in generation
+ 	u64 m_seed;
+diff --git a/src/script/lua_api/l_env.cpp b/src/script/lua_api/l_env.cpp
+index 436eb01..73c307d 100644
+--- a/src/script/lua_api/l_env.cpp
++++ b/src/script/lua_api/l_env.cpp
+@@ -697,6 +697,30 @@ int ModApiEnvMod::l_find_path(lua_State *L)
+ 	return 0;
+ }
+ 
++// minetest.get_surface(basepos,yoffset,walkable_only=false)
++int ModApiEnvMod::l_get_surface(lua_State *L)
++{
++	GET_ENV_PTR;
++
++	v3s16 basepos = read_v3s16(L, 1);
++	int max_y = luaL_checkint(L, 2);
++	bool walkable_only = false;
++
++	if (!lua_isnil(L,3)) {
++		walkable_only = lua_toboolean(L, -1);
++	}
++
++	int result = env->getMap().getSurface(basepos,max_y,walkable_only);
++
++	if (result >= basepos.Y) {
++		lua_pushnumber(L,result);
++		return 1;
++	}
++
++	lua_pushnil(L);
++	return 1;
++}
++
+ // minetest.spawn_tree(pos, treedef)
+ int ModApiEnvMod::l_spawn_tree(lua_State *L)
+ {
+@@ -782,6 +806,7 @@ int ModApiEnvMod::l_get_humidity(lua_State *L)
+ 
+ void ModApiEnvMod::Initialize(lua_State *L, int top)
+ {
++<<<<<<< HEAD
+ 	API_FCT(set_node);
+ 	API_FCT(add_node);
+ 	API_FCT(add_item);
+@@ -816,4 +841,47 @@ void ModApiEnvMod::Initialize(lua_State *L, int top)
+ 	API_FCT(transforming_liquid_add);
+ 	API_FCT(get_heat);
+ 	API_FCT(get_humidity);
++=======
++
++	bool retval = true;
++
++	retval &= API_FCT(set_node);
++	retval &= API_FCT(add_node);
++	retval &= API_FCT(add_item);
++	retval &= API_FCT(remove_node);
++	retval &= API_FCT(get_node);
++	retval &= API_FCT(get_node_or_nil);
++	retval &= API_FCT(get_node_light);
++	retval &= API_FCT(place_node);
++	retval &= API_FCT(dig_node);
++	retval &= API_FCT(punch_node);
++	retval &= API_FCT(get_node_max_level);
++	retval &= API_FCT(get_node_level);
++	retval &= API_FCT(set_node_level);
++	retval &= API_FCT(add_node_level);
++	retval &= API_FCT(add_entity);
++	retval &= API_FCT(get_meta);
++	retval &= API_FCT(get_node_timer);
++	retval &= API_FCT(get_player_by_name);
++	retval &= API_FCT(get_objects_inside_radius);
++	retval &= API_FCT(set_timeofday);
++	retval &= API_FCT(get_timeofday);
++	retval &= API_FCT(find_node_near);
++	retval &= API_FCT(find_nodes_in_area);
++	retval &= API_FCT(get_perlin);
++	retval &= API_FCT(get_perlin_map);
++	retval &= API_FCT(get_voxel_manip);
++	retval &= API_FCT(get_mapgen_object);
++	retval &= API_FCT(set_mapgen_params);
++	retval &= API_FCT(clear_objects);
++	retval &= API_FCT(get_surface);
++	retval &= API_FCT(spawn_tree);
++	retval &= API_FCT(find_path);
++	retval &= API_FCT(line_of_sight);
++	retval &= API_FCT(transforming_liquid_add);
++	retval &= API_FCT(get_heat);
++	retval &= API_FCT(get_humidity);
++
++	return retval;
++>>>>>>> sapier/add_surface_detection_function
+ }
+diff --git a/src/script/lua_api/l_env.h b/src/script/lua_api/l_env.h
+index 814d121..260df64 100644
+--- a/src/script/lua_api/l_env.h
++++ b/src/script/lua_api/l_env.h
+@@ -147,6 +147,14 @@ class ModApiEnvMod : public ModApiBase {
+ 	static int l_get_heat(lua_State *L);
+ 	static int l_get_humidity(lua_State *L);
+ 	
++<<<<<<< HEAD
++=======
++	// minetest.get_surface(basepos,yoffset,walkable_only=false)
++	static int l_get_surface(lua_State *L);
++
++	static struct EnumString es_MapgenObject[];
++	
++>>>>>>> sapier/add_surface_detection_function
+ public:
+ 	static void Initialize(lua_State *L, int top);
+ };
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge sapier/add_surface_detection_function to next failed:
+
+# On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
 #
@@ -371,10 +1386,10 @@ index 6a7cbda,cc5b072..0000000
 #	both modified:      src/script/lua_api/l_env.h
 #
 diff --cc src/environment.h
-index 67e8872,843a3d9..0000000
+index 8665493,843a3d9..0000000
 --- a/src/environment.h
 +++ b/src/environment.h
-@@@ -304,10 -307,7 +304,13 @@@ public
+@@@ -300,10 -307,7 +300,13 @@@ public
   
   	void reportMaxLagEstimate(float f) { m_max_lag_estimate = f; }
   	float getMaxLagEstimate() { return m_max_lag_estimate; }
@@ -390,10 +1405,10 @@ index 67e8872,843a3d9..0000000
   
   	/*
 diff --cc src/script/lua_api/l_env.cpp
-index 375173b,47e9963..0000000
+index 436eb01,47e9963..0000000
 --- a/src/script/lua_api/l_env.cpp
 +++ b/src/script/lua_api/l_env.cpp
-@@@ -781,40 -937,49 +805,84 @@@ int ModApiEnvMod::l_get_humidity(lua_St
+@@@ -780,40 -937,49 +804,84 @@@ int ModApiEnvMod::l_get_humidity(lua_St
   }
   
   
@@ -483,7 +1498,7 @@ index 375173b,47e9963..0000000
  -
  -ModApiEnvMod modapienv_prototype;
 diff --cc src/script/lua_api/l_env.h
-index 5f3467f,b01fe5a..0000000
+index 814d121,b01fe5a..0000000
 --- a/src/script/lua_api/l_env.h
 +++ b/src/script/lua_api/l_env.h
 @@@ -147,8 -159,13 +147,16 @@@ private
@@ -504,6 +1519,63 @@ index 5f3467f,b01fe5a..0000000
   };
   
   class LuaABM : public ActiveBlockModifier
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge Jeija/rotateto to next failed:
+
+# On branch next
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   src/genericobject.cpp
+#	modified:   src/genericobject.h
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --git a/src/genericobject.cpp b/src/genericobject.cpp
+index e2fbde8..7fa246b 100644
+--- a/src/genericobject.cpp
++++ b/src/genericobject.cpp
+@@ -43,7 +43,9 @@ ObjectProperties gob_read_set_properties(std::istream &is)
+ 	f32 yaw,
+ 	bool do_interpolate,
+ 	bool is_movement_end,
+-	f32 update_interval
++	f32 update_interval,
++	f32 m_yaw_dest,
++	f32 m_rotate_yaw_speed
+ ){
+ 	std::ostringstream os(std::ios::binary);
+ 	// command
+@@ -62,6 +64,10 @@ ObjectProperties gob_read_set_properties(std::istream &is)
+ 	writeU8(os, is_movement_end);
+ 	// update_interval (for interpolation)
+ 	writeF1000(os, update_interval);
++	// m_yaw_dest (for continuous rotation)
++	writeF1000(os, m_yaw_dest);
++	// m_rotate_yaw_speed
++	writeF1000(os, m_rotate_yaw_speed);
+ 	return os.str();
+ }
+ 
+diff --git a/src/genericobject.h b/src/genericobject.h
+index 276865a..78cba12 100644
+--- a/src/genericobject.h
++++ b/src/genericobject.h
+@@ -46,7 +46,9 @@
+ 	f32 yaw,
+ 	bool do_interpolate,
+ 	bool is_movement_end,
+-	f32 update_interval
++	f32 update_interval,
++	f32 m_yaw_dest,
++	f32 m_rotate_yaw_speed
+ );
+ 
+ std::string gob_cmd_set_texture_mod(const std::string &mod);
 
 
 
@@ -637,10 +1709,10 @@ index 85ab8d3,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index d414984,5c52606..0000000
+index 90fadbf,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -2035,11 -1998,9 +2035,17 @@@ Node definition (register_node
+@@@ -2021,11 -1998,9 +2021,17 @@@ Node definition (register_node
       <all fields allowed in item definitions>,
   
       drawtype = "normal", -- See "Node drawtypes"
@@ -658,3 +1730,17 @@ index d414984,5c52606..0000000
       tiles = {tile definition 1, def2, def3, def4, def5, def6},
       ^ Textures of node; +Y, -Y, +X, -X, +Z, -Z (old field name: tile_images)
       ^ List can be shortened to needed length
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge Sokomine/master to next failed:
+
+# On branch next
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	new file:   .gitmodules
+#	new file:   games/minetest_game
+#
