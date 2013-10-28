@@ -7,35 +7,36 @@ ok	minetest_game Novatux:furnace		https://github.com/minetest/minetest_game/pull
 ok	minetest_game cyisfor:master		https://github.com/minetest/minetest_game/pull/207	
 ok	minetest proller:next_tools		
 ok	minetest proller:liquid63		https://github.com/minetest/minetest/pull/882	
-fail	minetest proller:math	128	https://github.com/minetest/minetest/pull/645	
+ok	minetest proller:math		https://github.com/minetest/minetest/pull/645	
 ok	minetest proller:json		
 ok	minetest proller:weather		https://github.com/minetest/minetest/pull/892	
-fail	minetest proller:liquid_send	128	https://github.com/minetest/minetest/pull/895	
-fail	minetest proller:liquid_default	128	
+ok	minetest proller:liquid_send		https://github.com/minetest/minetest/pull/895	
+ok	minetest proller:liquid_default		
 ok	minetest proller:huge_cave		
-fail	minetest proller:weather_fog	128	https://github.com/minetest/minetest/pull/899	
+ok	minetest proller:weather_fog		https://github.com/minetest/minetest/pull/899	
 ok	minetest proller:wingsuit		https://github.com/minetest/minetest/pull/897	
 ok	minetest proller:collision		
-fail	minetest proller:light_ok	128	https://github.com/minetest/minetest/pull/931	
-fail	minetest proller:net	128	
-fail	minetest sapier:avoid_facedir_if_not_moving	128	https://github.com/minetest/minetest/pull/879	
+ok	minetest proller:light_ok		https://github.com/minetest/minetest/pull/931	
+ok	minetest proller:net		
+fail	minetest sapier:avoid_facedir_if_not_moving	1	https://github.com/minetest/minetest/pull/879	
 ok	minetest sapier:modmgr_fixes		https://github.com/minetest/minetest/pull/884	
 ok	minetest proller:clouds		https://github.com/minetest/minetest/pull/855	
-fail	minetest Zeg9:slippery	128	https://github.com/minetest/minetest/pull/817	
+ok	minetest Zeg9:slippery		https://github.com/minetest/minetest/pull/817	
 ok	minetest MirceaKitsune:sun_moon_coloring		https://github.com/minetest/minetest/pull/799	
 ok	minetest khonkhortisan:diagonal_rail		https://github.com/minetest/minetest/pull/528	
 fail	minetest Novatux:forceload	1	https://github.com/minetest/minetest/pull/606	
 ok	minetest PilzAdam:vbo		
 ok	minetest sweetbomber:spawn		https://github.com/minetest/minetest/pull/744	
-fail	minetest MirceaKitsune:brighter_sun_faces	128	https://github.com/minetest/minetest/pull/772	
-fail	minetest sapier:fix_crash_on_lua_exception	128	https://github.com/minetest/minetest/pull/890	
+ok	minetest MirceaKitsune:brighter_sun_faces		https://github.com/minetest/minetest/pull/772	
+ok	minetest sapier:fix_crash_on_lua_exception		https://github.com/minetest/minetest/pull/890	
 ok	minetest sapier:lua_show_backtrace_on_error		https://github.com/minetest/minetest/pull/891	
 ok	minetest sapier:fix_anaglyph_mode_selectionbox_not_beeing_honored		https://github.com/minetest/minetest/pull/893	
 ok	minetest ShadowNinja:protection_support		https://github.com/minetest/minetest/pull/856	
 fail	minetest sapier:fix_multiplayer_server_not_saved	1	https://github.com/minetest/minetest/pull/846	
-fail	minetest sapier:autoupdate_anim_speed	128	https://github.com/minetest/minetest/pull/774	
+fail	minetest sapier:autoupdate_anim_speed	1	https://github.com/minetest/minetest/pull/774	
 fail	minetest sapier:add_surface_detection_function	1	https://github.com/minetest/minetest/pull/640	
-fail	minetest Jeija:rotateto	128	https://github.com/minetest/minetest/pull/651	
+fail	minetest Jeija:rotateto	1	https://github.com/minetest/minetest/pull/651	
 ok	minetest ShadowNinja:more_break_particles		https://github.com/minetest/minetest/pull/943	
 ok	minetest ShadowNinja:fall_on_unknown		https://github.com/minetest/minetest/pull/942	
 fail	minetest Sokomine:master	1	https://github.com/minetest/minetest/pull/951	
+fail	minetest RealBadAngel:master	1	https://github.com/minetest/minetest/pull/967	
