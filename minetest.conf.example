@@ -94,9 +94,11 @@
 # Constant volume liquids
 #liquid_finite = false
 # Max liquids processed per step
-#liquid_loop_max = 1000
+#liquid_loop_max = 500
 # Update liquids every .. recommend for finite: 0.2
-#liquid_update = 1.0
+#liquid_update = 0.4
+# Send to client updated liquid every (increase on high loaded servers with liquid_finite)
+#liquid_send = 1.0
 # Relax flowing blocks to source if level near max and N nearby
 #  source blocks, more realistic, but not true constant.
 #  values: 0,1,2,3,4 : 0 - disable, 1 - most aggresive

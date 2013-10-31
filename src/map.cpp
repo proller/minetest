@@ -1604,8 +1604,6 @@ void Map::PrintInfo(std::ostream &out)
 	out<<"Map: ";
 }
 
-#define WATER_DROP_BOOST 4
-
 enum NeighborType {
 	NEIGHBOR_UPPER,
 	NEIGHBOR_SAME_LEVEL,
@@ -1643,7 +1641,7 @@ const v3s16 g_7dirs[7] =
 #define D_TOP 6
 #define D_SELF 1
 
-void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
+s32 Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 {
 	INodeDefManager *nodemgr = m_gamedef->ndef();
 
@@ -1991,14 +1989,21 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 		<<" reflow="<<must_reflow.size()
 		<<" queue="<< m_transforming_liquid.size()<<std::endl;
 	*/
+
+	s32 ret = m_transforming_liquid.size();
+
 	while (must_reflow.size() > 0)
 		m_transforming_liquid.push_back(must_reflow.pop_front());
 	while (must_reflow_second.size() > 0)
 		m_transforming_liquid.push_back(must_reflow_second.pop_front());
 	updateLighting(lighting_modified_blocks, modified_blocks);
+
+	return ret;
 }
 
-void Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
+#define WATER_DROP_BOOST 4
+
+s32 Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
 {
 
 	if (g_settings->getBool("liquid_finite"))
@@ -2272,9 +2277,14 @@ void Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
 		}
 	}
 	//infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<std::endl;
+
+	s32 ret = m_transforming_liquid.size();
+
 	while (must_reflow.size() > 0)
 		m_transforming_liquid.push_back(must_reflow.pop_front());
 	updateLighting(lighting_modified_blocks, modified_blocks);
+
+	return ret;
 }
 
 NodeMetadata* Map::getNodeMetadata(v3s16 p)

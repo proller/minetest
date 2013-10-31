@@ -667,7 +667,9 @@ Server::Server(
 	m_ignore_map_edit_events_peer_id(0)
 {
 	m_liquid_transform_timer = 0.0;
-	m_liquid_transform_every = 1.0;
+	m_liquid_transform_interval = 1.0;
+	m_liquid_send_timer = 0.0;
+	m_liquid_send_interval = 1.0;
 	m_print_info_timer = 0.0;
 	m_masterserver_timer = 0.0;
 	m_objectdata_timer = 0.0;
@@ -849,7 +851,8 @@ Server::Server(
 	*/
 	add_legacy_abms(m_env, m_nodedef);
 
-	m_liquid_transform_every = g_settings->getFloat("liquid_update");
+	m_liquid_transform_interval = g_settings->getFloat("liquid_update");
+	m_liquid_send_interval = g_settings->getFloat("liquid_send");
 }
 
 Server::~Server()
@@ -1187,37 +1190,37 @@ void Server::AsyncRunStep()
 
 	/* Transform liquids */
 	m_liquid_transform_timer += dtime;
-	if(m_liquid_transform_timer >= m_liquid_transform_every)
+	if(m_liquid_transform_timer >= m_liquid_transform_interval)
 	{
-		m_liquid_transform_timer -= m_liquid_transform_every;
+		m_liquid_transform_timer -= m_liquid_transform_interval;
+		if (m_liquid_transform_timer > m_liquid_transform_interval * 3) {
+			//errorstream << "Liquid transform queue overflooded, resetting. t="<<m_liquid_transform_timer<<" i="<< m_liquid_transform_interval<< std::endl;
+			m_liquid_transform_timer = 0;
+		}
 
 		JMutexAutoLock lock(m_env_mutex);
 
 		ScopeProfiler sp(g_profiler, "Server: liquid transform");
 
-		std::map<v3s16, MapBlock*> modified_blocks;
-		m_env->getMap().transformLiquids(modified_blocks);
-#if 0
-		/*
-			Update lighting
-		*/
-		core::map<v3s16, MapBlock*> lighting_modified_blocks;
-		ServerMap &map = ((ServerMap&)m_env->getMap());
-		map.updateLighting(modified_blocks, lighting_modified_blocks);
+		// not all liquid was processed per step, forcing on next step
+		if (m_env->getMap().transformLiquids(m_modified_blocks) > 0)
+			m_liquid_transform_timer = m_liquid_transform_interval*0.7;
+	}
 
-		// Add blocks modified by lighting to modified_blocks
-		for(core::map<v3s16, MapBlock*>::Iterator
-				i = lighting_modified_blocks.getIterator();
-				i.atEnd() == false; i++)
-		{
-			MapBlock *block = i.getNode()->getValue();
-			modified_blocks.insert(block->getPos(), block);
-		}
-#endif
 		/*
 			Set the modified blocks unsent for all the clients
 		*/
 
+	m_liquid_send_timer += dtime;
+	if(m_liquid_send_timer >= m_liquid_send_interval)
+	{
+		m_liquid_send_timer -= m_liquid_send_interval;
+		if (m_liquid_send_timer > m_liquid_send_interval * 3) {
+			//errorstream << "Liquid send queue overflooded, resetting. t="<<m_liquid_send_timer<<" i="<< m_liquid_send_interval<< std::endl;
+			m_liquid_send_timer = 0;
+		}
+
+		// ? JMutexAutoLock lock(m_env_mutex);
 		JMutexAutoLock lock2(m_con_mutex);
 
 		for(std::map<u16, RemoteClient*>::iterator
@@ -1226,12 +1229,13 @@ void Server::AsyncRunStep()
 		{
 			RemoteClient *client = i->second;
 
-			if(modified_blocks.size() > 0)
+			if(m_modified_blocks.size() > 0)
 			{
 				// Remove block from sent history
-				client->SetBlocksNotSent(modified_blocks);
+				client->SetBlocksNotSent(m_modified_blocks);
 			}
 		}
+		m_modified_blocks.clear();
 	}
 
 	// Periodically print some info

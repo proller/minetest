@@ -665,7 +665,9 @@ private:
 
 	// Some timers
 	float m_liquid_transform_timer;
-	float m_liquid_transform_every;
+	float m_liquid_transform_interval;
+	float m_liquid_send_timer;
+	float m_liquid_send_interval;
 	float m_print_info_timer;
 	float m_masterserver_timer;
 	float m_objectdata_timer;
@@ -820,6 +822,8 @@ private:
 		Particles
 	*/
 	std::vector<u32> m_particlespawner_ids;
+
+	std::map<v3s16, MapBlock*> m_modified_blocks;
 };
 
 /*

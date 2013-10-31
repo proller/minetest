@@ -662,6 +662,10 @@ public:
 				if(i->timer < trigger_interval)
 					continue;
 				i->timer -= trigger_interval;
+				if (i->timer > trigger_interval*3) {
+					//errorstream << "env abm timer oveload t="<<i->timer<< " i="<<trigger_interval<<" as="<<abms.size()<<std::endl;
+					i->timer = 0;
+				}
 				actual_interval = trigger_interval;
 			}
 			float intervals = actual_interval / trigger_interval;
@@ -1274,16 +1278,20 @@ void ServerEnvironment::step(float dtime)
 		if(m_send_recommended_timer > getSendRecommendedInterval())
 		{
 			m_send_recommended_timer -= getSendRecommendedInterval();
+			if (m_send_recommended_timer > getSendRecommendedInterval() * 3) {
+				//errorstream<<" send rec overload t="<<m_send_recommended_timer<<" i="<< getSendRecommendedInterval()<<" os="<<m_active_objects.size()<<std::endl;
+				m_send_recommended_timer = 0;
+			}
 			send_recommended = true;
 		}
-
+		bool only_peaceful_mobs = g_settings->getBool("only_peaceful_mobs");
 		for(std::map<u16, ServerActiveObject*>::iterator
 				i = m_active_objects.begin();
 				i != m_active_objects.end(); ++i)
 		{
 			ServerActiveObject* obj = i->second;
 			// Remove non-peaceful mobs on peaceful mode
-			if(g_settings->getBool("only_peaceful_mobs")){
+			if(only_peaceful_mobs){
 				if(!obj->isPeaceful())
 					obj->m_removed = true;
 			}
