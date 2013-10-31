@@ -3,6 +3,158 @@
 
 
 !!!!!!!!!!!!!!!!!
+ Merge proller/liquid_default to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   minetest.conf.example
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/defaultsettings.cpp
+#	both modified:      src/server.cpp
+#	both modified:      src/server.h
+#
+diff --cc src/defaultsettings.cpp
+index 37907b2,6ff85a1..0000000
+--- a/src/defaultsettings.cpp
++++ b/src/defaultsettings.cpp
+@@@ -220,7 -220,7 +220,11 @@@ void set_default_settings(Settings *set
+  	settings->setDefault("movement_gravity", "9.81");
+  
+  	//liquid stuff
+++<<<<<<< HEAD
+ +	settings->setDefault("liquid_finite", "false");
+++=======
++ 	settings->setDefault("liquid_finite", "true");
+++>>>>>>> proller/liquid_default
+  	settings->setDefault("liquid_loop_max", "500");
+  	settings->setDefault("liquid_update", "0.4");
+  	settings->setDefault("liquid_send", "1.0");
+diff --cc src/server.cpp
+index c681f88,7d52e40..0000000
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@@ -667,9 -667,9 +667,15 @@@ Server::Server
+  	m_ignore_map_edit_events_peer_id(0)
+  {
+  	m_liquid_transform_timer = 0.0;
+++<<<<<<< HEAD
+ +	m_liquid_transform_interval = 1.0;
+ +	m_liquid_send_timer = 0.0;
+ +	m_liquid_send_interval = 1.0;
+++=======
++ 	m_liquid_transform_every = 1.0;
++ 	m_liquid_send_timer = 0.0;
++ 	m_liquid_send_every = 1.0;
+++>>>>>>> proller/liquid_default
+  	m_print_info_timer = 0.0;
+  	m_masterserver_timer = 0.0;
+  	m_objectdata_timer = 0.0;
+@@@ -851,8 -852,8 +857,13 @@@
+  	*/
+  	add_legacy_abms(m_env, m_nodedef);
+  
+++<<<<<<< HEAD
+ +	m_liquid_transform_interval = g_settings->getFloat("liquid_update");
+ +	m_liquid_send_interval = g_settings->getFloat("liquid_send");
+++=======
++ 	m_liquid_transform_every = g_settings->getFloat("liquid_update");
++ 	m_liquid_send_every = g_settings->getFloat("liquid_send");
+++>>>>>>> proller/liquid_default
+  }
+  
+  Server::~Server()
+@@@ -1204,24 -1201,38 +1215,59 @@@ void Server::AsyncRunStep(
+  
+  		// not all liquid was processed per step, forcing on next step
+  		if (m_env->getMap().transformLiquids(m_modified_blocks) > 0)
+++<<<<<<< HEAD
+ +			m_liquid_transform_timer = m_liquid_transform_interval*0.7;
+ +	}
+ +
+ +		/*
+ +			Set the modified blocks unsent for all the clients
+ +		*/
+ +
+ +	m_liquid_send_timer += dtime;
+ +	if(m_liquid_send_timer >= m_liquid_send_interval)
+ +	{
+ +		m_liquid_send_timer -= m_liquid_send_interval;
+ +		if (m_liquid_send_timer > m_liquid_send_interval * 3) {
+ +			//errorstream << "Liquid send queue overflooded, resetting. t="<<m_liquid_send_timer<<" i="<< m_liquid_send_interval<< std::endl;
+ +			m_liquid_send_timer = 0;
+ +		}
+ +
+ +		// ? JMutexAutoLock lock(m_env_mutex);
+ +		JMutexAutoLock lock2(m_con_mutex);
+++=======
++ 			m_liquid_transform_timer = m_liquid_transform_every;
++ 	}
++ 
++ 		/*
++ 			Set the modified blocks unsent for all the clients
++ 		*/
++ 
++ 	m_liquid_send_timer += dtime;
++ 	if(m_liquid_send_timer >= m_liquid_send_every)
++ 	{
++ 		m_liquid_send_timer -= m_liquid_send_every;
++ 		// ? JMutexAutoLock lock(m_env_mutex);
++ 		JMutexAutoLock lock2(m_con_mutex);
++ 
++ #if 0
++ 		/*
++ 			Update lighting
++ 		*/
++ 		core::map<v3s16, MapBlock*> lighting_modified_blocks;
++ 		ServerMap &map = ((ServerMap&)m_env->getMap());
++ 		map.updateLighting(m_modified_blocks, lighting_modified_blocks);
++ 
++ 		// Add blocks modified by lighting to modified_blocks
++ 		for(core::map<v3s16, MapBlock*>::Iterator
++ 				i = lighting_modified_blocks.getIterator();
++ 				i.atEnd() == false; i++)
++ 		{
++ 			MapBlock *block = i.getNode()->getValue();
++ 			m_modified_blocks.insert(block->getPos(), block);
++ 		}
++ #endif
++ 
+++>>>>>>> proller/liquid_default
+  
+  		for(std::map<u16, RemoteClient*>::iterator
+  				i = m_clients.begin();
+diff --cc src/server.h
+index 506dce5,682b5d4..0000000
+--- a/src/server.h
++++ b/src/server.h
+@@@ -665,9 -665,9 +665,15 @@@ private
+  
+  	// Some timers
+  	float m_liquid_transform_timer;
+++<<<<<<< HEAD
+ +	float m_liquid_transform_interval;
+ +	float m_liquid_send_timer;
+ +	float m_liquid_send_interval;
+++=======
++ 	float m_liquid_transform_every;
++ 	float m_liquid_send_timer;
++ 	float m_liquid_send_every;
+++>>>>>>> proller/liquid_default
+  	float m_print_info_timer;
+  	float m_masterserver_timer;
+  	float m_objectdata_timer;
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge sapier/avoid_facedir_if_not_moving to next failed:
 
 # On branch next
@@ -141,374 +293,6 @@ index 4b7f9a5,dbcbba5..0000000
 
 
 !!!!!!!!!!!!!!!!!
- Merge sapier/fix_multiplayer_server_not_saved to next failed:
-
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   minetest.conf.example
-#	modified:   src/defaultsettings.cpp
-#	modified:   src/main.cpp
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      builtin/mainmenu.lua
-#
-diff --cc builtin/mainmenu.lua
-index 5a1b6e9,683ef6f..0000000
---- a/builtin/mainmenu.lua
-+++ b/builtin/mainmenu.lua
-@@@ -439,38 -401,43 +439,43 @@@ function tabbuilder.handle_multiplayer_
-  	if fields["favourites"] ~= nil then
-  		local event = explode_textlist_event(fields["favourites"])
-  		if event.typ == "DCL" then
-+ 			if event.index <= #menu.favorites then
- -				gamedata.address = menu.favorites[event.index].address
- -				gamedata.port = menu.favorites[event.index].port
- -				gamedata.playername		= fields["te_name"]
- -				if fields["te_pwd"] ~= nil then
- -					gamedata.password		= fields["te_pwd"]
- -				end
- -				gamedata.selected_world = 0
- -				
- -				if menu.favorites ~= nil then
- -					gamedata.servername = menu.favorites[event.index].name
- -					gamedata.serverdescription = menu.favorites[event.index].description
- -				end
- -				
- -				if gamedata.address ~= nil and
- -					gamedata.port ~= nil then
- +			gamedata.address = menu.favorites[event.index].address
- +			gamedata.port = menu.favorites[event.index].port
- +			gamedata.playername		= fields["te_name"]
- +			if fields["te_pwd"] ~= nil then
- +				gamedata.password		= fields["te_pwd"]
- +			end
- +			gamedata.selected_world = 0
- +			
- +			if menu.favorites ~= nil then
- +				gamedata.servername = menu.favorites[event.index].name
- +				gamedata.serverdescription = menu.favorites[event.index].description
- +			end
- +			
- +			if gamedata.address ~= nil and
- +				gamedata.port ~= nil then
-- 				
-+ 					engine.setting_set("address",gamedata.address)
-+ 					engine.setting_set("remote_port",gamedata.port)
- -					engine.start()
- -				end
- +				engine.start()
-  			end
-  		end
-++		end
-  		
-  		if event.typ == "CHG" then
-+ 			if event.index <= #menu.favorites then
- -				local address = menu.favorites[event.index].address
- -				local port = menu.favorites[event.index].port
- -				
- -				if address ~= nil and
- -					port ~= nil then
- -					engine.setting_set("address",address)
- +			local address = menu.favorites[event.index].address
- +			local port = menu.favorites[event.index].port
- +			
- +			if address ~= nil and
- +				port ~= nil then
- +				engine.setting_set("address",address)
-- 				engine.setting_set("port",port)
-+ 					engine.setting_set("remote_port",port)
- -				end
- -				
- -				menu.fav_selected = event.index
-  			end
- +			
- +			menu.fav_selected = event.index
- +		end
-+ 		end
-  		return
-  	end
-  	
-@@@ -872,13 -831,13 +881,18 @@@ en
-  function tabbuilder.tab_multiplayer()
-  
-  	local retval =
- -		"vertlabel[0,-0.25;CLIENT]" ..
- -		"label[1,-0.25;Favorites:]"..
- -		"label[1,4.25;Address/Port]"..
- -		"label[9,2.75;Name/Password]" ..
- +		"vertlabel[0,-0.25;".. fgettext("CLIENT") .. "]" ..
- +		"label[1,-0.25;".. fgettext("Favorites:") .. "]"..
- +		"label[1,4.25;".. fgettext("Address/Port") .. "]"..
- +		"label[9,2.75;".. fgettext("Name/Password") .. "]" ..
-  		"field[1.25,5.25;5.5,0.5;te_address;;" ..engine.setting_get("address") .."]" ..
-++<<<<<<< HEAD
- +		"field[6.75,5.25;2.25,0.5;te_port;;" ..engine.setting_get("port") .."]" ..
- +		"checkbox[1,3.6;cb_public_serverlist;".. fgettext("Public Serverlist") .. ";" ..
-++=======
-+ 		"field[6.75,5.25;2.25,0.5;te_port;;" ..engine.setting_get("remote_port") .."]" ..
-+ 		"checkbox[1,3.6;cb_public_serverlist;Public Serverlist;" ..
-++>>>>>>> sapier/fix_multiplayer_server_not_saved
-  		dump(engine.setting_getbool("public_serverlist")) .. "]"
-  		
-  	if not engine.setting_getbool("public_serverlist") then
-@@@ -928,22 -887,22 +942,27 @@@ function tabbuilder.tab_server(
-  				)
-  	
-  	local retval = 
- -		"button[4,4.15;2.6,0.5;world_delete;Delete]" ..
- -		"button[6.5,4.15;2.8,0.5;world_create;New]" ..
- -		"button[9.2,4.15;2.55,0.5;world_configure;Configure]" ..
- -		"button[8.5,4.9;3.25,0.5;start_server;Start Game]" ..
- -		"label[4,-0.25;Select World:]"..
- -		"vertlabel[0,-0.25;START SERVER]" ..
- -		"checkbox[0.5,0.25;cb_creative_mode;Creative Mode;" ..
- +		"button[4,4.15;2.6,0.5;world_delete;".. fgettext("Delete") .. "]" ..
- +		"button[6.5,4.15;2.8,0.5;world_create;".. fgettext("New") .. "]" ..
- +		"button[9.2,4.15;2.55,0.5;world_configure;".. fgettext("Configure") .. "]" ..
- +		"button[8.5,4.9;3.25,0.5;start_server;".. fgettext("Start Game") .. "]" ..
- +		"label[4,-0.25;".. fgettext("Select World:") .. "]"..
- +		"vertlabel[0,-0.25;".. fgettext("START SERVER") .. "]" ..
- +		"checkbox[0.5,0.25;cb_creative_mode;".. fgettext("Creative Mode") .. ";" ..
-  		dump(engine.setting_getbool("creative_mode")) .. "]"..
- -		"checkbox[0.5,0.7;cb_enable_damage;Enable Damage;" ..
- +		"checkbox[0.5,0.7;cb_enable_damage;".. fgettext("Enable Damage") .. ";" ..
-  		dump(engine.setting_getbool("enable_damage")) .. "]"..
- -		"checkbox[0.5,1.15;cb_server_announce;Public;" ..
- +		"checkbox[0.5,1.15;cb_server_announce;".. fgettext("Public") .. ";" ..
-  		dump(engine.setting_getbool("server_announce")) .. "]"..
- -		"field[0.8,3.2;3,0.5;te_playername;Name;" ..
- +		"field[0.8,3.2;3,0.5;te_playername;".. fgettext("Name") .. ";" ..
-  		engine.setting_get("name") .. "]" ..
-++<<<<<<< HEAD
- +		"pwdfield[0.8,4.2;3,0.5;te_passwd;".. fgettext("Password") .. "]" ..
- +		"field[0.8,5.2;3,0.5;te_serverport;".. fgettext("Server Port") .. ";30000]" ..
-++=======
-+ 		"pwdfield[0.8,4.2;3,0.5;te_passwd;Password]" ..
-+ 		"field[0.8,5.2;3,0.5;te_serverport;Server Port;" .. engine.setting_get("port") .."]" ..
-++>>>>>>> sapier/fix_multiplayer_server_not_saved
-  		"textlist[4,0.25;7.5,3.7;srv_worlds;" ..
-  		menu.render_world_list() ..
-  		";" .. index .. "]"
-
-
-
-
-!!!!!!!!!!!!!!!!!
- Merge sapier/autoupdate_anim_speed to next failed:
-
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   doc/lua_api.txt
-#	modified:   src/content_cao.cpp
-#	modified:   src/content_sao.cpp
-#	modified:   src/content_sao.h
-#	modified:   src/genericobject.cpp
-#	modified:   src/genericobject.h
-#	modified:   src/script/lua_api/l_object.cpp
-#	modified:   src/serverobject.h
-#	modified:   src/util/numeric.h
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      src/clientserver.h
-#
-diff --cc src/clientserver.h
-index 6a7cbda,cc5b072..0000000
---- a/src/clientserver.h
-+++ b/src/clientserver.h
-@@@ -95,11 -99,12 +95,17 @@@ with this program; if not, write to th
-  		TOCLIENT_BREATH
-  		TOSERVER_BREATH
-  		range added to ItemDefinition
- -		drowning, leveled and liquid_range added to ContentFeatures
- +		drowning, leveled added to ContentFeatures
-  		stepheight and collideWithObjects added to object properties
-  		version, heat and humidity transfer in MapBock
-++<<<<<<< HEAD
- +		automatic_face_movement_dir and automatic_face_movement_dir_offset
- +			added to object properties
-++=======
-+ 		added new property to entities automatic_face_movement_dir
-+ 		Add parameter to GENERIC_CMD_SET_ANIMATION
-+ 		Add support for anim framerate prediction based uppon base_velocity
-++>>>>>>> sapier/autoupdate_anim_speed
-  */
-  
-  #define LATEST_PROTOCOL_VERSION 21
-
-
-
-
-!!!!!!!!!!!!!!!!!
- Merge sapier/add_surface_detection_function to next failed:
-
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   doc/lua_api.txt
-#	modified:   src/map.cpp
-#	modified:   src/map.h
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      src/environment.h
-#	both modified:      src/script/lua_api/l_env.cpp
-#	both modified:      src/script/lua_api/l_env.h
-#
-diff --cc src/environment.h
-index 67e8872,843a3d9..0000000
---- a/src/environment.h
-+++ b/src/environment.h
-@@@ -304,10 -307,7 +304,13 @@@ public
-  
-  	void reportMaxLagEstimate(float f) { m_max_lag_estimate = f; }
-  	float getMaxLagEstimate() { return m_max_lag_estimate; }
- -
- +	
-++<<<<<<< HEAD
- +	// is weather active in this environment?
- +	bool m_use_weather;
- +	
-++=======
-++>>>>>>> sapier/add_surface_detection_function
-  private:
-  
-  	/*
-diff --cc src/script/lua_api/l_env.cpp
-index 375173b,47e9963..0000000
---- a/src/script/lua_api/l_env.cpp
-+++ b/src/script/lua_api/l_env.cpp
-@@@ -781,40 -937,49 +805,84 @@@ int ModApiEnvMod::l_get_humidity(lua_St
-  }
-  
-  
- -bool ModApiEnvMod::Initialize(lua_State *L,int top)
- -{
- +void ModApiEnvMod::Initialize(lua_State *L, int top)
- +{
-++<<<<<<< HEAD
- +	API_FCT(set_node);
- +	API_FCT(add_node);
- +	API_FCT(add_item);
- +	API_FCT(remove_node);
- +	API_FCT(get_node);
- +	API_FCT(get_node_or_nil);
- +	API_FCT(get_node_light);
- +	API_FCT(place_node);
- +	API_FCT(dig_node);
- +	API_FCT(punch_node);
- +	API_FCT(get_node_max_level);
- +	API_FCT(get_node_level);
- +	API_FCT(set_node_level);
- +	API_FCT(add_node_level);
- +	API_FCT(add_entity);
- +	API_FCT(get_meta);
- +	API_FCT(get_node_timer);
- +	API_FCT(get_player_by_name);
- +	API_FCT(get_objects_inside_radius);
- +	API_FCT(set_timeofday);
- +	API_FCT(get_timeofday);
- +	API_FCT(get_gametime);
- +	API_FCT(find_node_near);
- +	API_FCT(find_nodes_in_area);
- +	API_FCT(get_perlin);
- +	API_FCT(get_perlin_map);
- +	API_FCT(get_voxel_manip);
- +	API_FCT(clear_objects);
- +	API_FCT(spawn_tree);
- +	API_FCT(find_path);
- +	API_FCT(line_of_sight);
- +	API_FCT(transforming_liquid_add);
- +	API_FCT(get_heat);
- +	API_FCT(get_humidity);
-++=======
-+ 
-+ 	bool retval = true;
-+ 
-+ 	retval &= API_FCT(set_node);
-+ 	retval &= API_FCT(add_node);
-+ 	retval &= API_FCT(add_item);
-+ 	retval &= API_FCT(remove_node);
-+ 	retval &= API_FCT(get_node);
-+ 	retval &= API_FCT(get_node_or_nil);
-+ 	retval &= API_FCT(get_node_light);
-+ 	retval &= API_FCT(place_node);
-+ 	retval &= API_FCT(dig_node);
-+ 	retval &= API_FCT(punch_node);
-+ 	retval &= API_FCT(get_node_max_level);
-+ 	retval &= API_FCT(get_node_level);
-+ 	retval &= API_FCT(set_node_level);
-+ 	retval &= API_FCT(add_node_level);
-+ 	retval &= API_FCT(add_entity);
-+ 	retval &= API_FCT(get_meta);
-+ 	retval &= API_FCT(get_node_timer);
-+ 	retval &= API_FCT(get_player_by_name);
-+ 	retval &= API_FCT(get_objects_inside_radius);
-+ 	retval &= API_FCT(set_timeofday);
-+ 	retval &= API_FCT(get_timeofday);
-+ 	retval &= API_FCT(find_node_near);
-+ 	retval &= API_FCT(find_nodes_in_area);
-+ 	retval &= API_FCT(get_perlin);
-+ 	retval &= API_FCT(get_perlin_map);
-+ 	retval &= API_FCT(get_voxel_manip);
-+ 	retval &= API_FCT(get_mapgen_object);
-+ 	retval &= API_FCT(set_mapgen_params);
-+ 	retval &= API_FCT(clear_objects);
-+ 	retval &= API_FCT(get_surface);
-+ 	retval &= API_FCT(spawn_tree);
-+ 	retval &= API_FCT(find_path);
-+ 	retval &= API_FCT(line_of_sight);
-+ 	retval &= API_FCT(transforming_liquid_add);
-+ 	retval &= API_FCT(get_heat);
-+ 	retval &= API_FCT(get_humidity);
-+ 
-+ 	return retval;
-++>>>>>>> sapier/add_surface_detection_function
-  }
- -
- -ModApiEnvMod modapienv_prototype;
-diff --cc src/script/lua_api/l_env.h
-index 5f3467f,b01fe5a..0000000
---- a/src/script/lua_api/l_env.h
-+++ b/src/script/lua_api/l_env.h
-@@@ -147,8 -159,13 +147,16 @@@ private
-  	static int l_get_heat(lua_State *L);
-  	static int l_get_humidity(lua_State *L);
-  	
-++<<<<<<< HEAD
-++=======
-+ 	// minetest.get_surface(basepos,yoffset,walkable_only=false)
-+ 	static int l_get_surface(lua_State *L);
-+ 
-+ 	static struct EnumString es_MapgenObject[];
-+ 	
-++>>>>>>> sapier/add_surface_detection_function
-  public:
- -	bool Initialize(lua_State *L, int top);
- +	static void Initialize(lua_State *L, int top);
-  };
-  
-  class LuaABM : public ActiveBlockModifier
-
-
-
-
-!!!!!!!!!!!!!!!!!
  Merge Jeija/rotateto to next failed:
 
 # On branch next
@@ -531,10 +315,10 @@ index 5f3467f,b01fe5a..0000000
 #	both modified:      src/content_sao.cpp
 #
 diff --cc src/content_cao.cpp
-index e97e3a1,89b8dc5..0000000
+index eda0d54,89b8dc5..0000000
 --- a/src/content_cao.cpp
 +++ b/src/content_cao.cpp
-@@@ -1210,12 -1215,28 +1219,37 @@@ public
+@@@ -1213,35 -1215,28 +1222,60 @@@ public
   			m_yaw += dtime * m_prop.automatic_rotate * 180 / M_PI;
   			updateNodePos();
   		}
@@ -544,6 +328,29 @@ index e97e3a1,89b8dc5..0000000
  +				(fabs(m_velocity.Z) > 0.001 || fabs(m_velocity.X) > 0.001)){
  +			m_yaw = atan2(m_velocity.Z,m_velocity.X) * 180 / M_PI + m_prop.automatic_face_movement_dir_offset;
  +			updateNodePos();
+ +		}
+ +		updateAnimationSpeed();
+ +	}
+ +
+ +	void updateAnimationSpeed()
+ +	{
+ +		if(m_animated_meshnode == NULL)
+ +			return;
+ +
+ +		if (m_anim_base_velocity > 0)
+ +		{
+ +			//calculate current velocity
+ +			float current_velocity = XZScalar(m_velocity.X,m_velocity.Z);
+ +
+ +			if (fabs(m_anim_last_updated_velocity-current_velocity) > 0.05)
+ +			{
+ +				//calculate new animation speed
+ +				float new_speed = current_velocity/m_anim_base_velocity * 15;
+ +
+ +				m_animated_meshnode->setAnimationSpeed(new_speed);
+ +
+ +				m_anim_last_updated_velocity = current_velocity;
+ +			}
  +		}
 ++=======
 + 		// Automatic rotation overrides continues rotation
@@ -573,10 +380,10 @@ index e97e3a1,89b8dc5..0000000
   
   	void updateTexturePos()
 diff --cc src/content_sao.cpp
-index 85ab8d3,4bd6a23..0000000
+index d38894b,4bd6a23..0000000
 --- a/src/content_sao.cpp
 +++ b/src/content_sao.cpp
-@@@ -527,14 -515,33 +529,39 @@@ void LuaEntitySAO::step(float dtime, bo
+@@@ -528,14 -515,33 +530,39 @@@ void LuaEntitySAO::step(float dtime, bo
   			m_velocity += dtime * m_acceleration;
   		}
   
@@ -637,10 +444,10 @@ index 85ab8d3,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index d414984,5c52606..0000000
+index 9ab615c,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -2035,11 -1998,9 +2035,17 @@@ Node definition (register_node
+@@@ -2045,11 -1998,9 +2045,17 @@@ Node definition (register_node
       <all fields allowed in item definitions>,
   
       drawtype = "normal", -- See "Node drawtypes"
