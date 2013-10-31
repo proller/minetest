@@ -17,139 +17,28 @@
 #   (use "git add <file>..." to mark resolution)
 #
 #	both modified:      src/defaultsettings.cpp
-#	both modified:      src/server.cpp
-#	both modified:      src/server.h
 #
 diff --cc src/defaultsettings.cpp
-index 37907b2,6ff85a1..0000000
+index 37907b2,02b098f..0000000
 --- a/src/defaultsettings.cpp
 +++ b/src/defaultsettings.cpp
-@@@ -220,7 -220,7 +220,11 @@@ void set_default_settings(Settings *set
+@@@ -220,10 -220,9 +220,16 @@@ void set_default_settings(Settings *set
   	settings->setDefault("movement_gravity", "9.81");
   
   	//liquid stuff
 ++<<<<<<< HEAD
  +	settings->setDefault("liquid_finite", "false");
+ +	settings->setDefault("liquid_loop_max", "500");
+ +	settings->setDefault("liquid_update", "0.4");
+ +	settings->setDefault("liquid_send", "1.0");
 ++=======
 + 	settings->setDefault("liquid_finite", "true");
++ 	settings->setDefault("liquid_loop_max", "1000");
++ 	settings->setDefault("liquid_update", "1.0");
 ++>>>>>>> proller/liquid_default
-  	settings->setDefault("liquid_loop_max", "500");
-  	settings->setDefault("liquid_update", "0.4");
-  	settings->setDefault("liquid_send", "1.0");
-diff --cc src/server.cpp
-index c681f88,7d52e40..0000000
---- a/src/server.cpp
-+++ b/src/server.cpp
-@@@ -667,9 -667,9 +667,15 @@@ Server::Server
-  	m_ignore_map_edit_events_peer_id(0)
-  {
-  	m_liquid_transform_timer = 0.0;
-++<<<<<<< HEAD
- +	m_liquid_transform_interval = 1.0;
- +	m_liquid_send_timer = 0.0;
- +	m_liquid_send_interval = 1.0;
-++=======
-+ 	m_liquid_transform_every = 1.0;
-+ 	m_liquid_send_timer = 0.0;
-+ 	m_liquid_send_every = 1.0;
-++>>>>>>> proller/liquid_default
-  	m_print_info_timer = 0.0;
-  	m_masterserver_timer = 0.0;
-  	m_objectdata_timer = 0.0;
-@@@ -851,8 -852,8 +857,13 @@@
-  	*/
-  	add_legacy_abms(m_env, m_nodedef);
-  
-++<<<<<<< HEAD
- +	m_liquid_transform_interval = g_settings->getFloat("liquid_update");
- +	m_liquid_send_interval = g_settings->getFloat("liquid_send");
-++=======
-+ 	m_liquid_transform_every = g_settings->getFloat("liquid_update");
-+ 	m_liquid_send_every = g_settings->getFloat("liquid_send");
-++>>>>>>> proller/liquid_default
-  }
-  
-  Server::~Server()
-@@@ -1204,24 -1201,38 +1215,59 @@@ void Server::AsyncRunStep(
-  
-  		// not all liquid was processed per step, forcing on next step
-  		if (m_env->getMap().transformLiquids(m_modified_blocks) > 0)
-++<<<<<<< HEAD
- +			m_liquid_transform_timer = m_liquid_transform_interval*0.7;
- +	}
- +
- +		/*
- +			Set the modified blocks unsent for all the clients
- +		*/
- +
- +	m_liquid_send_timer += dtime;
- +	if(m_liquid_send_timer >= m_liquid_send_interval)
- +	{
- +		m_liquid_send_timer -= m_liquid_send_interval;
- +		if (m_liquid_send_timer > m_liquid_send_interval * 3) {
- +			//errorstream << "Liquid send queue overflooded, resetting. t="<<m_liquid_send_timer<<" i="<< m_liquid_send_interval<< std::endl;
- +			m_liquid_send_timer = 0;
- +		}
- +
- +		// ? JMutexAutoLock lock(m_env_mutex);
- +		JMutexAutoLock lock2(m_con_mutex);
-++=======
-+ 			m_liquid_transform_timer = m_liquid_transform_every;
-+ 	}
-+ 
-+ 		/*
-+ 			Set the modified blocks unsent for all the clients
-+ 		*/
-+ 
-+ 	m_liquid_send_timer += dtime;
-+ 	if(m_liquid_send_timer >= m_liquid_send_every)
-+ 	{
-+ 		m_liquid_send_timer -= m_liquid_send_every;
-+ 		// ? JMutexAutoLock lock(m_env_mutex);
-+ 		JMutexAutoLock lock2(m_con_mutex);
-+ 
-+ #if 0
-+ 		/*
-+ 			Update lighting
-+ 		*/
-+ 		core::map<v3s16, MapBlock*> lighting_modified_blocks;
-+ 		ServerMap &map = ((ServerMap&)m_env->getMap());
-+ 		map.updateLighting(m_modified_blocks, lighting_modified_blocks);
-+ 
-+ 		// Add blocks modified by lighting to modified_blocks
-+ 		for(core::map<v3s16, MapBlock*>::Iterator
-+ 				i = lighting_modified_blocks.getIterator();
-+ 				i.atEnd() == false; i++)
-+ 		{
-+ 			MapBlock *block = i.getNode()->getValue();
-+ 			m_modified_blocks.insert(block->getPos(), block);
-+ 		}
-+ #endif
-+ 
-++>>>>>>> proller/liquid_default
-  
-  		for(std::map<u16, RemoteClient*>::iterator
-  				i = m_clients.begin();
-diff --cc src/server.h
-index 506dce5,682b5d4..0000000
---- a/src/server.h
-+++ b/src/server.h
-@@@ -665,9 -665,9 +665,15 @@@ private
-  
-  	// Some timers
-  	float m_liquid_transform_timer;
-++<<<<<<< HEAD
- +	float m_liquid_transform_interval;
- +	float m_liquid_send_timer;
- +	float m_liquid_send_interval;
-++=======
-+ 	float m_liquid_transform_every;
-+ 	float m_liquid_send_timer;
-+ 	float m_liquid_send_every;
-++>>>>>>> proller/liquid_default
-  	float m_print_info_timer;
-  	float m_masterserver_timer;
-  	float m_objectdata_timer;
+  	settings->setDefault("liquid_relax", "2");
+  	settings->setDefault("liquid_fast_flood", "1");
+  	settings->setDefault("underground_springs", "1");
 
 
 
