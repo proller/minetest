@@ -141,6 +141,73 @@ index 4b7f9a5,dbcbba5..0000000
 
 
 !!!!!!!!!!!!!!!!!
+ Merge ShadowNinja/protection_support to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   builtin/item.lua
+#	modified:   builtin/misc.lua
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      builtin/misc_register.lua
+#	both modified:      doc/lua_api.txt
+#
+diff --cc builtin/misc_register.lua
+index a0eff6a,3002d5e..0000000
+--- a/builtin/misc_register.lua
++++ b/builtin/misc_register.lua
+@@@ -342,6 -327,5 +342,10 @@@ minetest.registered_on_joinplayers, min
+  minetest.registered_on_leaveplayers, minetest.register_on_leaveplayer = make_registration()
+  minetest.registered_on_player_receive_fields, minetest.register_on_player_receive_fields = make_registration_reverse()
+  minetest.registered_on_cheats, minetest.register_on_cheat = make_registration()
+++<<<<<<< HEAD
+ +minetest.registered_on_crafts, minetest.register_on_craft = make_registration()
+ +minetest.registered_craft_predicts, minetest.register_craft_predict = make_registration()
+++=======
++ minetest.registered_on_protection_violation, minetest.register_on_protection_violation = make_registration()
+++>>>>>>> ShadowNinja/protection_support
+  
+diff --cc doc/lua_api.txt
+index b3c78be,7b53c19..0000000
+--- a/doc/lua_api.txt
++++ b/doc/lua_api.txt
+@@@ -1158,15 -1151,13 +1158,25 @@@ minetest.register_on_player_receive_fie
+  minetest.register_on_mapgen_init(func(MapgenParams))
+  ^ Called just before the map generator is initialized but before the environment is initialized
+  ^ MapgenParams consists of a table with the fields mgname, seed, water_level, and flags
+++<<<<<<< HEAD
+ +minetest.register_on_craft(func(itemstack, player, old_craft_grid, craft_inv))
+ +^ Called when player crafts something
+ +^ itemstack is the output
+ +^ old_craft_grid contains the recipe (Note: the one in the inventory is cleared)
+ +^ craft_inv is the inventory with the crafting grid
+ +^ Return either an ItemStack, to replace the output, or nil, to not modify it
+ +minetest.register_craft_predict(func(itemstack, player, old_craft_grid, craft_inv))
+ +^ The same as before, except that it is called before the player crafts, to make
+ +^ craft prediction, and it should not change anything.
+++=======
++ minetest.register_on_protection_violation(func(pos, name))
++ ^ Called by builtin and mods when a player violates protection at a position
++   (eg, digs a node or punches a protected entity).
++ ^ The registered functions can be called using minetest.record_protection_violation
++ ^ The provided function should check that the position is protected by the mod
++   calling this function before it prints a message, if it does, to allow for
++   multiple protection mods.
+++>>>>>>> ShadowNinja/protection_support
+  
+  Other registration functions:
+  minetest.register_chatcommand(cmd, chatcommand definition)
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge Jeija/rotateto to next failed:
 
 # On branch next
@@ -292,10 +359,10 @@ index d38894b,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index 9ab615c,5c52606..0000000
+index a6949a1,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -2045,11 -1998,9 +2045,17 @@@ Node definition (register_node
+@@@ -2031,11 -1998,9 +2031,17 @@@ Node definition (register_node
       <all fields allowed in item definitions>,
   
       drawtype = "normal", -- See "Node drawtypes"
