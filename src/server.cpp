@@ -1193,7 +1193,7 @@ void Server::AsyncRunStep()
 	if(m_liquid_transform_timer >= m_liquid_transform_interval)
 	{
 		m_liquid_transform_timer -= m_liquid_transform_interval;
-		if (m_liquid_transform_timer > m_liquid_transform_interval * 3) {
+		if (m_liquid_transform_timer > m_liquid_transform_interval * 2) {
 			//errorstream << "Liquid transform queue overflooded, resetting. t="<<m_liquid_transform_timer<<" i="<< m_liquid_transform_interval<< std::endl;
 			m_liquid_transform_timer = 0;
 		}

@@ -662,7 +662,7 @@ public:
 				if(i->timer < trigger_interval)
 					continue;
 				i->timer -= trigger_interval;
-				if (i->timer > trigger_interval*3) {
+				if (i->timer > trigger_interval*2) {
 					//errorstream << "env abm timer oveload t="<<i->timer<< " i="<<trigger_interval<<" as="<<abms.size()<<std::endl;
 					i->timer = 0;
 				}
@@ -1278,7 +1278,7 @@ void ServerEnvironment::step(float dtime)
 		if(m_send_recommended_timer > getSendRecommendedInterval())
 		{
 			m_send_recommended_timer -= getSendRecommendedInterval();
-			if (m_send_recommended_timer > getSendRecommendedInterval() * 3) {
+			if (m_send_recommended_timer > getSendRecommendedInterval() * 2) {
 				//errorstream<<" send rec overload t="<<m_send_recommended_timer<<" i="<< getSendRecommendedInterval()<<" os="<<m_active_objects.size()<<std::endl;
 				m_send_recommended_timer = 0;
 			}
