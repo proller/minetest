@@ -109,7 +109,9 @@ void * ServerThread::Thread()
 			}
 
 			//infostream<<"Running m_server->Receive()"<<std::endl;
-			m_server->Receive();
+			for (u16 i = 0; i < 100; ++i)
+				if (!m_server->Receive())
+					break;
 		}
 		catch(con::NoIncomingDataException &e)
 		{
@@ -1723,12 +1725,13 @@ void Server::AsyncRunStep()
 	}
 }
 
-void Server::Receive()
+u16 Server::Receive()
 {
 	DSTACK(__FUNCTION_NAME);
 	SharedBuffer<u8> data;
 	u16 peer_id;
 	u32 datasize;
+	u16 recieved = 0;
 	try{
 		{
 			JMutexAutoLock conlock(m_con_mutex);
@@ -1740,6 +1743,7 @@ void Server::Receive()
 		handlePeerChanges();
 
 		ProcessData(*data, datasize, peer_id);
+		++recieved;
 	}
 	catch(con::InvalidIncomingDataException &e)
 	{
@@ -1762,6 +1766,7 @@ void Server::Receive()
 
 		m_env->removePlayer(peer_id);*/
 	}
+	return recieved;
 }
 
 void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
