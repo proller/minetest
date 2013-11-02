@@ -26,26 +26,23 @@
 #	both modified:      src/map.cpp
 #
 diff --cc src/map.cpp
-index e49b601,cfb355b..0000000
+index fc6f5e5,cfb355b..0000000
 --- a/src/map.cpp
 +++ b/src/map.cpp
-@@@ -1677,10 -1661,8 +1675,15 @@@ s32 Map::transformLiquidsFinite(std::ma
+@@@ -1676,11 -1660,8 +1674,9 @@@ s32 Map::transformLiquidsFinite(std::ma
+  
   	// List of MapBlocks that will require a lighting update (due to lava)
   	std::map<v3s16, MapBlock*> lighting_modified_blocks;
-  
-++<<<<<<< HEAD
- +	u16 loop_max = g_settings->getU16("liquid_loop_max");
  +	u16 loop_rand = myrand();
- +
- +	//if (m_transforming_liquid.size() > 0) errorstream << "Liquid queue size="<<m_transforming_liquid.size()<<std::endl;
-++=======
+  
+- 	u16 loop_max = g_settings->getU16("liquid_loop_max");
+- 
+- 	//if (m_transforming_liquid.size() > 0) errorstream << "Liquid queue size="<<m_transforming_liquid.size()<<std::endl;
 + 	u32 end_ms = porting::getTimeMs() + 1000 * g_settings->getFloat("dedicated_server_step");
-+ 
-++>>>>>>> proller/liquid_send
+  
   	while (m_transforming_liquid.size() > 0)
   	{
-  		// This should be done here so that it is done when continue is used
-@@@ -2022,12 -1981,14 +2025,20 @@@
+@@@ -2023,12 -1981,14 +2019,20 @@@
   			must_reflow.push_back(p0 + dirs[ii]);
   		}*/
   	}
