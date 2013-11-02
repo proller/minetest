@@ -3,68 +3,54 @@
 
 
 !!!!!!!!!!!!!!!!!
- Merge proller/liquid_send to next failed:
+ Merge proller/liquid_default to next failed:
 
 # On branch next
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
 #
-# Changes to be committed:
-#
-#	modified:   minetest.conf.example
-#	modified:   src/defaultsettings.cpp
-#	modified:   src/environment.cpp
-#	modified:   src/map.h
-#	modified:   src/script/cpp_api/s_mainmenu.h
-#	modified:   src/server.cpp
-#	modified:   src/server.h
-#	modified:   src/util/numeric.h
-#
 # Unmerged paths:
 #   (use "git add <file>..." to mark resolution)
 #
-#	both modified:      src/map.cpp
+#	both modified:      minetest.conf.example
+#	both modified:      src/defaultsettings.cpp
 #
-diff --cc src/map.cpp
-index fc6f5e5,cfb355b..0000000
---- a/src/map.cpp
-+++ b/src/map.cpp
-@@@ -1676,11 -1660,8 +1674,9 @@@ s32 Map::transformLiquidsFinite(std::ma
-  
-  	// List of MapBlocks that will require a lighting update (due to lava)
-  	std::map<v3s16, MapBlock*> lighting_modified_blocks;
- +	u16 loop_rand = myrand();
-  
-- 	u16 loop_max = g_settings->getU16("liquid_loop_max");
-- 
-- 	//if (m_transforming_liquid.size() > 0) errorstream << "Liquid queue size="<<m_transforming_liquid.size()<<std::endl;
-+ 	u32 end_ms = porting::getTimeMs() + 1000 * g_settings->getFloat("dedicated_server_step");
-  
-  	while (m_transforming_liquid.size() > 0)
-  	{
-@@@ -2023,12 -1981,14 +2019,20 @@@
-  			must_reflow.push_back(p0 + dirs[ii]);
-  		}*/
-  	}
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --cc minetest.conf.example
+index 31282b7,782ed8e..0000000
+--- a/minetest.conf.example
++++ b/minetest.conf.example
+@@@ -92,7 -92,9 +92,13 @@@
+  # Enable a bit lower water surface; disable for speed (not quite optimized)
+  #new_style_water = false
+  # Constant volume liquids
 ++<<<<<<< HEAD
- +	/*
- +	if (loopcount)
- +		errorstream<<"Map::transformLiquids(): loopcount="<<loopcount
+ +#liquid_finite = false
 ++=======
-+ 
-+ 	s32 ret = loopcount >= initial_size ? 0 : m_transforming_liquid.size();
-+ 
-+ 	/*if (loopcount)
-+ 		infostream<<"Map::transformLiquidsFinite(): loopcount="<<loopcount
-++>>>>>>> proller/liquid_send
-  		<<" reflow="<<must_reflow.size()
-- 		<<" queue="<< m_transforming_liquid.size()<<std::endl;
-- 	*/
-+ 		<<" queue="<< m_transforming_liquid.size()<< " per="<<timer.getTimerTime()<<" ret="<<ret<<std::endl;*/
-+ 
-  	while (must_reflow.size() > 0)
-  		m_transforming_liquid.push_back(must_reflow.pop_front());
-  	while (must_reflow_second.size() > 0)
++ #liquid_finite = true
++ # Max liquids processed per step
++ #liquid_loop_max = 500
+++>>>>>>> proller/liquid_default
+  # Update liquids every .. recommend for finite: 0.2
+  #liquid_update = 0.4
+  # Send to client updated liquid every (increase on high loaded servers with liquid_finite)
+diff --cc src/defaultsettings.cpp
+index 966ecc4,6ff85a1..0000000
+--- a/src/defaultsettings.cpp
++++ b/src/defaultsettings.cpp
+@@@ -220,7 -220,8 +220,12 @@@ void set_default_settings(Settings *set
+  	settings->setDefault("movement_gravity", "9.81");
+  
+  	//liquid stuff
+++<<<<<<< HEAD
+ +	settings->setDefault("liquid_finite", "false");
+++=======
++ 	settings->setDefault("liquid_finite", "true");
++ 	settings->setDefault("liquid_loop_max", "500");
+++>>>>>>> proller/liquid_default
+  	settings->setDefault("liquid_update", "0.4");
+  	settings->setDefault("liquid_send", "1.0");
+  	settings->setDefault("liquid_relax", "2");
 
 
 
