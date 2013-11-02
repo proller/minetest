@@ -109,6 +109,9 @@ void * ServerThread::Thread()
 			}
 
 			//infostream<<"Running m_server->Receive()"<<std::endl;
+
+			// Loop used only when 100% cpu load or on old slow hardware. 
+			// usually only one packet recieved here
 			for (u16 i = 0; i < 100; ++i)
 				if (!m_server->Receive())
 					break;
@@ -1195,10 +1198,8 @@ void Server::AsyncRunStep()
 	if(m_liquid_transform_timer >= m_liquid_transform_interval)
 	{
 		m_liquid_transform_timer -= m_liquid_transform_interval;
-		if (m_liquid_transform_timer > m_liquid_transform_interval * 2) {
-			//errorstream << "Liquid transform queue overflooded, resetting. t="<<m_liquid_transform_timer<<" i="<< m_liquid_transform_interval<< std::endl;
+		if (m_liquid_transform_timer > m_liquid_transform_interval * 2)
 			m_liquid_transform_timer = 0;
-		}
 
 		JMutexAutoLock lock(m_env_mutex);
 
@@ -1206,7 +1207,7 @@ void Server::AsyncRunStep()
 
 		// not all liquid was processed per step, forcing on next step
 		if (m_env->getMap().transformLiquids(m_modified_blocks) > 0)
-			m_liquid_transform_timer = m_liquid_transform_interval*0.3;
+			m_liquid_transform_timer = m_liquid_transform_interval*0.8;
 	}
 
 		/*
@@ -1217,10 +1218,8 @@ void Server::AsyncRunStep()
 	if(m_liquid_send_timer >= m_liquid_send_interval)
 	{
 		m_liquid_send_timer -= m_liquid_send_interval;
-		if (m_liquid_send_timer > m_liquid_send_interval * 3) {
-			//errorstream << "Liquid send queue overflooded, resetting. t="<<m_liquid_send_timer<<" i="<< m_liquid_send_interval<< std::endl;
+		if (m_liquid_send_timer > m_liquid_send_interval * 2)
 			m_liquid_send_timer = 0;
-		}
 
 		// ? JMutexAutoLock lock(m_env_mutex);
 		JMutexAutoLock lock2(m_con_mutex);

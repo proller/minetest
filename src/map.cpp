@@ -1646,7 +1646,7 @@ s32 Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 	INodeDefManager *nodemgr = m_gamedef->ndef();
 
 	DSTACK(__FUNCTION_NAME);
-	//TimeTaker timer("transformLiquids()");
+	//TimeTaker timer("transformLiquidsFinite()");
 
 	u32 loopcount = 0;
 	u32 initial_size = m_transforming_liquid.size();
@@ -1661,14 +1661,12 @@ s32 Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 	// List of MapBlocks that will require a lighting update (due to lava)
 	std::map<v3s16, MapBlock*> lighting_modified_blocks;
 
-	u16 loop_max = g_settings->getU16("liquid_loop_max");
-
-	//if (m_transforming_liquid.size() > 0) errorstream << "Liquid queue size="<<m_transforming_liquid.size()<<std::endl;
+	u32 end_ms = porting::getTimeMs() + 1000 * g_settings->getFloat("dedicated_server_step");
 
 	while (m_transforming_liquid.size() > 0)
 	{
 		// This should be done here so that it is done when continue is used
-		if (loopcount >= initial_size || loopcount >= loop_max)
+		if (loopcount >= initial_size || porting::getTimeMs() > end_ms)
 			break;
 		loopcount++;
 		/*
@@ -1983,14 +1981,13 @@ s32 Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 			must_reflow.push_back(p0 + dirs[ii]);
 		}*/
 	}
-	/*
-	if (loopcount)
-		infostream<<"Map::transformLiquids(): loopcount="<<loopcount
-		<<" reflow="<<must_reflow.size()
-		<<" queue="<< m_transforming_liquid.size()<<std::endl;
-	*/
 
-	s32 ret = m_transforming_liquid.size();
+	s32 ret = loopcount >= initial_size ? 0 : m_transforming_liquid.size();
+
+	/*if (loopcount)
+		infostream<<"Map::transformLiquidsFinite(): loopcount="<<loopcount
+		<<" reflow="<<must_reflow.size()
+		<<" queue="<< m_transforming_liquid.size()<< " per="<<timer.getTimerTime()<<" ret="<<ret<<std::endl;*/
 
 	while (must_reflow.size() > 0)
 		m_transforming_liquid.push_back(must_reflow.pop_front());
@@ -2026,12 +2023,12 @@ s32 Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
 	// List of MapBlocks that will require a lighting update (due to lava)
 	std::map<v3s16, MapBlock*> lighting_modified_blocks;
 
-	u16 loop_max = g_settings->getU16("liquid_loop_max");
+	u32 end_ms = porting::getTimeMs() + 1000 * g_settings->getFloat("dedicated_server_step");
 
 	while(m_transforming_liquid.size() != 0)
 	{
 		// This should be done here so that it is done when continue is used
-		if(loopcount >= initial_size || loopcount >= loop_max)
+		if(loopcount >= initial_size || porting::getTimeMs() > end_ms)
 			break;
 		loopcount++;
 
@@ -2278,9 +2275,10 @@ s32 Map::transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks)
 				break;
 		}
 	}
-	//infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<std::endl;
 
-	s32 ret = m_transforming_liquid.size();
+	s32 ret = loopcount >= initial_size ? 0 : m_transforming_liquid.size();
+
+	//infostream<<"Map::transformLiquids(): loopcount="<<loopcount<<" per="<<timer.getTimerTime()<<" ret="<<ret<<std::endl;
 
 	while (must_reflow.size() > 0)
 		m_transforming_liquid.push_back(must_reflow.pop_front());
