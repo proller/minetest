@@ -28,9 +28,9 @@ proller:huge_cave
 proller:weather_fog			899
 proller:wingsuit			897
 proller:collision
-proller:masterserver			952
 proller:light_ok			931
 proller:net				
+proller:masterserver
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
@@ -57,6 +57,7 @@ Jeija:rotateto				651
 ShadowNinja:more_break_particles	943
 ShadowNinja:fall_on_unknown		942
 Sokomine:master				951
+RealBadAngel:master			967
 },},
 
     minetest_game => {
@@ -73,6 +74,7 @@ proller:liquid63
 MirceaKitsune:moonflower	175
 khonkhortisan:diagonal_rail	135
 Novatux:furnace			200 #can make 100% cpu load
+cyisfor:master			207
 },},
 
 };
