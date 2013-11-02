@@ -1206,7 +1206,7 @@ void Server::AsyncRunStep()
 
 		// not all liquid was processed per step, forcing on next step
 		if (m_env->getMap().transformLiquids(m_modified_blocks) > 0)
-			m_liquid_transform_timer = m_liquid_transform_interval*0.7;
+			m_liquid_transform_timer = m_liquid_transform_interval*0.3;
 	}
 
 		/*
@@ -1731,7 +1731,7 @@ u16 Server::Receive()
 	SharedBuffer<u8> data;
 	u16 peer_id;
 	u32 datasize;
-	u16 recieved = 0;
+	u16 received = 0;
 	try{
 		{
 			JMutexAutoLock conlock(m_con_mutex);
@@ -1743,7 +1743,7 @@ u16 Server::Receive()
 		handlePeerChanges();
 
 		ProcessData(*data, datasize, peer_id);
-		++recieved;
+		++received;
 	}
 	catch(con::InvalidIncomingDataException &e)
 	{
@@ -1766,7 +1766,7 @@ u16 Server::Receive()
 
 		m_env->removePlayer(peer_id);*/
 	}
-	return recieved;
+	return received;
 }
 
 void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
