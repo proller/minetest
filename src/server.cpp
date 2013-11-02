@@ -4784,7 +4784,10 @@ void Server::UpdateCrafting(u16 peer_id)
 
 	// Get a preview for crafting
 	ItemStack preview;
+	InventoryLocation loc;
+	loc.setPlayer(player->getName());
 	getCraftingResult(&player->inventory, preview, false, this);
+	m_env->getScriptIface()->item_CraftPredict(preview, player->getPlayerSAO(), (&player->inventory)->getList("craft"), loc);
 
 	// Put the new preview in
 	InventoryList *plist = player->inventory.getList("craftpreview");
