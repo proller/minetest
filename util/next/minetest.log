@@ -141,6 +141,51 @@ index 4b7f9a5,dbcbba5..0000000
 
 
 !!!!!!!!!!!!!!!!!
+ Merge sapier/fix_crash_on_lua_exception to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/guiFormSpecMenu.cpp
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+diff --cc src/guiFormSpecMenu.cpp
+index aa1e2d9,01630e0..0000000
+--- a/src/guiFormSpecMenu.cpp
++++ b/src/guiFormSpecMenu.cpp
+@@@ -1661,6 -1599,20 +1661,23 @@@ void GUIFormSpecMenu::regenerateGui(v2u
+  		}
+  		changeCtype("C");
+  	}
+++<<<<<<< HEAD
+++=======
++ 	// Add tooltip
++ 	{
++ 		// Note: parent != this so that the tooltip isn't clipped by the menu rectangle
++ 		m_tooltip_element = Environment->addStaticText(L"",core::rect<s32>(0,0,110,18));
++ 		m_tooltip_element->enableOverrideColor(true);
++ 		m_tooltip_element->setBackgroundColor(video::SColor(255,110,130,60));
++ 		m_tooltip_element->setDrawBackground(true);
++ 		m_tooltip_element->setDrawBorder(true);
++ 		m_tooltip_element->setOverrideColor(video::SColor(255,255,255,255));
++ 		m_tooltip_element->setTextAlignment(gui::EGUIA_CENTER, gui::EGUIA_CENTER);
++ 		m_tooltip_element->setWordWrap(false);
++ 		//we're not parent so no autograb for this one!
++ 		m_tooltip_element->grab();
++ 	}
+++>>>>>>> sapier/fix_crash_on_lua_exception
+  
+  	//set initial focus if parser didn't set it
+  	focused_element = Environment->getFocus();
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge ShadowNinja/protection_support to next failed:
 
 # On branch next
@@ -170,10 +215,10 @@ index 2a7feaa,3002d5e..0000000
   minetest.registered_on_protection_violation, minetest.register_on_protection_violation = make_registration()
   
 diff --cc doc/lua_api.txt
-index fa917dc,7b53c19..0000000
+index 0759155,7b53c19..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -1158,15 -1151,6 +1158,18 @@@ minetest.register_on_player_receive_fie
+@@@ -1195,15 -1151,6 +1195,18 @@@ minetest.register_on_player_receive_fie
   minetest.register_on_mapgen_init(func(MapgenParams))
   ^ Called just before the map generator is initialized but before the environment is initialized
   ^ MapgenParams consists of a table with the fields mgname, seed, water_level, and flags
@@ -348,10 +393,10 @@ index d38894b,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index 67682bf,5c52606..0000000
+index 15e01f9,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -2054,11 -1998,9 +2054,17 @@@ Node definition (register_node
+@@@ -2091,11 -1998,9 +2091,17 @@@ Node definition (register_node
       <all fields allowed in item definitions>,
   
       drawtype = "normal", -- See "Node drawtypes"
