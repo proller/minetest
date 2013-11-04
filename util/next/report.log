@@ -30,7 +30,7 @@ fail	minetest Novatux:forceload	1	https://github.com/minetest/minetest/pull/606
 ok	minetest PilzAdam:vbo		
 ok	minetest sweetbomber:spawn		https://github.com/minetest/minetest/pull/744	
 ok	minetest MirceaKitsune:brighter_sun_faces		https://github.com/minetest/minetest/pull/772	
-ok	minetest sapier:fix_crash_on_lua_exception		https://github.com/minetest/minetest/pull/890	
+fail	minetest sapier:fix_crash_on_lua_exception	1	https://github.com/minetest/minetest/pull/890	
 ok	minetest sapier:lua_show_backtrace_on_error		https://github.com/minetest/minetest/pull/891	
 ok	minetest sapier:fix_anaglyph_mode_selectionbox_not_beeing_honored		https://github.com/minetest/minetest/pull/893	
 fail	minetest ShadowNinja:protection_support	1	https://github.com/minetest/minetest/pull/856	
