@@ -215,10 +215,10 @@ index 2a7feaa,3002d5e..0000000
   minetest.registered_on_protection_violation, minetest.register_on_protection_violation = make_registration()
   
 diff --cc doc/lua_api.txt
-index 0759155,7b53c19..0000000
+index e3f12f2,7b53c19..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -1195,15 -1151,6 +1195,18 @@@ minetest.register_on_player_receive_fie
+@@@ -1203,15 -1151,6 +1203,18 @@@ minetest.register_on_player_receive_fie
   minetest.register_on_mapgen_init(func(MapgenParams))
   ^ Called just before the map generator is initialized but before the environment is initialized
   ^ MapgenParams consists of a table with the fields mgname, seed, water_level, and flags
@@ -393,10 +393,10 @@ index d38894b,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index 15e01f9,5c52606..0000000
+index e6b7345,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -2091,11 -1998,9 +2091,17 @@@ Node definition (register_node
+@@@ -2099,11 -1998,9 +2099,17 @@@ Node definition (register_node
       <all fields allowed in item definitions>,
   
       drawtype = "normal", -- See "Node drawtypes"
