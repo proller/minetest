@@ -11,17 +11,15 @@ ok	minetest proller:math		https://github.com/minetest/minetest/pull/645
 ok	minetest proller:json		
 ok	minetest proller:weather		https://github.com/minetest/minetest/pull/892	
 ok	minetest proller:liquid_send		https://github.com/minetest/minetest/pull/895	
-ok	minetest proller:liquid_default		
+fail	minetest proller:liquid_default	1	
 ok	minetest proller:huge_cave		
 ok	minetest proller:weather_fog		https://github.com/minetest/minetest/pull/899	
 ok	minetest proller:wingsuit		https://github.com/minetest/minetest/pull/897	
 ok	minetest proller:collision		
 ok	minetest proller:light_ok		https://github.com/minetest/minetest/pull/931	
-ok	minetest proller:net		
 ok	minetest proller:null		
 fail	minetest sapier:avoid_facedir_if_not_moving	1	https://github.com/minetest/minetest/pull/879	
 ok	minetest sapier:modmgr_fixes		https://github.com/minetest/minetest/pull/884	
-ok	minetest proller:clouds		https://github.com/minetest/minetest/pull/855	
 ok	minetest Zeg9:slippery		https://github.com/minetest/minetest/pull/817	
 ok	minetest MirceaKitsune:sun_moon_coloring		https://github.com/minetest/minetest/pull/799	
 ok	minetest khonkhortisan:diagonal_rail		https://github.com/minetest/minetest/pull/528	
