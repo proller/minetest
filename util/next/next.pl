@@ -10,12 +10,12 @@ use lib::abs;
 
 my $what = {
     minetest => {
-test=>1,
-submodule=>qq{
+        test      => 1,
+        submodule => qq{
 games	proller	minetest_game	next
 },
 
-merge=>qq{
+        merge => qq{
 proller:next_tools
 
 proller:liquid63			882
@@ -30,11 +30,12 @@ proller:wingsuit			897
 proller:collision
 proller:light_ok			931
 proller:net				
-proller:masterserver
+#proller:masterserver
+proller:null
+#proller:clouds				855
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
-proller:clouds				855
 Zeg9:slippery				817
 #Zeg9:wieldlight				816 #no light range BUG
 MirceaKitsune:sun_moon_coloring		799
@@ -58,14 +59,15 @@ ShadowNinja:more_break_particles	943
 ShadowNinja:fall_on_unknown		942
 Sokomine:master				951
 RealBadAngel:master			967
-},},
+},
+    },
 
     minetest_game => {
-push_no_diff=>1,
-submodule=>qq{
-mods	proller	minetest-mod-weather	we
+        push_no_diff => 1,
+        submodule    => qq{
+mods	proller	minetest-mod-weather-dynamic	master
 },
-merge=>qq{
+        merge => qq{
 proller:sponge			185
 proller:weather
 proller:liquid63
@@ -75,7 +77,8 @@ MirceaKitsune:moonflower	175
 khonkhortisan:diagonal_rail	135
 Novatux:furnace			200 #can make 100% cpu load
 cyisfor:master			207
-},},
+},
+    },
 
 };
 
@@ -110,15 +113,15 @@ REPO: for my $repo (qw(minetest_game minetest)) {
     my $dir      = $root . $repo . '_' . $target;
     sy "git clone https://github.com/proller/$repo.git $dir";
     chdir $dir;
-    sy $_ for
-"git reset --hard",
-"git remote add upstream https://github.com/minetest/$repo.git",
-"git fetch upstream",
-"git checkout upstream/master",
-"git clean -ffd",
-"git branch -D $target",
-"git checkout -b $target",
-;
+    sy $_
+      for "git reset --hard",
+      "git remote add upstream https://github.com/minetest/$repo.git",
+      "git fetch upstream",
+      "git checkout upstream/master",
+      "git clean -ffd",
+      "git branch -D $target",
+      "git checkout -b $target",
+      ;
     my $error;
 
     for my $from (split /\n+/, $what->{$repo}{merge}) {
@@ -147,14 +150,14 @@ REPO: for my $repo (qw(minetest_game minetest)) {
 
     }
 
-
     for my $from (split /\n+/, $what->{$repo}{submodule}) {
         next if $from =~ /^(?:\s*#|$)/;
         $from =~ m{^\s*(?<dir>\S+)\s+(?<user>\S+)\s+(?<repo>\S+)\s+(?<branch>\S+)(\s+(?<comment>.+))?};
-        my $i = {%+, };
-	$i->{clone} = "https://github.com/$i->{user}/$i->{repo}.git";
+        my $i = {%+,};
+        $i->{branch} ||= 'master';
+        $i->{clone} = "https://github.com/$i->{user}/$i->{repo}.git";
 #dmp $i;
-	sy qq{
+        sy qq{
 cd $i->{dir}
 git submodule add -f $i->{clone} $i->{repo}
 cd $i->{repo}
@@ -170,10 +173,10 @@ cd ..
     }
     my $diff = qx{git diff --stat origin/next};
     unless ($what->{$repo}{push_no_diff}) {
-    unless ($diff) {
-        say "no changes";
-        goto UP;
-    }
+        unless ($diff) {
+            say "no changes";
+            goto UP;
+        }
     }
 
     say "changed $diff";
