@@ -215,7 +215,7 @@ index 2a7feaa,3002d5e..0000000
   minetest.registered_on_protection_violation, minetest.register_on_protection_violation = make_registration()
   
 diff --cc doc/lua_api.txt
-index e3f12f2,7b53c19..0000000
+index 4b69c41,7b53c19..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
 @@@ -1203,15 -1151,6 +1203,18 @@@ minetest.register_on_player_receive_fie
@@ -237,6 +237,33 @@ index e3f12f2,7b53c19..0000000
   minetest.register_on_protection_violation(func(pos, name))
   ^ Called by builtin and mods when a player violates protection at a position
     (eg, digs a node or punches a protected entity).
+@@@ -1564,23 -1498,6 +1567,26 @@@ minetest.is_protected(pos, name) -> boo
+  minetest.record_protection_violation(pos, name)
+  ^ This function calls functions registered with
+    minetest.register_on_protection_violation.
+++<<<<<<< HEAD
+ +minetest.rotate_and_place(itemstack, placer, pointed_thing, infinitestacks, orient_flags)
+ +^ Attempt to predict the desired orientation of the facedir-capable node
+ +  defined by itemstack, and place it accordingly (on-wall, on the floor, or
+ +  hanging from the ceiling). Stacks are handled normally if the infinitestacks
+ +  field is false or omitted (else, the itemstack is not changed). orient_flags
+ +  is an optional table containing extra tweaks to the placement code:
+ +  invert_wall:		if true, place wall-orientation on the ground and ground-
+ +					orientation on the wall.
+ +  force_wall:		if true, always place the node in wall orientation.
+ +  force_ceiling:	if true, always place on the ceiling.
+ +  force_floor:		if true, always place the node on the floor.
+ +
+ +  The above four options are mutually-exclusive; the last in the list takes
+ +  precedence over the first.
+ +
+ +  force_facedir:	if true, forcably reset the facedir to north when placing on
+ +					the floor or ceiling
+++=======
+++>>>>>>> ShadowNinja/protection_support
+  
+  Global objects:
+  minetest.env - EnvRef of the server environment and world.
 
 
 
@@ -393,10 +420,10 @@ index d38894b,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index e6b7345,5c52606..0000000
+index c2ca473,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -2099,11 -1998,9 +2099,17 @@@ Node definition (register_node
+@@@ -2116,11 -1998,9 +2116,17 @@@ Node definition (register_node
       <all fields allowed in item definitions>,
   
       drawtype = "normal", -- See "Node drawtypes"
