@@ -215,7 +215,7 @@ index 2a7feaa,3002d5e..0000000
   minetest.registered_on_protection_violation, minetest.register_on_protection_violation = make_registration()
   
 diff --cc doc/lua_api.txt
-index 4b69c41,7b53c19..0000000
+index 51464b6,7b53c19..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
 @@@ -1203,15 -1151,6 +1203,18 @@@ minetest.register_on_player_receive_fie
@@ -237,7 +237,7 @@ index 4b69c41,7b53c19..0000000
   minetest.register_on_protection_violation(func(pos, name))
   ^ Called by builtin and mods when a player violates protection at a position
     (eg, digs a node or punches a protected entity).
-@@@ -1564,23 -1498,6 +1567,26 @@@ minetest.is_protected(pos, name) -> boo
+@@@ -1564,28 -1498,6 +1567,31 @@@ minetest.is_protected(pos, name) -> boo
   minetest.record_protection_violation(pos, name)
   ^ This function calls functions registered with
     minetest.register_on_protection_violation.
@@ -259,6 +259,11 @@ index 4b69c41,7b53c19..0000000
  +
  +  force_facedir:	if true, forcably reset the facedir to north when placing on
  +					the floor or ceiling
+ +
+ +minetest.rotate_node(itemstack, placer, pointed_thing)
+ +^ calls rotate_and_place() with infinitestacks set according to the state of
+ +  the creative mode setting, and checks for "sneak" to set the invert_wall
+ +  parameter.
 ++=======
 ++>>>>>>> ShadowNinja/protection_support
   
@@ -420,10 +425,10 @@ index d38894b,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index c2ca473,5c52606..0000000
+index a90f3f2,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -2116,11 -1998,9 +2116,17 @@@ Node definition (register_node
+@@@ -2121,11 -1998,9 +2121,17 @@@ Node definition (register_node
       <all fields allowed in item definitions>,
   
       drawtype = "normal", -- See "Node drawtypes"
