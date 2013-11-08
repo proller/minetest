@@ -11,7 +11,6 @@ ok	minetest proller:math		https://github.com/minetest/minetest/pull/645
 ok	minetest proller:json		
 ok	minetest proller:weather		https://github.com/minetest/minetest/pull/892	
 ok	minetest proller:liquid_send		https://github.com/minetest/minetest/pull/895	
-fail	minetest proller:liquid_default	1	
 ok	minetest proller:huge_cave		
 ok	minetest proller:weather_fog		https://github.com/minetest/minetest/pull/899	
 ok	minetest proller:wingsuit		https://github.com/minetest/minetest/pull/897	
