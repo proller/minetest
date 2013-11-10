@@ -38,3 +38,4 @@ ok	minetest ShadowNinja:more_break_particles		https://github.com/minetest/minete
 ok	minetest ShadowNinja:fall_on_unknown		https://github.com/minetest/minetest/pull/942	
 fail	minetest Sokomine:master	1	https://github.com/minetest/minetest/pull/951	
 fail	minetest RealBadAngel:master	1	https://github.com/minetest/minetest/pull/967	
+ok	minetest 0gb-us:patch-6		https://github.com/minetest/minetest/pull/994	
