@@ -33,7 +33,6 @@ fail	minetest ShadowNinja:protection_support	1	https://github.com/minetest/minet
 ok	minetest sapier:fix_multiplayer_server_not_saved		https://github.com/minetest/minetest/pull/846	
 ok	minetest sapier:autoupdate_anim_speed		https://github.com/minetest/minetest/pull/774	
 ok	minetest sapier:add_surface_detection_function		https://github.com/minetest/minetest/pull/640	
-ok	minetest sfan5:minemovie		
 fail	minetest Jeija:rotateto	1	https://github.com/minetest/minetest/pull/651	
 ok	minetest ShadowNinja:more_break_particles		https://github.com/minetest/minetest/pull/943	
 ok	minetest ShadowNinja:fall_on_unknown		https://github.com/minetest/minetest/pull/942	
