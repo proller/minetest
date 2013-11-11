@@ -3,6 +3,43 @@
 
 
 !!!!!!!!!!!!!!!!!
+ Merge proller/weather_fog to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   minetest.conf.example
+#	modified:   src/defaultsettings.cpp
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/game.cpp
+#
+diff --cc src/game.cpp
+index fc49060,851f5dd..0000000
+--- a/src/game.cpp
++++ b/src/game.cpp
+@@@ -2864,7 -2863,7 +2864,11 @@@ void the_game
+  		else {
+  			fog_range = draw_control.wanted_range*BS + 0.0*MAP_BLOCKSIZE*BS;
+  			if(use_weather)
+++<<<<<<< HEAD
+ +				fog_range *= (1.5 - 1.4*(float)client.getEnv().getClientMap().getHumidity(pos_i, 1)/100);
+++=======
++ 				fog_range *= (1.5 - 1.4*(float)client.getEnv().getClientMap().getHumidity(pos_i)/100);
+++>>>>>>> proller/weather_fog
+  			fog_range = MYMIN(fog_range, (draw_control.farthest_drawn+20)*BS);
+  			fog_range *= 0.9;
+  		}
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge sapier/avoid_facedir_if_not_moving to next failed:
 
 # On branch next
