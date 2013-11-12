@@ -3,6 +3,54 @@
 
 
 !!!!!!!!!!!!!!!!!
+ Merge proller/liquid63 to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   builtin/misc_helpers.lua
+#	modified:   builtin/misc_register.lua
+#	modified:   doc/lua_api.txt
+#	modified:   games/minimal/mods/default/init.lua
+#	modified:   src/clientserver.h
+#	modified:   src/content_abm.cpp
+#	modified:   src/content_mapblock.cpp
+#	modified:   src/map.cpp
+#	modified:   src/mapnode.cpp
+#	modified:   src/mapnode.h
+#	modified:   src/nodedef.cpp
+#	modified:   src/nodedef.h
+#	modified:   src/script/common/c_content.cpp
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/guiFormSpecMenu.cpp
+#
+diff --cc src/guiFormSpecMenu.cpp
+index eecd2c1,e0ef55a..0000000
+--- a/src/guiFormSpecMenu.cpp
++++ b/src/guiFormSpecMenu.cpp
+@@@ -1657,7 -1652,7 +1657,11 @@@ void GUIFormSpecMenu::regenerateGui(v2u
+  			Environment->addButton(mydata.rect, this, 257, text);
+  			delete[] text;
+  		}
+++<<<<<<< HEAD
+ +
+++=======
++ 		changeCtype("C");
+++>>>>>>> proller/liquid63
+  	}
+  
+  	//set initial focus if parser didn't set it
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge sapier/avoid_facedir_if_not_moving to next failed:
 
 # On branch next
@@ -74,107 +122,14 @@ index 85ab8d3,92cabfb..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc builtin/misc_helpers.lua
-index 66b5432,0110062..0000000
+index 55c5798,0110062..0000000
 --- a/builtin/misc_helpers.lua
 +++ b/builtin/misc_helpers.lua
-@@@ -261,192 -261,6 +261,195 @@@ function tbl.splittext(text,charlimit
+@@@ -261,99 -261,6 +261,102 @@@ function tbl.splittext(text,charlimit
   	return retval
   end
   
 ++<<<<<<< HEAD
- +--------------------------------------------------------------------------------
- +
- +if minetest then
- +	local dirs1 = { 9, 18, 7, 12 }
- +	local dirs2 = { 20, 23, 22, 21 }
- +
- +	function minetest.rotate_and_place(itemstack, placer, pointed_thing, infinitestacks, orient_flags)
- +		orient_flags = orient_flags or {}
- +
- +		local node = minetest.get_node(pointed_thing.under)
- +		if not minetest.registered_nodes[node.name]
- +		   or not minetest.registered_nodes[node.name].on_rightclick then
- +
- +			local above = pointed_thing.above
- +			local under = pointed_thing.under
- +			local pitch = placer:get_look_pitch()
- +			local pname = minetest.get_node(under).name
- +			local node = minetest.get_node(above)
- +			local fdir = minetest.dir_to_facedir(placer:get_look_dir())
- +			local wield_name = itemstack:get_name()
- +			local reg_node = minetest.registered_nodes[pname]
- +
- +			if not reg_node or not reg_node.on_rightclick then
- +
- +				local iswall = (above.x ~= under.x) or (above.z ~= under.z)
- +				local isceiling = (above.x == under.x) and (above.z == under.z)
- +								  and (pitch > 0)
- +				local pos1 = above
- +
- +				if reg_node and reg_node.buildable_to then
- +					pos1 = under
- +					iswall = false
- +				end
- +
- +				reg_node = minetest.registered_nodes[minetest.get_node(pos1).name]
- +				if not reg_node or not reg_node.buildable_to then
- +					return
- +				end
- +
- +				if orient_flags.force_floor then
- +					iswall = false
- +					isceiling = false
- +				elseif orient_flags.force_ceiling then 
- +					iswall = false
- +					isceiling = true
- +				elseif orient_flags.force_wall then					
- +					iswall = true
- +					isceiling = false
- +				elseif orient_flags.invert_wall then
- +					iswall = not iswall
- +				end
- +
- +				if iswall then
- +					minetest.add_node(pos1, {name = wield_name, param2 = dirs1[fdir+1] })
- +				elseif isceiling then
- +					if orient_flags.force_facedir then
- +						minetest.add_node(pos1, {name = wield_name, param2 = 20 })
- +					else
- +						minetest.add_node(pos1, {name = wield_name, param2 = dirs2[fdir+1] })
- +					end
- +				else -- place right side up
- +					if orient_flags.force_facedir then
- +						minetest.add_node(pos1, {name = wield_name, param2 = 0 })
- +					else
- +						minetest.add_node(pos1, {name = wield_name, param2 = fdir })
- +					end
- +				end
- +
- +				if not infinitestacks then
- +					itemstack:take_item()
- +					return itemstack
- +				end
- +			end
- +		else
- +			minetest.registered_nodes[node.name].on_rightclick(pointed_thing.under, node, placer, itemstack)
- +		end
- +	end
- +
- +
- +--------------------------------------------------------------------------------
- +--Wrapper for rotate_and_place() to check for sneak and assume Creative mode
- +--implies infinite stacks when performing a 6d rotation.
- +--------------------------------------------------------------------------------
- +
- +
- +	minetest.rotate_node = function(itemstack, placer, pointed_thing)
- +		minetest.rotate_and_place(itemstack, placer, pointed_thing,
- +		minetest.setting_getbool("creative_mode"), 
- +		{invert_wall = placer:get_player_control().sneak})
- +		return itemstack
- +	end
- +end
- +
  +--------------------------------------------------------------------------------
  +
  +if minetest then
@@ -371,15 +326,18 @@ index 4b7f9a5,dbcbba5..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc src/guiFormSpecMenu.cpp
-index aa1e2d9,01630e0..0000000
+index eecd2c1,01630e0..0000000
 --- a/src/guiFormSpecMenu.cpp
 +++ b/src/guiFormSpecMenu.cpp
-@@@ -1661,6 -1599,20 +1661,23 @@@ void GUIFormSpecMenu::regenerateGui(v2u
+@@@ -1657,7 -1597,21 +1657,25 @@@ void GUIFormSpecMenu::regenerateGui(v2u
+  			Environment->addButton(mydata.rect, this, 257, text);
+  			delete[] text;
   		}
-  		changeCtype("C");
-  	}
 ++<<<<<<< HEAD
+ +
 ++=======
++ 		changeCtype("C");
++ 	}
 + 	// Add tooltip
 + 	{
 + 		// Note: parent != this so that the tooltip isn't clipped by the menu rectangle
@@ -393,11 +351,10 @@ index aa1e2d9,01630e0..0000000
 + 		m_tooltip_element->setWordWrap(false);
 + 		//we're not parent so no autograb for this one!
 + 		m_tooltip_element->grab();
-+ 	}
 ++>>>>>>> sapier/fix_crash_on_lua_exception
+  	}
   
   	//set initial focus if parser didn't set it
-  	focused_element = Environment->getFocus();
 
 
 
@@ -417,7 +374,7 @@ index aa1e2d9,01630e0..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc builtin/misc_register.lua
-index 2a7feaa,3002d5e..0000000
+index bb2c62a,3002d5e..0000000
 --- a/builtin/misc_register.lua
 +++ b/builtin/misc_register.lua
 @@@ -342,7 -327,5 +342,10 @@@ minetest.registered_on_joinplayers, min
@@ -432,7 +389,7 @@ index 2a7feaa,3002d5e..0000000
   minetest.registered_on_protection_violation, minetest.register_on_protection_violation = make_registration()
   
 diff --cc doc/lua_api.txt
-index 5e9adff,7b53c19..0000000
+index a8da6ac,7b53c19..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
 @@@ -1203,15 -1151,6 +1203,18 @@@ minetest.register_on_player_receive_fie
@@ -642,7 +599,7 @@ index d38894b,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index 303a514,5c52606..0000000
+index 95b152a,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
 @@@ -2121,11 -1998,9 +2121,17 @@@ Node definition (register_node
