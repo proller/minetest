@@ -3,6 +3,42 @@
 
 
 !!!!!!!!!!!!!!!!!
+ Merge proller/die to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   builtin/misc_register.lua
+#	modified:   src/server.cpp
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/game.cpp
+#
+diff --cc src/game.cpp
+index cca9697,8d5020b..0000000
+--- a/src/game.cpp
++++ b/src/game.cpp
+@@@ -2243,7 -2235,6 +2243,10 @@@ void the_game
+  							new GUIDeathScreen(guienv, guiroot, -1, 
+  								&g_menumgr, respawner);
+  					menu->drop();
+++<<<<<<< HEAD
+ +					}
+++=======
+++>>>>>>> proller/die
+  
+  					/* Handle visualization */
+  
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge sapier/avoid_facedir_if_not_moving to next failed:
 
 # On branch next
