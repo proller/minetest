@@ -3,42 +3,6 @@
 
 
 !!!!!!!!!!!!!!!!!
- Merge proller/die to next failed:
-
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   builtin/misc_register.lua
-#	modified:   src/server.cpp
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      src/game.cpp
-#
-diff --cc src/game.cpp
-index cca9697,8d5020b..0000000
---- a/src/game.cpp
-+++ b/src/game.cpp
-@@@ -2243,7 -2235,6 +2243,10 @@@ void the_game
-  							new GUIDeathScreen(guienv, guiroot, -1, 
-  								&g_menumgr, respawner);
-  					menu->drop();
-++<<<<<<< HEAD
- +					}
-++=======
-++>>>>>>> proller/die
-  
-  					/* Handle visualization */
-  
-
-
-
-
-!!!!!!!!!!!!!!!!!
  Merge sapier/avoid_facedir_if_not_moving to next failed:
 
 # On branch next
@@ -455,10 +419,10 @@ index eecd2c1,01630e0..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc builtin/misc_register.lua
-index 2a7feaa,3002d5e..0000000
+index 1e081e6,3002d5e..0000000
 --- a/builtin/misc_register.lua
 +++ b/builtin/misc_register.lua
-@@@ -342,7 -327,5 +342,10 @@@ minetest.registered_on_joinplayers, min
+@@@ -342,18 -327,5 +342,21 @@@ minetest.registered_on_joinplayers, min
   minetest.registered_on_leaveplayers, minetest.register_on_leaveplayer = make_registration()
   minetest.registered_on_player_receive_fields, minetest.register_on_player_receive_fields = make_registration_reverse()
   minetest.registered_on_cheats, minetest.register_on_cheat = make_registration()
@@ -469,6 +433,17 @@ index 2a7feaa,3002d5e..0000000
 ++>>>>>>> ShadowNinja/protection_support
   minetest.registered_on_protection_violation, minetest.register_on_protection_violation = make_registration()
   
+ +minetest.register_on_joinplayer(function(player)
+ +	if minetest.is_singleplayer() then return end
+ +	local player_name =  player:get_player_name()
+ +	minetest.chat_send_all("*** " .. player_name .. " joined the game.")
+ +end)
+ +
+ +minetest.register_on_dieplayer(function(player)
+ +	local player_name =  player:get_player_name()
+ +	if minetest.is_singleplayer() then player_name = "You" end
+ +	minetest.chat_send_all(player_name .. " died.")
+ +end)
 diff --cc doc/lua_api.txt
 index 5e9adff,7b53c19..0000000
 --- a/doc/lua_api.txt
