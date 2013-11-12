@@ -51,6 +51,44 @@ index eecd2c1,e0ef55a..0000000
 
 
 !!!!!!!!!!!!!!!!!
+ Merge proller/die to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   src/server.cpp
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/game.cpp
+#
+diff --cc src/game.cpp
+index e6ef7f9,888d92e..0000000
+--- a/src/game.cpp
++++ b/src/game.cpp
+@@@ -2243,8 -2235,8 +2243,13 @@@ void the_game
+  							new GUIDeathScreen(guienv, guiroot, -1, 
+  								&g_menumgr, respawner);
+  					menu->drop();
+++<<<<<<< HEAD
+ +					}
+ +					chat_backend.addMessage(L"", L"You died.");
+++=======
++ 					
++ 					//chat_backend.addMessage(L"", L"You died.");
+++>>>>>>> proller/die
+  
+  					/* Handle visualization */
+  
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge sapier/avoid_facedir_if_not_moving to next failed:
 
 # On branch next
