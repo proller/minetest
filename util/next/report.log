@@ -5,7 +5,7 @@ ok	minetest_game khonkhortisan:diagonal_rail		https://github.com/minetest/minete
 ok	minetest_game Novatux:furnace		https://github.com/minetest/minetest_game/pull/200	
 fail	minetest_game cyisfor:master	1	https://github.com/minetest/minetest_game/pull/207	
 ok	minetest proller:next_tools		
-ok	minetest proller:liquid63		https://github.com/minetest/minetest/pull/882	
+fail	minetest proller:liquid63	1	https://github.com/minetest/minetest/pull/882	
 ok	minetest proller:math		https://github.com/minetest/minetest/pull/645	
 ok	minetest proller:json		
 ok	minetest proller:weather		https://github.com/minetest/minetest/pull/892	
