@@ -15,7 +15,7 @@ ok	minetest proller:wingsuit		https://github.com/minetest/minetest/pull/897
 ok	minetest proller:collision		
 ok	minetest proller:light_ok		https://github.com/minetest/minetest/pull/931	
 ok	minetest proller:null		
-ok	minetest proller:die		
+ok	minetest proller:die		https://github.com/minetest/minetest/pull/999	
 fail	minetest sapier:avoid_facedir_if_not_moving	1	https://github.com/minetest/minetest/pull/879	
 fail	minetest sapier:modmgr_fixes	1	https://github.com/minetest/minetest/pull/884	
 ok	minetest Zeg9:slippery		https://github.com/minetest/minetest/pull/817	
@@ -37,3 +37,5 @@ ok	minetest ShadowNinja:more_break_particles		https://github.com/minetest/minete
 ok	minetest ShadowNinja:fall_on_unknown		https://github.com/minetest/minetest/pull/942	
 fail	minetest Sokomine:master	1	https://github.com/minetest/minetest/pull/951	
 fail	minetest RealBadAngel:master	1	https://github.com/minetest/minetest/pull/967	
+ok	minetest celeron55:duplifix		https://github.com/minetest/minetest/pull/1000	
+fail	minetest ShadowNinja:pcall_errfunc	1	https://github.com/minetest/minetest/pull/995	
