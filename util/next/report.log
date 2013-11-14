@@ -17,6 +17,7 @@ ok	minetest proller:light_ok		https://github.com/minetest/minetest/pull/931
 ok	minetest proller:null		
 ok	minetest proller:die		https://github.com/minetest/minetest/pull/999	
 ok	minetest proller:range		
+ok	minetest proller:make		
 fail	minetest sapier:avoid_facedir_if_not_moving	1	https://github.com/minetest/minetest/pull/879	
 fail	minetest sapier:modmgr_fixes	1	https://github.com/minetest/minetest/pull/884	
 ok	minetest Zeg9:slippery		https://github.com/minetest/minetest/pull/817	
