@@ -371,7 +371,7 @@ index 4b7f9a5,dbcbba5..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc src/guiFormSpecMenu.cpp
-index eecd2c1,01630e0..0000000
+index 2416e4c,01630e0..0000000
 --- a/src/guiFormSpecMenu.cpp
 +++ b/src/guiFormSpecMenu.cpp
 @@@ -1657,7 -1597,21 +1657,25 @@@ void GUIFormSpecMenu::regenerateGui(v2u
@@ -419,10 +419,10 @@ index eecd2c1,01630e0..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc builtin/misc_register.lua
-index 1e081e6,3002d5e..0000000
+index 479a339,3002d5e..0000000
 --- a/builtin/misc_register.lua
 +++ b/builtin/misc_register.lua
-@@@ -342,18 -327,5 +342,21 @@@ minetest.registered_on_joinplayers, min
+@@@ -342,22 -327,5 +342,25 @@@ minetest.registered_on_joinplayers, min
   minetest.registered_on_leaveplayers, minetest.register_on_leaveplayer = make_registration()
   minetest.registered_on_player_receive_fields, minetest.register_on_player_receive_fields = make_registration_reverse()
   minetest.registered_on_cheats, minetest.register_on_cheat = make_registration()
@@ -434,14 +434,18 @@ index 1e081e6,3002d5e..0000000
   minetest.registered_on_protection_violation, minetest.register_on_protection_violation = make_registration()
   
  +minetest.register_on_joinplayer(function(player)
- +	if minetest.is_singleplayer() then return end
+ +	if minetest.is_singleplayer() then
+ +		return
+ +	end
  +	local player_name =  player:get_player_name()
  +	minetest.chat_send_all("*** " .. player_name .. " joined the game.")
  +end)
  +
  +minetest.register_on_dieplayer(function(player)
  +	local player_name =  player:get_player_name()
- +	if minetest.is_singleplayer() then player_name = "You" end
+ +	if minetest.is_singleplayer() then
+ +		player_name = "You"
+ +	end
  +	minetest.chat_send_all(player_name .. " died.")
  +end)
 diff --cc doc/lua_api.txt
