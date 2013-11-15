@@ -298,7 +298,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("ipv6_server", "true");
 	settings->setDefault("max_users", "100");
 	settings->setDefault("server_map_save_interval", "60");
-	settings->setDefault("max_block_send_distance", "50");
+	settings->setDefault("max_block_send_distance", "30");
 }
 
 void override_default_settings(Settings *settings, Settings *from)
