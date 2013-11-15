@@ -291,7 +291,6 @@ void set_default_settings(Settings *settings)
 	// -next defaults
 	settings->setDefault("enable_vbo", "true");
 	settings->setDefault("viewing_range_nodes_max", "1000");
-	settings->setDefault("cloud_height", "300");
 	settings->setDefault("weather", "true");
 	settings->setDefault("mg_name", "indev");
 	settings->setDefault("liquid_finite", "true");
