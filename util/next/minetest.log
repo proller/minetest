@@ -449,7 +449,7 @@ index 479a339,3002d5e..0000000
  +	minetest.chat_send_all(player_name .. " died.")
  +end)
 diff --cc doc/lua_api.txt
-index 5e9adff,7b53c19..0000000
+index b5cb2cb,7b53c19..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
 @@@ -1203,15 -1151,6 +1203,18 @@@ minetest.register_on_player_receive_fie
@@ -659,7 +659,7 @@ index d38894b,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index 303a514,5c52606..0000000
+index bfa373c,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
 @@@ -2121,11 -1998,9 +2121,17 @@@ Node definition (register_node
