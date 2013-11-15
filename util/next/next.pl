@@ -8,6 +8,26 @@ no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 use utf8;
 use lib::abs;
 
+=no
+proller:liquid63			882
+proller:json
+proller:weather				892
+proller:liquid_send			895
+#proller:liquid_default
+proller:huge_cave
+#proller:weather_fog			899
+proller:wingsuit			897
+proller:collision
+proller:light_ok			931
+#proller:net				
+#proller:masterserver
+proller:null
+proller:die				999
+proller:range
+proller:make
+#proller:clouds				855
+=cut
+
 my $what = {
     minetest => {
         test      => 1,
@@ -15,24 +35,13 @@ my $what = {
 games	proller	minetest_game	next
 },
 
+
         merge => qq{
 proller:next_tools
 
-proller:liquid63			882
 proller:math				645
-proller:json
-proller:weather				892
-proller:liquid_send			895
-proller:liquid_default
-proller:huge_cave
-proller:weather_fog			899
-proller:wingsuit			897
-proller:collision
-proller:light_ok			931
-proller:net				
-#proller:masterserver
-proller:null
-#proller:clouds				855
+proller:dynamic
+
 sapier:avoid_facedir_if_not_moving	879
 sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
@@ -59,6 +68,8 @@ ShadowNinja:more_break_particles	943
 ShadowNinja:fall_on_unknown		942
 Sokomine:master				951
 RealBadAngel:master			967
+celeron55:duplifix			1000
+ShadowNinja:pcall_errfunc		995
 },
     },
 
