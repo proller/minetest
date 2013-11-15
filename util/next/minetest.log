@@ -732,49 +732,26 @@ index 35c86db,6b5ae8b..0000000
 # You have unmerged paths.
 #   (fix conflicts and run "git commit")
 #
-# Changes to be committed:
-#
-#	modified:   src/script/common/c_content.cpp
-#	modified:   src/script/common/c_internal.cpp
-#	modified:   src/script/common/c_internal.h
-#	modified:   src/script/common/c_types.cpp
-#	modified:   src/script/cpp_api/s_base.cpp
-#	modified:   src/script/cpp_api/s_base.h
-#	modified:   src/script/cpp_api/s_entity.cpp
-#	modified:   src/script/cpp_api/s_inventory.cpp
-#	modified:   src/script/cpp_api/s_item.cpp
-#	modified:   src/script/cpp_api/s_mainmenu.cpp
-#	modified:   src/script/cpp_api/s_node.cpp
-#	modified:   src/script/cpp_api/s_nodemeta.cpp
-#	modified:   src/script/cpp_api/s_server.cpp
-#	modified:   src/script/lua_api/l_base.h
-#	modified:   src/script/lua_api/l_craft.cpp
-#	modified:   src/script/lua_api/l_noise.cpp
-#	modified:   src/script/lua_api/l_rollback.cpp
-#	modified:   src/script/lua_api/l_server.cpp
-#
 # Unmerged paths:
 #   (use "git add <file>..." to mark resolution)
 #
 #	both modified:      src/script/lua_api/l_env.cpp
 #
+no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc src/script/lua_api/l_env.cpp
-index bd8e500,9bed23d..0000000
+index 59572ed,9bed23d..0000000
 --- a/src/script/lua_api/l_env.cpp
 +++ b/src/script/lua_api/l_env.cpp
-@@@ -73,9 -78,9 +78,15 @@@ void LuaABM::trigger(ServerEnvironment 
+@@@ -78,8 -78,7 +78,12 @@@ void LuaABM::trigger(ServerEnvironment 
   	pushnode(L, n, env->getGameDef()->ndef());
   	lua_pushnumber(L, active_object_count);
   	lua_pushnumber(L, active_object_count_wider);
 ++<<<<<<< HEAD
  +	pushnode(L, neighbor, env->getGameDef()->ndef());
- +	if(lua_pcall(L, 5, 0, 0))
- +		script_error(L, "error: %s", lua_tostring(L, -1));
+ +	if(lua_pcall(L, 5, 0, errorhandler))
 ++=======
 + 	if(lua_pcall(L, 4, 0, errorhandler))
-+ 		script_error(L);
-+ 	lua_pop(L, 1); // Pop error handler
 ++>>>>>>> ShadowNinja/pcall_errfunc
+  		script_error(L);
+  	lua_pop(L, 1); // Pop error handler
   }
-  
-  // Exported functions
