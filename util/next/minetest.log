@@ -738,7 +738,6 @@ index 35c86db,6b5ae8b..0000000
 #	modified:   src/script/common/c_internal.cpp
 #	modified:   src/script/common/c_internal.h
 #	modified:   src/script/common/c_types.cpp
-#	modified:   src/script/common/c_types.h
 #	modified:   src/script/cpp_api/s_base.cpp
 #	modified:   src/script/cpp_api/s_base.h
 #	modified:   src/script/cpp_api/s_entity.cpp
@@ -750,7 +749,6 @@ index 35c86db,6b5ae8b..0000000
 #	modified:   src/script/cpp_api/s_server.cpp
 #	modified:   src/script/lua_api/l_base.h
 #	modified:   src/script/lua_api/l_craft.cpp
-#	modified:   src/script/lua_api/l_item.cpp
 #	modified:   src/script/lua_api/l_noise.cpp
 #	modified:   src/script/lua_api/l_rollback.cpp
 #	modified:   src/script/lua_api/l_server.cpp
