@@ -68,9 +68,10 @@ RealBadAngel:master			967
 mods	proller	minetest-mod-weather-dynamic	master
 },
         merge => qq{
-proller:sponge			185
-proller:weather
-proller:liquid63
+proller:dynamic
+#proller:sponge			185
+#proller:weather
+#proller:liquid63
 #proller:mod-weather
 #Zeg9:wieldlight		188
 MirceaKitsune:moonflower	175
