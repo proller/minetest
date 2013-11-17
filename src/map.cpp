@@ -2863,32 +2863,23 @@ MapBlock* ServerMap::finishBlockMake(BlockMakeData *data,
 		Update weather data in blocks
 	*/
 	ServerEnvironment *senv = &((Server *)m_gamedef)->getEnv();
-	if (senv->m_use_weather) {
-		for(s16 x=blockpos_min.X-extra_borders.X;
-			x<=blockpos_max.X+extra_borders.X; x++)
-		for(s16 z=blockpos_min.Z-extra_borders.Z;
-			z<=blockpos_max.Z+extra_borders.Z; z++)
-		for(s16 y=blockpos_min.Y-extra_borders.Y;
-			y<=blockpos_max.Y+extra_borders.Y; y++)
-		{
-			v3s16 p(x, y, z);
-			MapBlock *block = getBlockNoCreateNoEx(p);
-			block->weather_update_time = 0;
-			updateBlockHeat(senv, p * MAP_BLOCKSIZE, NULL);
-			updateBlockHumidity(senv, p * MAP_BLOCKSIZE, NULL);
-		}
-	} else {
-		for(s16 x=blockpos_min.X-extra_borders.X;
-			x<=blockpos_max.X+extra_borders.X; x++)
-		for(s16 z=blockpos_min.Z-extra_borders.Z;
-			z<=blockpos_max.Z+extra_borders.Z; z++)
-		for(s16 y=blockpos_min.Y-extra_borders.Y;
-			y<=blockpos_max.Y+extra_borders.Y; y++)
-		{
-			MapBlock *block = getBlockNoCreateNoEx(v3s16(x, y, z));
+	for(s16 x=blockpos_min.X-extra_borders.X;
+		x<=blockpos_max.X+extra_borders.X; x++)
+	for(s16 z=blockpos_min.Z-extra_borders.Z;
+		z<=blockpos_max.Z+extra_borders.Z; z++)
+	for(s16 y=blockpos_min.Y-extra_borders.Y;
+		y<=blockpos_max.Y+extra_borders.Y; y++)
+	{
+		v3s16 p(x, y, z);
+		MapBlock *block = getBlockNoCreateNoEx(p);
+		block->heat_last_update     = 0;
+		block->humidity_last_update = 0;
+		if (senv->m_use_weather) {
+			updateBlockHeat(senv, p * MAP_BLOCKSIZE, block);
+			updateBlockHumidity(senv, p * MAP_BLOCKSIZE, block);
+		} else {
 			block->heat     = HEAT_UNDEFINED;
 			block->humidity = HUMIDITY_UNDEFINED;
-			block->weather_update_time = 0;
 		}
 	}
 	
@@ -3210,6 +3201,22 @@ MapBlock * ServerMap::emergeBlock(v3s16 p, bool create_blank)
 	}*/
 
 	return NULL;
+}
+
+void ServerMap::prepareBlock(MapBlock *block) {
+	ServerEnvironment *senv = &((Server *)m_gamedef)->getEnv();
+
+	// Calculate weather conditions
+	block->heat_last_update     = 0;
+	block->humidity_last_update = 0;
+	if (senv->m_use_weather) {
+		v3s16 p = block->getPos() *  MAP_BLOCKSIZE;
+		updateBlockHeat(senv, p, block);
+		updateBlockHumidity(senv, p, block);
+	} else {
+		block->heat     = HEAT_UNDEFINED;
+		block->humidity = HUMIDITY_UNDEFINED;
+	}
 }
 
 s16 ServerMap::findGroundLevel(v2s16 p2d)
@@ -3961,7 +3968,7 @@ s16 ServerMap::updateBlockHeat(ServerEnvironment *env, v3s16 p, MapBlock *block)
 	u32 gametime = env->getGameTime();
 	
 	if (block) {
-		if (gametime - block->weather_update_time < 10)
+		if (gametime - block->heat_last_update < 10)
 			return block->heat;
 	} else {
 		block = getBlockNoCreateNoEx(getNodeBlockPos(p));
@@ -3972,7 +3979,7 @@ s16 ServerMap::updateBlockHeat(ServerEnvironment *env, v3s16 p, MapBlock *block)
 
 	if(block) {
 		block->heat = heat;
-		block->weather_update_time = gametime;
+		block->heat_last_update = gametime;
 	}
 	return heat;
 }
@@ -3982,7 +3989,7 @@ s16 ServerMap::updateBlockHumidity(ServerEnvironment *env, v3s16 p, MapBlock *bl
 	u32 gametime = env->getGameTime();
 	
 	if (block) {
-		if (gametime - block->weather_update_time < 10)
+		if (gametime - block->humidity_last_update < 10)
 			return block->humidity;
 	} else {
 		block = getBlockNoCreateNoEx(getNodeBlockPos(p));
@@ -3993,7 +4000,7 @@ s16 ServerMap::updateBlockHumidity(ServerEnvironment *env, v3s16 p, MapBlock *bl
 			
 	if(block) {
 		block->humidity = humidity;
-		block->weather_update_time = gametime;
+		block->humidity_last_update = gametime;
 	}
 	return humidity;
 }
