@@ -394,10 +394,10 @@ index 4b7f9a5,dbcbba5..0000000
 #	both modified:      src/map.cpp
 #
 diff --cc src/map.cpp
-index 34b3e9a,42e9ce9..0000000
+index b39038b,42e9ce9..0000000
 --- a/src/map.cpp
 +++ b/src/map.cpp
-@@@ -3237,63 -3073,123 +3237,78 @@@ MapBlock * ServerMap::emergeBlock(v3s1
+@@@ -3243,63 -3073,123 +3243,78 @@@ MapBlock * ServerMap::emergeBlock(v3s1
   	return NULL;
   }
   
