@@ -69,7 +69,6 @@ ShadowNinja:fall_on_unknown		942
 Sokomine:master				951
 RealBadAngel:master			967
 celeron55:duplifix			1000
-ShadowNinja:pcall_errfunc		995
 },
     },
 
