@@ -71,6 +71,7 @@ index 85ab8d3,92cabfb..0000000
 #   (use "git add <file>..." to mark resolution)
 #
 #	both modified:      builtin/misc_helpers.lua
+#	both modified:      builtin/modmgr.lua
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc builtin/misc_helpers.lua
@@ -273,6 +274,22 @@ index 66b5432,0110062..0000000
   --------------------------------------------------------------------------------
   -- mainmenu only functions
   --------------------------------------------------------------------------------
+diff --cc builtin/modmgr.lua
+index 611032d,04f19ec..0000000
+--- a/builtin/modmgr.lua
++++ b/builtin/modmgr.lua
+@@@ -267,7 -267,7 +267,11 @@@ function modmgr.tab(
+  		end
+  		
+  		retval = retval 
+++<<<<<<< HEAD
+ +				.. "image[5.5,0;3,2;" .. engine.formspec_escape(modscreenshot) .. "]"
+++=======
++ 				.. "image[5.5,0;3,2;" .. modscreenshot .. "]"
+++>>>>>>> sapier/modmgr_fixes
+  				.. "label[8.25,0.6;" .. selected_mod.name .. "]"
+  				
+  		local descriptionlines = nil
 
 
 
