@@ -358,6 +358,209 @@ index 4b7f9a5,dbcbba5..0000000
 
 
 !!!!!!!!!!!!!!!!!
+ Merge sweetbomber/spawn to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   minetest.conf.example
+#	modified:   src/defaultsettings.cpp
+#	modified:   src/map.h
+#	modified:   src/server.cpp
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      src/map.cpp
+#
+diff --cc src/map.cpp
+index 34b3e9a,42e9ce9..0000000
+--- a/src/map.cpp
++++ b/src/map.cpp
+@@@ -3237,63 -3073,123 +3237,78 @@@ MapBlock * ServerMap::emergeBlock(v3s1
+  	return NULL;
+  }
+  
+++<<<<<<< HEAD
+ +void ServerMap::prepareBlock(MapBlock *block) {
+ +	ServerEnvironment *senv = &((Server *)m_gamedef)->getEnv();
+ +
+ +	// Calculate weather conditions
+ +	//block->heat_last_update     = 0;
+ +	//block->humidity_last_update = 0;
+ +	v3s16 p = block->getPos() *  MAP_BLOCKSIZE;
+ +	updateBlockHeat(senv, p, block);
+ +	updateBlockHumidity(senv, p, block);
+ +}
+ +
+ +s16 ServerMap::findGroundLevel(v2s16 p2d)
+ +{
+ +#if 0
+ +	/*
+ +		Uh, just do something random...
+++=======
++ /**
++ 		Get the ground level by searching for a non CONTENT_AIR node in a column from top to bottom
+ -*/
+++>>>>>>> sweetbomber/spawn
+ +	*/
+- 	// Find existing map from top to down
+- 	s16 max=63;
+- 	s16 min=-64;
+- 	v3s16 p(p2d.X, max, p2d.Y);
+- 	for(; p.Y>min; p.Y--)
+- 	{
+- 		MapNode n = getNodeNoEx(p);
+- 		if(n.getContent() != CONTENT_IGNORE)
+- 			break;
+- 	}
+- 	if(p.Y == min)
+- 		goto plan_b;
+- 	// If this node is not air, go to plan b
+- 	if(getNodeNoEx(p).getContent() != CONTENT_AIR)
+- 		goto plan_b;
+- 	// Search existing walkable and return it
+- 	for(; p.Y>min; p.Y--)
++ s16 ServerMap::findGroundLevel(v2s16 p2d, bool cacheBlocks)
+ -{
+ +	{
+- 		MapNode n = getNodeNoEx(p);
+- 		if(content_walkable(n.d) && n.getContent() != CONTENT_IGNORE)
+- 			return p.Y;
++ 	
++ 	s16 level;
++ 
++ 	// The reference height is the original mapgen height
++ 	s16 referenceHeight = m_emerge->getGroundLevelAtPoint(p2d);
++ 	s16 maxSearchHeight =  63 + referenceHeight;
++ 	s16 minSearchHeight = -63 + referenceHeight;
++ 	v3s16 probePosition(p2d.X, maxSearchHeight, p2d.Y);
++ 	v3s16 blockPosition = getNodeBlockPos(probePosition);
++ 	v3s16 prevBlockPosition = blockPosition;
++ 
++ 	// Cache the block to be inspected.
++ 	if(cacheBlocks) {
++ 		emergeBlock(blockPosition, true);
+  	}
+  
+- 	// Move to plan b
+- plan_b:
+- #endif
++ 	// Probes the nodes in the given column
++ 	for(; probePosition.Y > minSearchHeight; probePosition.Y--)
++ 	{
++ 		if(cacheBlocks) {
++ 			// Calculate the block position of the given node
++ 			blockPosition = getNodeBlockPos(probePosition); 
+  
+- 	/*
+- 		Determine from map generator noise functions
+- 	*/
++ 			// If the node is in an different block, cache it
++ 			if(blockPosition != prevBlockPosition) {
++ 				emergeBlock(blockPosition, true);
++ 				prevBlockPosition = blockPosition;
++ 			}
++ 		}
+  
+- 	s16 level = m_emerge->getGroundLevelAtPoint(p2d);
+- 	return level;
++ 		MapNode node = getNodeNoEx(probePosition);
++ 		if(node.getContent() != CONTENT_IGNORE && node.getContent() != CONTENT_AIR)
++ 			break;
++ 	}
+  
+- 	//double level = base_rock_level_2d(m_seed, p2d) + AVERAGE_MUD_AMOUNT;
+- 	//return (s16)level;
++ 	// Could not determine the ground. Use map generator noise functions.
++ 	if(probePosition.Y == minSearchHeight) {
++ 		level = referenceHeight; 
++ 	}
++ 	else {
++ 		level = probePosition.Y;
++ 	}
++ 
++ 	return level;
+  }
+  
+ -void ServerMap::createDatabase() {
+ -	int e;
+ -	assert(m_database);
+ -	e = sqlite3_exec(m_database,
+ -		"CREATE TABLE IF NOT EXISTS `blocks` ("
+ -			"`pos` INT NOT NULL PRIMARY KEY,"
+ -			"`data` BLOB"
+ -		");"
+ -	, NULL, NULL, NULL);
+ -	if(e == SQLITE_ABORT)
+ -		throw FileNotGoodException("Could not create database structure");
+ -	else
+ -		infostream<<"ServerMap: Database structure was created";
+ -}
+ -
+ -void ServerMap::verifyDatabase() {
+ -	if(m_database)
+ -		return;
+ -
+ -	{
+ -		std::string dbp = m_savedir + DIR_DELIM + "map.sqlite";
+ -		bool needs_create = false;
+ -		int d;
+ -
+ -		/*
+ -			Open the database connection
+ -		*/
+ -
+ -		createDirs(m_savedir);
+ -
+ -		if(!fs::PathExists(dbp))
+ -			needs_create = true;
+ -
+ -		d = sqlite3_open_v2(dbp.c_str(), &m_database, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+ -		if(d != SQLITE_OK) {
+ -			infostream<<"WARNING: Database failed to open: "<<sqlite3_errmsg(m_database)<<std::endl;
+ -			throw FileNotGoodException("Cannot open database file");
+ -		}
+ -
+ -		if(needs_create)
+ -			createDatabase();
+ -
+ -		d = sqlite3_prepare(m_database, "SELECT `data` FROM `blocks` WHERE `pos`=? LIMIT 1", -1, &m_database_read, NULL);
+ -		if(d != SQLITE_OK) {
+ -			infostream<<"WARNING: Database read statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
+ -			throw FileNotGoodException("Cannot prepare read statement");
+ -		}
+ -
+ -		d = sqlite3_prepare(m_database, "REPLACE INTO `blocks` VALUES(?, ?)", -1, &m_database_write, NULL);
+ -		if(d != SQLITE_OK) {
+ -			infostream<<"WARNING: Database write statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
+ -			throw FileNotGoodException("Cannot prepare write statement");
+ -		}
+ -
+ -		d = sqlite3_prepare(m_database, "SELECT `pos` FROM `blocks`", -1, &m_database_list, NULL);
+ -		if(d != SQLITE_OK) {
+ -			infostream<<"WARNING: Database list statment failed to prepare: "<<sqlite3_errmsg(m_database)<<std::endl;
+ -			throw FileNotGoodException("Cannot prepare read statement");
+ -		}
+ -
+ -		infostream<<"ServerMap: Database opened"<<std::endl;
+ -	}
+ -}
+ -
+  bool ServerMap::loadFromFolders() {
+ -	if(!m_database && !fs::PathExists(m_savedir + DIR_DELIM + "map.sqlite"))
+ +	if(!dbase->Initialized() && !fs::PathExists(m_savedir + DIR_DELIM + "map.sqlite")) // ?
+  		return true;
+  	return false;
+  }
+
+
+
+
+!!!!!!!!!!!!!!!!!
  Merge sapier/fix_crash_on_lua_exception to next failed:
 
 # On branch next
@@ -449,7 +652,7 @@ index 479a339,3002d5e..0000000
  +	minetest.chat_send_all(player_name .. " died.")
  +end)
 diff --cc doc/lua_api.txt
-index b5cb2cb,7b53c19..0000000
+index d66aff1,7b53c19..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
 @@@ -1203,15 -1151,6 +1203,18 @@@ minetest.register_on_player_receive_fie
@@ -659,10 +862,10 @@ index d38894b,4bd6a23..0000000
 #
 no changes added to commit (use "git add" and/or "git commit -a")
 diff --cc doc/lua_api.txt
-index bfa373c,5c52606..0000000
+index 6829364,5c52606..0000000
 --- a/doc/lua_api.txt
 +++ b/doc/lua_api.txt
-@@@ -2121,11 -1998,9 +2121,17 @@@ Node definition (register_node
+@@@ -2122,11 -1998,9 +2122,17 @@@ Node definition (register_node
       <all fields allowed in item definitions>,
   
       drawtype = "normal", -- See "Node drawtypes"
@@ -680,78 +883,3 @@ index bfa373c,5c52606..0000000
       tiles = {tile definition 1, def2, def3, def4, def5, def6},
       ^ Textures of node; +Y, -Y, +X, -X, +Z, -Z (old field name: tile_images)
       ^ List can be shortened to needed length
-
-
-
-
-!!!!!!!!!!!!!!!!!
- Merge RealBadAngel/master to next failed:
-
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Changes to be committed:
-#
-#	modified:   src/sky.cpp
-#	new file:   textures/base/pack/moon.png
-#	new file:   textures/base/pack/moon_tonemap.png
-#	new file:   textures/base/pack/sun.png
-#	new file:   textures/base/pack/sun_tonemap.png
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      src/sky.h
-#
-diff --cc src/sky.h
-index 35c86db,6b5ae8b..0000000
---- a/src/sky.h
-+++ b/src/sky.h
-@@@ -114,7 -78,8 +114,12 @@@ private
-  	v3f m_stars[SKY_STAR_COUNT];
-  	u16 m_star_indices[SKY_STAR_COUNT*4];
-  	video::S3DVertex m_star_vertices[SKY_STAR_COUNT*4];
-++<<<<<<< HEAD
- +	LocalPlayer* m_player;
-++=======
-+ 	video::ITexture* m_sun_tonemap;
-+ 	video::ITexture* m_moon_tonemap;
-++>>>>>>> RealBadAngel/master
-  };
-  
-  #endif
-
-
-
-
-!!!!!!!!!!!!!!!!!
- Merge ShadowNinja/pcall_errfunc to next failed:
-
-# On branch next
-# You have unmerged paths.
-#   (fix conflicts and run "git commit")
-#
-# Unmerged paths:
-#   (use "git add <file>..." to mark resolution)
-#
-#	both modified:      src/script/lua_api/l_env.cpp
-#
-no changes added to commit (use "git add" and/or "git commit -a")
-diff --cc src/script/lua_api/l_env.cpp
-index 59572ed,9bed23d..0000000
---- a/src/script/lua_api/l_env.cpp
-+++ b/src/script/lua_api/l_env.cpp
-@@@ -78,8 -78,7 +78,12 @@@ void LuaABM::trigger(ServerEnvironment 
-  	pushnode(L, n, env->getGameDef()->ndef());
-  	lua_pushnumber(L, active_object_count);
-  	lua_pushnumber(L, active_object_count_wider);
-++<<<<<<< HEAD
- +	pushnode(L, neighbor, env->getGameDef()->ndef());
- +	if(lua_pcall(L, 5, 0, errorhandler))
-++=======
-+ 	if(lua_pcall(L, 4, 0, errorhandler))
-++>>>>>>> ShadowNinja/pcall_errfunc
-  		script_error(L);
-  	lua_pop(L, 1); // Pop error handler
-  }
