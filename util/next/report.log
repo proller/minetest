@@ -1,4 +1,4 @@
-fail	minetest_game proller:dynamic	1	
+ok	minetest_game proller:dynamic		
 ok	minetest_game MirceaKitsune:moonflower		https://github.com/minetest/minetest_game/pull/175	
 ok	minetest_game khonkhortisan:diagonal_rail		https://github.com/minetest/minetest_game/pull/135	
 ok	minetest_game Novatux:furnace		https://github.com/minetest/minetest_game/pull/200	
