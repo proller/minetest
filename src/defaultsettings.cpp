@@ -291,9 +291,10 @@ void set_default_settings(Settings *settings)
 	// -next defaults
 	settings->setDefault("enable_vbo", "true");
 	settings->setDefault("viewing_range_nodes_max", "1000");
-	settings->setDefault("weather", "true");
 	settings->setDefault("mg_name", "indev");
+	settings->setDefault("mg_flags", "trees, caves, v6_biome_blend, v6_jungles, dungeons");
 	settings->setDefault("liquid_finite", "true");
+	settings->setDefault("weather", "true");
 	settings->setDefault("ipv6_server", "true");
 	settings->setDefault("max_users", "100");
 	settings->setDefault("server_map_save_interval", "60");
