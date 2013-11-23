@@ -1845,9 +1845,9 @@ void Map::transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks)
 						++liquid_levels_want[ii];
 						--total_level;
 					}
-				} else if (neighbors[ii].l > 0){
-						++liquid_levels_want[ii];
-						--total_level;
+				} else {
+					++liquid_levels_want[ii];
+					--total_level;
 				}
 			}
 		}
