@@ -419,3 +419,106 @@ index d38894b,4bd6a23..0000000
   	}
   
   	if(send_recommended == false)
+
+
+
+
+!!!!!!!!!!!!!!!!!
+ Merge RealBadAngel/master to next failed:
+
+# On branch next
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	modified:   builtin/mainmenu.lua
+#	renamed:    client/shaders/bumpmaps_liquids/base.txt -> client/shaders/alpha_shader/base.txt
+#	new file:   client/shaders/alpha_shader/opengl_fragment.glsl
+#	new file:   client/shaders/alpha_shader/opengl_vertex.glsl
+#	deleted:    client/shaders/bumpmaps_liquids/opengl_fragment.glsl
+#	deleted:    client/shaders/bumpmaps_liquids/opengl_vertex.glsl
+#	deleted:    client/shaders/bumpmaps_solids/opengl_fragment.glsl
+#	deleted:    client/shaders/bumpmaps_solids/opengl_vertex.glsl
+#	renamed:    client/shaders/bumpmaps_solids/base.txt -> client/shaders/leaves_shader/base.txt
+#	new file:   client/shaders/leaves_shader/opengl_fragment.glsl
+#	new file:   client/shaders/leaves_shader/opengl_vertex.glsl
+#	renamed:    client/shaders/test_shader_2/base.txt -> client/shaders/liquids_shader/base.txt
+#	new file:   client/shaders/liquids_shader/opengl_fragment.glsl
+#	renamed:    client/shaders/test_shader_1/base.txt -> client/shaders/plants_shader/base.txt
+#	new file:   client/shaders/plants_shader/opengl_fragment.glsl
+#	renamed:    client/shaders/test_shader_1/opengl_vertex.glsl -> client/shaders/plants_shader/opengl_vertex.glsl
+#	new file:   client/shaders/solids_shader/base.txt
+#	new file:   client/shaders/solids_shader/opengl_fragment.glsl
+#	new file:   client/shaders/solids_shader/opengl_vertex.glsl
+#	deleted:    client/shaders/test_shader_1/opengl_fragment.glsl
+#	deleted:    client/shaders/test_shader_2/opengl_fragment.glsl
+#	deleted:    client/shaders/test_shader_2/opengl_vertex.glsl
+#	deleted:    client/shaders/test_shader_3/base.txt
+#	deleted:    client/shaders/test_shader_3/opengl_fragment.glsl
+#	deleted:    client/shaders/test_shader_3/opengl_vertex.glsl
+#	modified:   src/defaultsettings.cpp
+#	modified:   src/game.cpp
+#	modified:   src/mapblock_mesh.cpp
+#	modified:   src/nodedef.cpp
+#	modified:   src/nodedef.h
+#	modified:   src/script/common/c_content.cpp
+#	modified:   src/tile.h
+#	new file:   textures/base/pack/disable_img.png
+#	new file:   textures/base/pack/enable_img.png
+#
+# Unmerged paths:
+#   (use "git add <file>..." to mark resolution)
+#
+#	both modified:      client/shaders/liquids_shader/opengl_vertex.glsl
+#
+diff --cc client/shaders/liquids_shader/opengl_vertex.glsl
+index 6e00edb,3ba81e3..0000000
+--- a/client/shaders/liquids_shader/opengl_vertex.glsl
++++ b/client/shaders/liquids_shader/opengl_vertex.glsl
+@@@ -8,8 -18,16 +18,16 @@@ varying vec3 eyeVec
+  
+  void main(void)
+  {
++ 	if (enableWavingWater == 1.0){
++ 		vec4 pos2 = gl_Vertex;
++ 		pos2.y -= 2.0;
++ 		pos2.y -= sin (pos2.z/waterWaveLength + timeOfDay * waterWaveSpeed * waterWaveLength) * waterWaveHeight
++ 			+ sin ((pos2.z/waterWaveLength + timeOfDay * waterWaveSpeed * waterWaveLength) / 7.0) * waterWaveHeight;
++ 		gl_Position = mWorldViewProj * pos2;
++ 	} else
+ -		gl_Position = mWorldViewProj * gl_Vertex;
+ +	gl_Position = mWorldViewProj * gl_Vertex;
+  
++ 	eyeVec = (gl_ModelViewMatrix * gl_Vertex).xyz;
+  	vPosition = (mWorldViewProj * gl_Vertex).xyz;
+  
+  	vec4 color;
+@@@ -39,21 -57,9 +57,27 @@@
+  	// See C++ implementation in mapblock_mesh.cpp finalColorBlend()
+  	rg += max(0.0, (1.0 - abs(rg - 0.85)/0.15) * 0.065);
+  
+++<<<<<<< HEAD:client/shaders/test_shader_1/opengl_vertex.glsl
+ +	color.r = rg;
+ +	color.g = rg;
+ +	color.b = b;
+ +
+ +	// Make sides and bottom darker than the top
+ +	color = color * color; // SRGB -> Linear
+ +	if(gl_Normal.y <= 0.5)
+ +		color *= 0.6;
+ +		//color *= 0.7;
+ +	// Also make sides not facing the sun / moon darker
+ +	if(gl_Normal.z <= -0.5 || gl_Normal.z >= 0.5)
+ +		color *= 0.6;
+ +
+ +	color = sqrt(color); // Linear -> SRGB
+ +
+++=======
++ 	color.r = clamp(rg,0.0,1.0);
++ 	color.g = clamp(rg,0.0,1.0);
++ 	color.b = clamp(b,0.0,1.0);
+++>>>>>>> RealBadAngel/master:client/shaders/liquids_shader/opengl_vertex.glsl
+  	color.a = gl_Color.a;
+  
+  	gl_FrontColor = gl_BackColor = color;
