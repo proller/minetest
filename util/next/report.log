@@ -18,6 +18,6 @@ ok	minetest sapier:autoupdate_anim_speed		https://github.com/minetest/minetest/p
 ok	minetest sapier:add_surface_detection_function		https://github.com/minetest/minetest/pull/640	
 fail	minetest Jeija:rotateto	1	https://github.com/minetest/minetest/pull/651	
 ok	minetest ShadowNinja:more_break_particles		https://github.com/minetest/minetest/pull/943	
-ok	minetest RealBadAngel:master		https://github.com/minetest/minetest/pull/967	
+fail	minetest RealBadAngel:master	1	https://github.com/minetest/minetest/pull/967	
 ok	minetest celeron55:duplifix		https://github.com/minetest/minetest/pull/1000	
 ok	minetest sfan5:tab_playerlist		https://github.com/minetest/minetest/pull/958	
