@@ -5,7 +5,7 @@ ok	minetest_game Novatux:furnace		https://github.com/minetest/minetest_game/pull
 fail	minetest_game cyisfor:master	1	https://github.com/minetest/minetest_game/pull/207	
 ok	minetest proller:next_tools		
 ok	minetest proller:math		https://github.com/minetest/minetest/pull/645	
-ok	minetest proller:dynamic		
+ok	minetest proller:dynamic		https://github.com/minetest/minetest/pull/1010	
 ok	minetest Zeg9:slippery		https://github.com/minetest/minetest/pull/817	
 ok	minetest MirceaKitsune:sun_moon_coloring		https://github.com/minetest/minetest/pull/799	
 ok	minetest khonkhortisan:diagonal_rail		https://github.com/minetest/minetest/pull/528	
@@ -20,4 +20,4 @@ fail	minetest Jeija:rotateto	1	https://github.com/minetest/minetest/pull/651
 ok	minetest ShadowNinja:more_break_particles		https://github.com/minetest/minetest/pull/943	
 fail	minetest RealBadAngel:master	1	https://github.com/minetest/minetest/pull/967	
 ok	minetest celeron55:duplifix		https://github.com/minetest/minetest/pull/1000	
-ok	minetest sfan5:tab_playerlist		https://github.com/minetest/minetest/pull/958	
+ok	minetest sfan5:tab_playerlist2		https://github.com/minetest/minetest/pull/958	
