@@ -40,10 +40,8 @@ games	proller	minetest_game	next
 proller:next_tools
 
 proller:math				645
-proller:dynamic
+proller:dynamic				1010
 
-sapier:avoid_facedir_if_not_moving	879
-sapier:modmgr_fixes			884
 #ShadowNinja:bind_address		862 #crash on connect
 Zeg9:slippery				817
 #Zeg9:wieldlight				816 #no light range BUG
@@ -53,11 +51,7 @@ Novatux:forceload			606
 PilzAdam:vbo
 sweetbomber:spawn			744
 MirceaKitsune:brighter_sun_faces	772
-sapier:fix_crash_on_lua_exception	890
-sapier:lua_show_backtrace_on_error	891
-sapier:fix_anaglyph_mode_selectionbox_not_beeing_honored	893
 #WilliamBundy:jump_fix			866
-ShadowNinja:protection_support		856
 sapier:fix_multiplayer_server_not_saved	846
 sapier:autoupdate_anim_speed		774
 sapier:add_surface_detection_function	640
@@ -65,10 +59,8 @@ sapier:add_surface_detection_function	640
 #sfan5:minemovie			
 Jeija:rotateto				651
 ShadowNinja:more_break_particles	943
-ShadowNinja:fall_on_unknown		942
-Sokomine:master				951
 RealBadAngel:master			967
-celeron55:duplifix			1000
+sfan5:tab_playerlist2			958
 },
     },
 
