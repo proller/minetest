@@ -382,7 +382,7 @@ void Decoration::placeCutoffs(Mapgen *mg, u32 blockseed, v3s16 nmin, v3s16 nmax)
 void DecoSimple::resolveNodeNames(INodeDefManager *ndef) {
 	Decoration::resolveNodeNames(ndef);
 	
-	if (c_deco == CONTENT_IGNORE) {
+	if (c_deco == CONTENT_IGNORE && !decolist_names.size()) {
 		c_deco = ndef->getId(deco_name);
 		if (c_deco == CONTENT_IGNORE) {
 			errorstream << "DecoSimple::resolveNodeNames: decoration node '"
@@ -394,7 +394,7 @@ void DecoSimple::resolveNodeNames(INodeDefManager *ndef) {
 		c_spawnby = ndef->getId(spawnby_name);
 		if (c_spawnby == CONTENT_IGNORE) {
 			errorstream << "DecoSimple::resolveNodeNames: spawnby node '"
-				<< deco_name << "' not defined" << std::endl;
+				<< spawnby_name << "' not defined" << std::endl;
 			nspawnby = -1;
 			c_spawnby = CONTENT_AIR;
 		}
@@ -1000,6 +1000,22 @@ void Mapgen::calcLighting(v3s16 nmin, v3s16 nmax) {
 				if (block_is_underground)
 					continue;
 			} else if ((vm->m_data[i].param1 & 0x0F) != LIGHT_SUN) {
+				u32 ii = 0;
+				if (
+				(x < a.MaxEdge.X && (ii = vm->m_area.index(x + 1, a.MaxEdge.Y + 1, z    )) &&
+				(vm->m_data[ii].getContent() != CONTENT_IGNORE) &&
+				((vm->m_data[ii].param1 & 0x0F) == LIGHT_SUN))||
+				(x > a.MinEdge.X && (ii = vm->m_area.index(x - 1, a.MaxEdge.Y + 1, z    )) &&
+				(vm->m_data[ii].getContent() != CONTENT_IGNORE) &&
+				((vm->m_data[ii].param1 & 0x0F) == LIGHT_SUN))||
+				(z > a.MinEdge.Z && (ii = vm->m_area.index(x    , a.MaxEdge.Y + 1, z - 1)) &&
+				(vm->m_data[ii].getContent() != CONTENT_IGNORE) &&
+				((vm->m_data[ii].param1 & 0x0F) == LIGHT_SUN))||
+				(z < a.MaxEdge.Z && (ii = vm->m_area.index(x    , a.MaxEdge.Y + 1, z + 1)) &&
+				(vm->m_data[ii].getContent() != CONTENT_IGNORE) &&
+				((vm->m_data[ii].param1 & 0x0F) == LIGHT_SUN))
+				) {
+				} else
 				continue;
 			}
 			vm->m_area.add_y(em, i, -1);

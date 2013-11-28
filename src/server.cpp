@@ -230,7 +230,7 @@ void RemoteClient::GetNextBlocks(Server *server, float dtime,
 			<<m_nearest_unsent_reset_timer<<std::endl;*/
 
 	// Reset periodically to workaround for some bugs or stuff
-	if(m_nearest_unsent_reset_timer > 20.0)
+	if(m_nearest_unsent_reset_timer > 60.0)
 	{
 		m_nearest_unsent_reset_timer = 0;
 		m_nearest_unsent_d = 0;
@@ -291,6 +291,8 @@ void RemoteClient::GetNextBlocks(Server *server, float dtime,
 	s32 nearest_sent_d = -1;
 	bool queue_is_full = false;
 
+	f32 speed_in_blocks = (playerspeed/(MAP_BLOCKSIZE*BS)).getLength();
+
 	s16 d;
 	for(d = d_start; d <= d_max; d++)
 	{
@@ -310,12 +312,36 @@ void RemoteClient::GetNextBlocks(Server *server, float dtime,
 			last_nearest_unsent_d = m_nearest_unsent_d;
 		}*/
 
+		std::list<v3s16> list;
+		bool can_skip = true;
+		// Fast fall/move optimize. speed_in_blocks now limited to 6.4
+		if (speed_in_blocks>0.8 && d <= 2) {
+			can_skip = false;
+			if (d == 0) {
+				for(s16 addn = 0; addn < (speed_in_blocks+1)*2; ++addn)
+					list.push_back(floatToInt(playerspeeddir*addn, 1));
+			} else if (d == 1) {
+				for(s16 addn = 0; addn < (speed_in_blocks+1)*1.5; ++addn) {
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 0,  0,  1)); // back
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( -1, 0,  0)); // left
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 1,  0,  0)); // right
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 0,  0, -1)); // front
+				}
+			} else if (d == 2) {
+				for(s16 addn = 0; addn < (speed_in_blocks+1)*1.5; ++addn) {
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( -1, 0,  1)); // back left
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 1,  0,  1)); // left right
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( -1, 0, -1)); // right left
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 1,  0, -1)); // front right
+				}
+			}
+		} else {
 		/*
 			Get the border/face dot coordinates of a "d-radiused"
 			box
 		*/
-		std::list<v3s16> list;
-		getFacePositions(list, d);
+			getFacePositions(list, d);
+		}
 
 		std::list<v3s16>::iterator li;
 		for(li=list.begin(); li!=list.end(); ++li)
@@ -368,8 +394,8 @@ void RemoteClient::GetNextBlocks(Server *server, float dtime,
 					generate = false;*/
 
 				// Limit the send area vertically to 1/2
-				if(abs(p.Y - center.Y) > d_max / 2)
-					continue;
+				if(can_skip && abs(p.Y - center.Y) > d_max / 2)
+					generate = false;
 			}
 
 #if 0
@@ -413,7 +439,7 @@ void RemoteClient::GetNextBlocks(Server *server, float dtime,
 			*/
 
 			float camera_fov = (72.0*M_PI/180) * 4./3.;
-			if(isBlockInSight(p, camera_pos, camera_dir, camera_fov, 10000*BS) == false)
+			if(can_skip && isBlockInSight(p, camera_pos, camera_dir, camera_fov, 10000*BS) == false)
 			{
 				continue;
 			}
@@ -624,8 +650,9 @@ void RemoteClient::SetBlockNotSent(v3s16 p)
 		m_blocks_sent.erase(p);
 }
 
-void RemoteClient::SetBlocksNotSent(std::map<v3s16, MapBlock*> &blocks)
+void RemoteClient::SetBlocksNotSent(std::map<v3s16, MapBlock*> &blocks, bool no_d_reset)
 {
+	if (!no_d_reset && blocks.size())
 	m_nearest_unsent_d = 0;
 
 	for(std::map<v3s16, MapBlock*>::iterator
@@ -996,6 +1023,8 @@ void Server::start(unsigned short port)
 	<<"      \\/        \\/     \\/          \\/     \\/        "<<std::endl;
 	actionstream<<"World at ["<<m_path_world<<"]"<<std::endl;
 	actionstream<<"Server for gameid=\""<<m_gamespec.id
+			<<"\" mapgen=\""<<m_emerge->params->mg_name
+			<<"\" version=\""<<minetest_version_hash
 			<<"\" listening on port "<<port<<"."<<std::endl;
 }
 
@@ -2184,20 +2213,6 @@ void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
 		{
 			// Send information about server to player in chat
 			SendChatMessage(peer_id, getStatusString());
-
-			// Send information about joining in chat
-			{
-				std::wstring name = L"unknown";
-				Player *player = m_env->getPlayer(peer_id);
-				if(player != NULL)
-					name = narrow_to_wide(player->getName());
-
-				std::wstring message;
-				message += L"*** ";
-				message += name;
-				message += L" joined the game.";
-				BroadcastChatMessage(message);
-			}
 		}
 
 		// Warnings about protocol version can be issued here
@@ -5473,17 +5488,20 @@ void dedicated_server_loop(Server &server, bool &kill)
 
 	IntervalLimiter m_profiler_interval;
 
+	float steplen = g_settings->getFloat("dedicated_server_step");
 	for(;;)
 	{
-		float steplen = g_settings->getFloat("dedicated_server_step");
 		// This is kind of a hack but can be done like this
 		// because server.step() is very light
 		{
 			ScopeProfiler sp(g_profiler, "dedicated server sleep");
 			sleep_ms((int)(steplen*1000.0));
 		}
+		try {
 		server.step(steplen);
-
+		} catch (...){
+			errorstream<<"Fatal error"<<std::endl;
+		}
 		if(server.getShutdownRequested() || kill)
 		{
 			infostream<<"Dedicated server quitting"<<std::endl;

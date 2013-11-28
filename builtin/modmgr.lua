@@ -241,7 +241,8 @@ function modmgr.tab()
 
 	retval = retval ..
 		"label[0.8,4.2;" .. fgettext("Add mod:") .. "]" .. 
-		"button[0.75,4.85;1.8,0.5;btn_mod_mgr_install_local;".. fgettext("Local install") .. "]" ..
+--		TODO Disabled due to upcoming release 0.4.8 and irrlicht messing up localization
+--		"button[0.75,4.85;1.8,0.5;btn_mod_mgr_install_local;".. fgettext("Local install") .. "]" ..
 		"button[2.45,4.85;3.05,0.5;btn_mod_mgr_download;".. fgettext("Online mod repository") .. "]"
 		
 	local selected_mod = nil
@@ -267,7 +268,7 @@ function modmgr.tab()
 		end
 		
 		retval = retval 
-				.. "image[5.5,0;3,2;" .. modscreenshot .. "]"
+				.. "image[5.5,0;3,2;" .. engine.formspec_escape(modscreenshot) .. "]"
 				.. "label[8.25,0.6;" .. selected_mod.name .. "]"
 				
 		local descriptionlines = nil
@@ -318,7 +319,7 @@ end
 --------------------------------------------------------------------------------
 function modmgr.dialog_rename_modpack()
 
-	local mod = filterlist.get_list(modmgr.modlist)[modmgr.selected_mod]
+	local mod = filterlist.get_list(modmgr.global_mods)[modmgr.selected_mod]
 	
 	local retval = 
 		"label[1.75,1;".. fgettext("Rename Modpack:") .. "]"..
@@ -672,10 +673,13 @@ end
 function modmgr.handle_rename_modpack_buttons(fields)
 	
 	if fields["dlg_rename_modpack_confirm"] ~= nil then
-		local mod = filterlist.get_list(modmgr.modlist)[modmgr.selected_mod]
+		local mod = filterlist.get_list(modmgr.global_mods)[modmgr.selected_mod]
 		local oldpath = engine.get_modpath() .. DIR_DELIM .. mod.name
 		local targetpath = engine.get_modpath() .. DIR_DELIM .. fields["te_modpack_name"]
 		engine.copy_dir(oldpath,targetpath,false)
+		modmgr.refresh_globals()
+		modmgr.selected_mod = filterlist.get_current_index(modmgr.global_mods,
+			filterlist.raw_index_by_uid(modmgr.global_mods, fields["te_modpack_name"]))
 	end
 	
 	return {
@@ -778,7 +782,7 @@ function modmgr.handle_configure_world_buttons(fields)
 		end
 		
 		if not worldfile:write() then
-			print("failed to write world config file")
+			engine.log("error", "Failed to write world config file")
 		end
 		
 		modmgr.modlist = nil
@@ -932,7 +936,7 @@ function modmgr.preparemodlist(data)
 			if element ~= nil then
 				element.enabled = engine.is_yes(value)
 			else
-				print("Mod: " .. key .. " " .. dump(value) .. " but not found")
+				engine.log("info", "Mod: " .. key .. " " .. dump(value) .. " but not found")
 			end
 		end
 	end

@@ -334,7 +334,7 @@ ContentFeatures read_content_features(lua_State *L, int index)
 			// removes value, keeps key for next iteration
 			lua_pop(L, 1);
 			i++;
-			if(i==6){
+			if(i==CF_SPECIAL_COUNT){
 				lua_pop(L, 1);
 				break;
 			}
@@ -404,8 +404,7 @@ ContentFeatures read_content_features(lua_State *L, int index)
 	// the slowest possible
 	f.liquid_viscosity = getintfield_default(L, index,
 			"liquid_viscosity", f.liquid_viscosity);
-	f.liquid_range = getintfield_default(L, index,
-			"liquid_range", f.liquid_range);
+
 	f.leveled = getintfield_default(L, index, "leveled", f.leveled);
 
 	getboolfield(L, index, "liquid_renewable", f.liquid_renewable);
@@ -871,6 +870,8 @@ void read_groups(lua_State *L, int index,
 /******************************************************************************/
 void push_items(lua_State *L, const std::vector<ItemStack> &items)
 {
+	lua_pushcfunction(L, script_error_handler);
+	int errorhandler = lua_gettop(L);
 	// Get the table insert function
 	lua_getglobal(L, "table");
 	lua_getfield(L, -1, "insert");
@@ -883,11 +884,12 @@ void push_items(lua_State *L, const std::vector<ItemStack> &items)
 		lua_pushvalue(L, table_insert);
 		lua_pushvalue(L, table);
 		LuaItemStack::create(L, item);
-		if(lua_pcall(L, 2, 0, 0))
-			script_error(L, "error: %s", lua_tostring(L, -1));
+		if(lua_pcall(L, 2, 0, errorhandler))
+			script_error(L);
 	}
-	lua_remove(L, -2); // Remove table
 	lua_remove(L, -2); // Remove insert
+	lua_remove(L, -2); // Remove table
+	lua_remove(L, -2); // Remove error handler
 }
 
 /******************************************************************************/

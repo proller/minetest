@@ -88,6 +88,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("vsync", "false");
 	settings->setDefault("address", "");
 	settings->setDefault("random_input", "false");
+	settings->setDefault("respawn_auto", "false");
 	settings->setDefault("client_unload_unused_data_timeout", "600");
 	settings->setDefault("enable_fog", "true");
 	settings->setDefault("fov", "72");
@@ -108,7 +109,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("view_bobbing_amount", "1.0");
 	settings->setDefault("fall_bobbing_amount", "0.0");
 	settings->setDefault("enable_3d_clouds", "true");
-	settings->setDefault("cloud_height", "120");
+	settings->setDefault("cloud_height", "300");
 	settings->setDefault("menu_clouds", "true");
 	settings->setDefault("opaque_water", "false");
 	settings->setDefault("console_color", "(0,0,0)");
@@ -224,7 +225,6 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("liquid_send", "1.0");
 	settings->setDefault("liquid_relax", "2");
 	settings->setDefault("liquid_fast_flood", "1");
-	settings->setDefault("underground_springs", "1");
 	settings->setDefault("weather", "false");
 
 	//mapgen stuff
@@ -261,7 +261,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("mgindev_np_terrain_higher", "20,   16,  (500, 500, 500), 85039, 5, 0.6,  10,  10");
 	settings->setDefault("mgindev_np_steepness",      "0.85, 0.5, (125, 125, 125), -932,  5, 0.7,  2,   10");
 	settings->setDefault("mgindev_np_mud",            "4,    2,   (200, 200, 200), 91013, 3, 0.55, 1,   1");
-	settings->setDefault("mgindev_np_float_islands1", "0,    1,   (64,  64,  64 ), 3683,  5, 0.5,  1,   1.5");
+	settings->setDefault("mgindev_np_float_islands1", "0,    1,   (256, 256, 256), 3683,  6, 0.6,  1,   1.5");
 	settings->setDefault("mgindev_np_float_islands2", "0,    1,   (8,   8,   8  ), 9292,  2, 0.5,  1,   1.5");
 	settings->setDefault("mgindev_np_float_islands3", "0,    1,   (256, 256, 256), 6412,  2, 0.5,  1,   0.5");
 	settings->setDefault("mgindev_np_biome",          "0,    1,   (250, 250, 250), 9130,  3, 0.50, 1,   10");

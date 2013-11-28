@@ -85,6 +85,8 @@
 #address = 
 # Enable random user input, for testing
 #random_input = false
+# Disable death screen, respawn automaticaly
+#respawn_auto = false
 # Timeout for client to remove unused map data from memory
 #client_unload_unused_data_timeout = 600
 # Whether to fog out the end of the visible area
@@ -105,8 +107,6 @@
 # Optimization: faster cave flood (and not true constant)
 #  (for finite liquids)
 #liquid_fast_flood = 1
-# Underground water and lava springs, its infnity sources if liquid_finite enabled
-#underground_springs = 1
 # Enable weather (cold-hot, water freeze-melt). use only with liquid_finite=1
 #weather = false
 # Enable nice leaves; disable for speed
@@ -129,7 +129,7 @@
 #invert_mouse = false
 # Enable/disable clouds
 #enable_clouds = true
-#cloud_height = 120
+#cloud_height = 300
 #enable_3d_clouds = true
 # Use a cloud animation for the main menu background
 #menu_clouds = true

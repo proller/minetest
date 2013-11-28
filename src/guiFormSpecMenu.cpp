@@ -1629,7 +1629,6 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 
 
 	std::vector<std::string> elements = split(m_formspec_string,']');
-
 	for (unsigned int i=0;i< elements.size();i++) {
 		parseElement(&mydata,elements[i]);
 	}
@@ -1648,7 +1647,6 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 		recalculateAbsolutePosition(false);
 		mydata.basepos = getBasePos();
 
-		changeCtype("");
 		{
 			v2s32 pos = mydata.basepos;
 			pos.Y = ((m_fields.size()+2)*60);
@@ -1659,7 +1657,7 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 			Environment->addButton(mydata.rect, this, 257, text);
 			delete[] text;
 		}
-		changeCtype("C");
+
 	}
 
 	//set initial focus if parser didn't set it
@@ -1877,8 +1875,8 @@ void GUIFormSpecMenu::drawMenu()
 				core::dimension2d<s32> absrec_size = AbsoluteRect.getSize();
 				rect = core::rect<s32>(AbsoluteRect.UpperLeftCorner.X - spec.pos.X,
 									AbsoluteRect.UpperLeftCorner.Y - spec.pos.Y,
-									AbsoluteRect.UpperLeftCorner.X + absrec_size.Width + spec.pos.X*2,
-									AbsoluteRect.UpperLeftCorner.Y + absrec_size.Height + spec.pos.Y*2);
+									AbsoluteRect.UpperLeftCorner.X + absrec_size.Width + spec.pos.X,
+									AbsoluteRect.UpperLeftCorner.Y + absrec_size.Height + spec.pos.Y);
 			}
 
 			const video::SColor color(255,255,255,255);
@@ -2299,12 +2297,7 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 
 			switch (event.KeyInput.Key) {
 				case KEY_RETURN:
-					if (m_allowclose) {
-						acceptInput(true);
-						quitMenu();
-					}
-					else
-						current_keys_pending.key_enter = true;
+					current_keys_pending.key_enter = true;
 					break;
 				case KEY_UP:
 					current_keys_pending.key_up = true;
@@ -2318,7 +2311,13 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 					assert("reached a source line that can't ever been reached" == 0);
 					break;
 			}
-			acceptInput();
+			if (current_keys_pending.key_enter && m_allowclose) {
+				acceptInput(true);
+				quitMenu();
+			}
+			else {
+				acceptInput();
+			}
 			return true;
 		}
 

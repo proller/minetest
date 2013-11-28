@@ -170,7 +170,9 @@ endif()
 
 find_package(Sqlite3 REQUIRED)
 find_package(Json REQUIRED)
-find_package(OpenGLES2)
+if(BUILD_CLIENT)
+	find_package(OpenGLES2)
+endif()
 
 if(USE_FREETYPE)
 	find_package(Freetype REQUIRED)
@@ -306,6 +308,7 @@ set(common_SRCS
 	serverlist.cpp
 	pathfinder.cpp
 	convert_json.cpp
+	gettext.cpp
 	${JTHREAD_SRCS}
 	${common_SCRIPT_SRCS}
 	${UTIL_SRCS}
