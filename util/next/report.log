@@ -19,5 +19,4 @@ ok	minetest sapier:add_surface_detection_function		https://github.com/minetest/m
 fail	minetest Jeija:rotateto	1	https://github.com/minetest/minetest/pull/651	
 ok	minetest ShadowNinja:more_break_particles		https://github.com/minetest/minetest/pull/943	
 fail	minetest RealBadAngel:master	1	https://github.com/minetest/minetest/pull/967	
-ok	minetest celeron55:duplifix		https://github.com/minetest/minetest/pull/1000	
 ok	minetest sfan5:tab_playerlist2		https://github.com/minetest/minetest/pull/958	
