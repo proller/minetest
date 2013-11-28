@@ -457,6 +457,7 @@ index d38894b,4bd6a23..0000000
 #	deleted:    client/shaders/test_shader_3/base.txt
 #	deleted:    client/shaders/test_shader_3/opengl_fragment.glsl
 #	deleted:    client/shaders/test_shader_3/opengl_vertex.glsl
+#	modified:   minetest.conf.example
 #	modified:   src/defaultsettings.cpp
 #	modified:   src/game.cpp
 #	modified:   src/mapblock_mesh.cpp
@@ -473,7 +474,7 @@ index d38894b,4bd6a23..0000000
 #	both modified:      client/shaders/liquids_shader/opengl_vertex.glsl
 #
 diff --cc client/shaders/liquids_shader/opengl_vertex.glsl
-index 6e00edb,3ba81e3..0000000
+index 6e00edb,8ceb9f2..0000000
 --- a/client/shaders/liquids_shader/opengl_vertex.glsl
 +++ b/client/shaders/liquids_shader/opengl_vertex.glsl
 @@@ -8,8 -18,16 +18,16 @@@ varying vec3 eyeVec
@@ -483,8 +484,8 @@ index 6e00edb,3ba81e3..0000000
 + 	if (enableWavingWater == 1.0){
 + 		vec4 pos2 = gl_Vertex;
 + 		pos2.y -= 2.0;
-+ 		pos2.y -= sin (pos2.z/waterWaveLength + timeOfDay * waterWaveSpeed * waterWaveLength) * waterWaveHeight
-+ 			+ sin ((pos2.z/waterWaveLength + timeOfDay * waterWaveSpeed * waterWaveLength) / 7.0) * waterWaveHeight;
++ 		pos2.y -= sin (pos2.z/waterWaveLength + animationTimer * waterWaveSpeed * waterWaveLength) * waterWaveHeight
++ 			+ sin ((pos2.z/waterWaveLength + animationTimer * waterWaveSpeed * waterWaveLength) / 7.0) * waterWaveHeight;
 + 		gl_Position = mWorldViewProj * pos2;
 + 	} else
  -		gl_Position = mWorldViewProj * gl_Vertex;
