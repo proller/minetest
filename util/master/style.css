@@ -29,7 +29,7 @@ td:hover .mts_hover_list {
 	text-decoration-style: dashed;
 }
 
-.a {
+.clickable {
 	text-decoration: underline;
-        cursor: pointer;
+	cursor: pointer;
 }
