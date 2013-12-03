@@ -48,6 +48,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "util/serialize.h"
 #include "config.h"
 #include "util/directiontables.h"
+#include "version.h"
 
 #if USE_CURL
 #include <curl/curl.h>
@@ -81,7 +82,6 @@ QueuedMeshUpdate::~QueuedMeshUpdate()
 	
 MeshUpdateQueue::MeshUpdateQueue()
 {
-	m_mutex.Init();
 }
 
 MeshUpdateQueue::~MeshUpdateQueue()
@@ -245,6 +245,7 @@ void * MediaFetchThread::Thread()
 		std::ostringstream stream;
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_data);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &stream);
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, (std::string("Minetest ")+minetest_version_hash).c_str());
 		res = curl_easy_perform(curl);
 		if (res == CURLE_OK) {
 			std::string data = stream.str();
@@ -472,7 +473,7 @@ void Client::step(float dtime)
 
 			core::list<v3s16> deleted_blocks;
 
-			float delete_unused_sectors_timeout = 
+			float delete_unused_sectors_timeout =
 				g_settings->getFloat("client_delete_unused_sectors_timeout");
 	
 			// Delete sector blocks
@@ -1260,7 +1261,13 @@ void Client::ProcessData(u8 *data, u32 datasize, u16 sender_peer_id)
 		MapNode n;
 		n.deSerialize(&data[8], ser_version);
 		
-		addNode(p, n);
+		bool remove_metadata = true;
+		u32 index = 8 + MapNode::serializedLength(ser_version);
+		if ((datasize >= index+1) && data[index]){
+			remove_metadata = false;
+		}
+		
+		addNode(p, n, remove_metadata);
 	}
 	else if(command == TOCLIENT_BLOCKDATA)
 	{
@@ -2118,7 +2125,7 @@ void Client::ProcessData(u8 *data, u32 datasize, u16 sender_peer_id)
 		m_client_event_queue.push_back(event);
 	}
 	else if(command == TOCLIENT_HUDCHANGE)
-	{	
+	{
 		std::string sdata;
 		v2f v2fdata;
 		u32 intdata = 0;
@@ -2147,7 +2154,7 @@ void Client::ProcessData(u8 *data, u32 datasize, u16 sender_peer_id)
 		m_client_event_queue.push_back(event);
 	}
 	else if(command == TOCLIENT_HUD_SET_FLAGS)
-	{	
+	{
 		std::string datastring((char *)&data[2], datasize - 2);
 		std::istringstream is(datastring, std::ios_base::binary);
 
@@ -2256,7 +2263,7 @@ void Client::sendNodemetaFields(v3s16 p, const std::string &formname,
 	Send(0, data, true);
 }
 	
-void Client::sendInventoryFields(const std::string &formname, 
+void Client::sendInventoryFields(const std::string &formname,
 		const std::map<std::string, std::string> &fields)
 {
 	std::ostringstream os(std::ios_base::binary);
@@ -2460,7 +2467,7 @@ void Client::sendPlayerPos()
 	writeV3S32(&data[2], position);
 	writeV3S32(&data[2+12], speed);
 	writeS32(&data[2+12+12], pitch);
-	writeS32(&data[2+12+12+4], yaw);	
+	writeS32(&data[2+12+12+4], yaw);
 	writeU32(&data[2+12+12+4+4], keyPressed);
 	// Send as unreliable
 	Send(0, data, false);
@@ -2512,7 +2519,7 @@ void Client::removeNode(v3s16 p)
 	}
 }
 
-void Client::addNode(v3s16 p, MapNode n)
+void Client::addNode(v3s16 p, MapNode n, bool remove_metadata)
 {
 	TimeTaker timer1("Client::addNode()");
 
@@ -2521,7 +2528,7 @@ void Client::addNode(v3s16 p, MapNode n)
 	try
 	{
 		//TimeTaker timer3("Client::addNode(): addNodeAndUpdate");
-		m_env.getMap().addNodeAndUpdate(p, n, modified_blocks);
+		m_env.getMap().addNodeAndUpdate(p, n, modified_blocks, remove_metadata);
 	}
 	catch(InvalidPositionException &e)
 	{}

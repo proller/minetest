@@ -33,7 +33,7 @@
 JThread::JThread()
 {
 	retval = NULL;
-	mutexinit = false;
+	requeststop = false;
 	running = false;
 }
 
@@ -42,58 +42,45 @@ JThread::~JThread()
 	Kill();
 }
 
+void JThread::Stop() {
+	runningmutex.Lock();
+	requeststop = true;
+	runningmutex.Unlock();
+}
+
 int JThread::Start()
 {
 	int status;
 
-	if (!mutexinit)
-	{
-		if (!runningmutex.IsInitialized())
-		{
-			if (runningmutex.Init() < 0)
-				return ERR_JTHREAD_CANTINITMUTEX;
-		}
-		if (!continuemutex.IsInitialized())
-		{
-			if (continuemutex.Init() < 0)
-				return ERR_JTHREAD_CANTINITMUTEX;
-		}
-		if (!continuemutex2.IsInitialized())
-		{
-			if (continuemutex2.Init() < 0)
-				return ERR_JTHREAD_CANTINITMUTEX;
-		}
-		mutexinit = true;
-	}
-	
 	runningmutex.Lock();
 	if (running)
 	{
 		runningmutex.Unlock();
 		return ERR_JTHREAD_ALREADYRUNNING;
 	}
+	requeststop = false;
 	runningmutex.Unlock();
-	
+
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED);
-	
+
 	continuemutex.Lock();
-	status = pthread_create(&threadid,&attr,TheThread,this);	
+	status = pthread_create(&threadid,&attr,TheThread,this);
 	pthread_attr_destroy(&attr);
 	if (status != 0)
 	{
 		continuemutex.Unlock();
 		return ERR_JTHREAD_CANTSTARTTHREAD;
 	}
-	
+
 	/* Wait until 'running' is set */
-	
-	runningmutex.Lock();			
+
+	runningmutex.Lock();
 	while (!running)
 	{
 		runningmutex.Unlock();
-		
+
 		struct timespec req,rem;
 
 		req.tv_sec = 0;
@@ -103,9 +90,9 @@ int JThread::Start()
 		runningmutex.Lock();
 	}
 	runningmutex.Unlock();
-	
+
 	continuemutex.Unlock();
-	
+
 	continuemutex2.Lock();
 	continuemutex2.Unlock();
 	return 0;
@@ -113,7 +100,7 @@ int JThread::Start()
 
 int JThread::Kill()
 {
-	runningmutex.Lock();			
+	runningmutex.Lock();
 	if (!running)
 	{
 		runningmutex.Unlock();
@@ -128,9 +115,18 @@ int JThread::Kill()
 bool JThread::IsRunning()
 {
 	bool r;
-	
-	runningmutex.Lock();			
+
+	runningmutex.Lock();
 	r = running;
+	runningmutex.Unlock();
+	return r;
+}
+
+bool JThread::StopRequested() {
+	bool r;
+
+	runningmutex.Lock();
+	r = requeststop;
 	runningmutex.Unlock();
 	return r;
 }
@@ -138,7 +134,7 @@ bool JThread::IsRunning()
 void *JThread::GetReturnValue()
 {
 	void *val;
-	
+
 	runningmutex.Lock();
 	if (running)
 		val = NULL;
@@ -157,17 +153,17 @@ void *JThread::TheThread(void *param)
 {
 	JThread *jthread;
 	void *ret;
-	
+
 	jthread = (JThread *)param;
-	
+
 	jthread->continuemutex2.Lock();
 	jthread->runningmutex.Lock();
 	jthread->running = true;
 	jthread->runningmutex.Unlock();
-	
+
 	jthread->continuemutex.Lock();
 	jthread->continuemutex.Unlock();
-	
+
 	ret = jthread->Thread();
 
 	jthread->runningmutex.Lock();

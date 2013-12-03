@@ -22,8 +22,7 @@
 # Client and server
 #
 
-# Network port (UDP)
-#port = 
+
 # Name of player; on a server this is the main admin
 #name = 
 
@@ -31,6 +30,8 @@
 # Client stuff
 #
 
+# Port to connect to (UDP)
+#remote_port = 
 # Key mappings
 # See http://irrlicht.sourceforge.net/docu/namespaceirr.html#a54da2a0e231901735e3da1b0edf72eb3
 #keymap_forward = KEY_KEY_W
@@ -94,7 +95,7 @@
 # Constant volume liquids
 #liquid_finite = false
 # Max liquids processed per step
-#liquid_loop_max = 1000
+#liquid_loop_max = 10000
 # Update liquids every .. recommend for finite: 0.2
 #liquid_update = 1.0
 # Relax flowing blocks to source if level near max and N nearby
@@ -198,7 +199,8 @@
 #
 # Server stuff
 #
-
+# Network port to listen (UDP)
+#port = 
 # Name of server
 #server_name = Minetest server
 # Description of server
