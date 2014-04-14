@@ -1,20 +1,23 @@
 /*
-Minetest
+guiEngine.cpp
 Copyright (C) 2013 sapier
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "guiEngine.h"
@@ -56,7 +59,7 @@ void TextDestGuiEngine::gotText(std::map<std::string, std::string> fields)
 /******************************************************************************/
 void TextDestGuiEngine::gotText(std::wstring text)
 {
-	m_engine->getScriptIface()->handleMainMenuEvent(wide_to_narrow(text));
+	m_engine->getScriptIface()->handleMainMenuEvent(wide_to_utf8(text));
 }
 
 /******************************************************************************/
@@ -159,10 +162,10 @@ GUIEngine::GUIEngine(	irr::IrrlichtDevice* dev,
 	//create topleft header
 	core::rect<s32> rect(0, 0, 500, 20);
 	rect += v2s32(4, 0);
-	std::string t = std::string("Minetest ") + minetest_version_hash;
+	std::string t = std::string("Freeminer ") + minetest_version_hash;
 
 	m_irr_toplefttext =
-		m_device->getGUIEnvironment()->addStaticText(narrow_to_wide(t).c_str(),
+		m_device->getGUIEnvironment()->addStaticText(utf8_to_wide(t).c_str(),
 		rect,false,true,0,-1);
 
 	//create formspecsource
@@ -276,8 +279,8 @@ void GUIEngine::run()
 		else
 			drawBackground(driver);
 
-		drawHeader(driver);
-		drawFooter(driver);
+		//drawHeader(driver);
+		//drawFooter(driver);
 
 		m_device->getGUIEnvironment()->drawAll();
 
@@ -543,14 +546,14 @@ bool GUIEngine::downloadFile(std::string url,std::string target) {
 
 /******************************************************************************/
 void GUIEngine::setTopleftText(std::string append) {
-	std::string toset = std::string("Minetest ") + minetest_version_hash;
+	std::string toset = std::string("Freeminer ") + minetest_version_hash;
 
 	if (append != "") {
 		toset += " / ";
 		toset += append;
 	}
 
-	m_irr_toplefttext->setText(narrow_to_wide(toset).c_str());
+	m_irr_toplefttext->setText(utf8_to_wide(toset).c_str());
 }
 
 /******************************************************************************/

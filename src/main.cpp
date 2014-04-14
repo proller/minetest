@@ -1,20 +1,23 @@
 /*
-Minetest
+main.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifdef NDEBUG
@@ -34,9 +37,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SERVER // Dedicated server isn't linked with Irrlicht
 	#pragma comment(lib, "Irrlicht.lib")
 	// This would get rid of the console window
-	//#pragma comment(linker, "/subsystem:windows /ENTRY:mainCRTStartup")
+	#pragma comment(linker, "/subsystem:windows /ENTRY:mainCRTStartup")
 #endif
-	#pragma comment(lib, "zlibwapi.lib")
+	//#pragma comment(lib, "zlibwapi.lib")
 	#pragma comment(lib, "Shell32.lib")
 #endif
 
@@ -69,9 +72,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "profiler.h"
 #include "log.h"
 #include "mods.h"
-#if USE_FREETYPE
 #include "xCGUITTFont.h"
-#endif
 #include "util/string.h"
 #include "subgame.h"
 #include "quicktune.h"
@@ -84,6 +85,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifdef USE_LEVELDB
 #include "database-leveldb.h"
 #endif
+
+#include "enet/enet.h"
 
 /*
 	Settings.
@@ -700,7 +703,7 @@ void SpeedTests()
 	}
 
 	{
-		infostream<<"Around 5000/ms should do well here."<<std::endl;
+		infostream<<"Around 5000ms should do well here."<<std::endl;
 		TimeTaker timer("Testing mutex speed");
 
 		JMutex m;
@@ -714,12 +717,14 @@ void SpeedTests()
 			}
 		}
 		// Do at least 10ms
-		while(timer.getTimerTime() < 10);
+		while(timer.getTimerTime() < 10 && n < 100000);
 
 		u32 dtime = timer.stop();
+		if (dtime) { // dirty hack, TimeTaker is disabled for release
 		u32 per_ms = n / dtime;
 		infostream<<"Done. "<<dtime<<"ms, "
 				<<per_ms<<"/ms"<<std::endl;
+		}
 	}
 }
 
@@ -740,6 +745,12 @@ static void print_worldspecs(const std::vector<WorldSpec> &worldspecs,
 int main(int argc, char *argv[])
 {
 	int retval = 0;
+
+	if (enet_initialize() != 0) {
+		std::cerr << "enet failed to initialize\n";
+		return EXIT_FAILURE;
+	}
+	atexit(enet_deinitialize);
 
 	/*
 		Initialization
@@ -834,9 +845,9 @@ int main(int argc, char *argv[])
 	if(cmd_args.getFlag("version"))
 	{
 #ifdef SERVER
-		dstream<<"minetestserver "<<minetest_version_hash<<std::endl;
+		dstream<<"freeminerserver "<<minetest_version_hash<<std::endl;
 #else
-		dstream<<"Minetest "<<minetest_version_hash<<std::endl;
+		dstream<<"Freeminer "<<minetest_version_hash<<std::endl;
 		dstream<<"Using Irrlicht "<<IRRLICHT_SDK_VERSION<<std::endl;
 #endif
 		dstream<<"Build info: "<<minetest_build_info<<std::endl;
@@ -937,15 +948,15 @@ int main(int argc, char *argv[])
 	{
 		std::vector<std::string> filenames;
 		filenames.push_back(porting::path_user +
-				DIR_DELIM + "minetest.conf");
+				DIR_DELIM + "freeminer.conf");
 		// Legacy configuration file location
 		filenames.push_back(porting::path_user +
-				DIR_DELIM + ".." + DIR_DELIM + "minetest.conf");
+				DIR_DELIM + ".." + DIR_DELIM + "freeminer.conf");
 #if RUN_IN_PLACE
 		// Try also from a lower level (to aid having the same configuration
 		// for many RUN_IN_PLACE installs)
 		filenames.push_back(porting::path_user +
-				DIR_DELIM + ".." + DIR_DELIM + ".." + DIR_DELIM + "minetest.conf");
+				DIR_DELIM + ".." + DIR_DELIM + ".." + DIR_DELIM + "freeminer.conf");
 #endif
 
 		for(u32 i=0; i<filenames.size(); i++)
@@ -988,6 +999,7 @@ int main(int argc, char *argv[])
 
 	infostream<<"logfile    = "<<logfile<<std::endl;
 
+	time_taker_enabled = g_settings->getBool("time_taker_enabled") || g_settings->getFloat("profiler_print_interval") || loglevel >= LMT_INFO;
 	// Initialize random seed
 	srand(time(0));
 	mysrand(time(0));
@@ -1176,7 +1188,7 @@ int main(int argc, char *argv[])
 				gamespec = commanded_gamespec;
 				infostream<<"Using commanded gameid ["<<gamespec.id<<"]"<<std::endl;
 			}
-			// Otherwise we will be using "minetest"
+			// Otherwise we will be using "default"
 			else{
 				gamespec = findSubgame(g_settings->get("default_game"));
 				infostream<<"Using default gameid ["<<gamespec.id<<"]"<<std::endl;
@@ -1454,7 +1466,7 @@ int main(int argc, char *argv[])
 		This changes the minimum allowed number of vertices in a VBO.
 		Default is 500.
 	*/
-	//driver->setMinHardwareBufferVertexCount(50);
+	driver->setMinHardwareBufferVertexCount(50);
 
 	// Create time getter
 	g_timegetter = new IrrlichtTimeGetter(device);
@@ -1487,25 +1499,17 @@ int main(int argc, char *argv[])
 
 	guienv = device->getGUIEnvironment();
 	gui::IGUISkin* skin = guienv->getSkin();
+
 	std::string font_path = g_settings->get("font_path");
 	gui::IGUIFont *font;
-	#if USE_FREETYPE
-	bool use_freetype = g_settings->getBool("freetype");
-	if (use_freetype) {
-		std::string fallback;
-		if (is_yes(gettext("needs_fallback_font")))
-			fallback = "fallback_";
-		u16 font_size = g_settings->getU16(fallback + "font_size");
-		font_path = g_settings->get(fallback + "font_path");
-		u32 font_shadow = g_settings->getU16(fallback + "font_shadow");
-		u32 font_shadow_alpha = g_settings->getU16(fallback + "font_shadow_alpha");
-		font = gui::CGUITTFont::createTTFont(guienv, font_path.c_str(), font_size, true, true, font_shadow, font_shadow_alpha);
-	} else {
-		font = guienv->getFont(font_path.c_str());
-	}
-	#else
-	font = guienv->getFont(font_path.c_str());
-	#endif
+	std::string fallback;
+	if (is_yes(gettext("needs_fallback_font")))
+		fallback = "fallback_";
+	u16 font_size = g_settings->getU16(fallback + "font_size");
+	font_path = g_settings->get(fallback + "font_path");
+	u32 font_shadow = g_settings->getU16(fallback + "font_shadow");
+	u32 font_shadow_alpha = g_settings->getU16(fallback + "font_shadow_alpha");
+	font = gui::CGUITTFont::createTTFont(guienv, font_path.c_str(), font_size, true, true, font_shadow, font_shadow_alpha);
 	if(font)
 		skin->setFont(font);
 	else
@@ -1524,13 +1528,13 @@ int main(int argc, char *argv[])
 	//skin->setColor(gui::EGDC_3D_SHADOW, video::SColor(0,0,0,0));
 	skin->setColor(gui::EGDC_3D_HIGH_LIGHT, video::SColor(255,0,0,0));
 	skin->setColor(gui::EGDC_3D_SHADOW, video::SColor(255,0,0,0));
-	skin->setColor(gui::EGDC_HIGH_LIGHT, video::SColor(255,70,100,50));
+	skin->setColor(gui::EGDC_HIGH_LIGHT, video::SColor(255,56,121,65));
 	skin->setColor(gui::EGDC_HIGH_LIGHT_TEXT, video::SColor(255,255,255,255));
 
 #if (IRRLICHT_VERSION_MAJOR >= 1 && IRRLICHT_VERSION_MINOR >= 8) || IRRLICHT_VERSION_MAJOR >= 2
 	// Irrlicht 1.8 input colours
 	skin->setColor(gui::EGDC_EDITABLE, video::SColor(255,128,128,128));
-	skin->setColor(gui::EGDC_FOCUSED_EDITABLE, video::SColor(255,96,134,49));
+	skin->setColor(gui::EGDC_FOCUSED_EDITABLE, video::SColor(255,97,173,109));
 #endif
 
 
@@ -1557,7 +1561,7 @@ int main(int argc, char *argv[])
 		menu-game loop is restarted. It is then displayed before
 		the menu.
 	*/
-	std::wstring error_message = L"";
+	std::string error_message = "";
 
 	// The password entered during the menu screen,
 	std::string password;
@@ -1571,7 +1575,7 @@ int main(int argc, char *argv[])
 	{
 		// Set the window caption
 		wchar_t* text = wgettext("Main Menu");
-		device->setWindowCaption((std::wstring(L"Minetest [")+text+L"]").c_str());
+		device->setWindowCaption((std::wstring(L"Freeminer [")+text+L"]").c_str());
 		delete[] text;
 
 		// This is used for catching disconnects
@@ -1626,8 +1630,8 @@ int main(int argc, char *argv[])
 				menudata.address = address;
 				menudata.name = playername;
 				menudata.port = itos(port);
-				menudata.errormessage = wide_to_narrow(error_message);
-				error_message = L"";
+				menudata.errormessage = error_message;
+				error_message = "";
 				if(cmd_args.exists("password"))
 					menudata.password = cmd_args.get("password");
 
@@ -1676,7 +1680,7 @@ int main(int argc, char *argv[])
 				}
 
 				if(menudata.errormessage != ""){
-					error_message = narrow_to_wide(menudata.errormessage);
+					error_message = menudata.errormessage;
 					continue;
 				}
 
@@ -1688,8 +1692,7 @@ int main(int argc, char *argv[])
 				else
 					playername = menudata.name;
 
-				password = translatePassword(playername, narrow_to_wide(menudata.password));
-				//infostream<<"Main: password hash: '"<<password<<"'"<<std::endl;
+				password = translatePassword(playername, menudata.password);
 
 				address = menudata.address;
 				int newport = stoi(menudata.port);
@@ -1729,6 +1732,9 @@ int main(int argc, char *argv[])
 					server["address"] = menudata.address;
 					server["port"] = menudata.port;
 					server["description"] = menudata.serverdescription;
+					server["playername"] = menudata.name;
+					if(g_settings->getBool("password_save"))
+						server["playerpassword"] = menudata.password;
 					ServerList::insert(server);
 				}
 
@@ -1744,17 +1750,17 @@ int main(int argc, char *argv[])
 				if(current_address == "")
 				{
 					if(menudata.selected_world == -1){
-						error_message = wgettext("No world selected and no address "
+						error_message = _("No world selected and no address "
 								"provided. Nothing to do.");
-						errorstream<<wide_to_narrow(error_message)<<std::endl;
+						errorstream<<error_message<<std::endl;
 						continue;
 					}
 					// Load gamespec for required game
 					gamespec = findWorldSubgame(worldspec.path);
 					if(!gamespec.isValid() && !commanded_gamespec.isValid()){
-						error_message = wgettext("Could not find or load game \"")
-								+ narrow_to_wide(worldspec.gameid) + L"\"";
-						errorstream<<wide_to_narrow(error_message)<<std::endl;
+						error_message = _("Could not find or load game \"")
+								+ worldspec.gameid + "\"";
+						errorstream<<error_message<<std::endl;
 						continue;
 					}
 					if(commanded_gamespec.isValid() &&
@@ -1766,10 +1772,10 @@ int main(int argc, char *argv[])
 					}
 
 					if(!gamespec.isValid()){
-						error_message = wgettext("Invalid gamespec.");
-						error_message += L" (world_gameid="
-								+narrow_to_wide(worldspec.gameid)+L")";
-						errorstream<<wide_to_narrow(error_message)<<std::endl;
+						error_message = _("Invalid gamespec.");
+						error_message += " (world_gameid="
+								+worldspec.gameid+")";
+						errorstream<<error_message<<std::endl;
 						continue;
 					}
 				}
@@ -1778,18 +1784,19 @@ int main(int argc, char *argv[])
 				break;
 			}
 
-			// Break out of menu-game loop to shut down cleanly
-			if(device->run() == false || kill == true) {
-				if(g_settings_path != "") {
+			if(g_settings_path != "")
 					g_settings->updateConfigFile(
 						g_settings_path.c_str());
-				}
+
+			// Break out of menu-game loop to shut down cleanly
+			if(device->run() == false || kill == true) {
 				break;
 			}
 
 			/*
 				Run game
 			*/
+			while(!kill &&
 			the_game(
 				kill,
 				random_input,
@@ -1805,32 +1812,34 @@ int main(int argc, char *argv[])
 				chat_backend,
 				gamespec,
 				simple_singleplayer_mode
-			);
+			)){
+				smgr->clear();
+				errorstream << "Reconnecting..." << std::endl;
+			}
 			smgr->clear();
 
 		} //try
 		catch(con::PeerNotFoundException &e)
 		{
-			error_message = wgettext("Connection error (timed out?)");
-			errorstream<<wide_to_narrow(error_message)<<std::endl;
+			error_message = _("Connection error (timed out?)");
+			errorstream<<error_message<<std::endl;
 		}
 #ifdef NDEBUG
 		catch(std::exception &e)
 		{
-			std::string narrow_message = "Some exception: \"";
-			narrow_message += e.what();
-			narrow_message += "\"";
-			errorstream<<narrow_message<<std::endl;
-			error_message = narrow_to_wide(narrow_message);
+			error_message = "Some exception: \"";
+			error_message += e.what();
+			error_message += "\"";
+			errorstream<<error_message<<std::endl;
 		}
 #endif
 
 		// If no main menu, show error and exit
 		if(skip_main_menu)
 		{
-			if(error_message != L""){
+			if(error_message != ""){
 				verbosestream<<"error_message = "
-						<<wide_to_narrow(error_message)<<std::endl;
+						<<error_message<<std::endl;
 				retval = 1;
 			}
 			break;
@@ -1847,11 +1856,7 @@ int main(int argc, char *argv[])
 		In the end, delete the Irrlicht device.
 	*/
 	device->drop();
-
-#if USE_FREETYPE
-	if (use_freetype)
-		font->drop();
-#endif
+	font->drop();
 
 #endif // !SERVER
 

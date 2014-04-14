@@ -11,12 +11,14 @@ minetest.register_globalstep(function(dtime)
 		table.insert(minetest.timers, timer)
 	end
 	minetest.timers_to_add = {}
+	local end_ms = os.clock() * 1000 + 50
 	for index, timer in ipairs(minetest.timers) do
 		timer.time = timer.time - dtime
 		if timer.time <= 0 then
 			timer.func(unpack(timer.args or {}))
 			table.remove(minetest.timers,index)
 		end
+		if os.clock() * 1000 > end_ms then return end
 	end
 end)
 
@@ -56,8 +58,8 @@ function minetest.get_connected_players()
 	local temp_table = {}
 	for index, value in pairs(player_list) do
 		if value:is_player_connected() then
-			table.insert(temp_table, value)
-		end
+		table.insert(temp_table, value)
+	end
 	end
 	return temp_table
 end
@@ -131,3 +133,11 @@ function minetest.record_protection_violation(pos, name)
 	end
 end
 
+function freeminer.color(color)
+	assert(#color == 6, "Color must be six characters in length.")
+	return "\v" .. color
+end
+
+function freeminer.colorize(color, message)
+	return freeminer.color(color) .. message .. freeminer.color("ffffff")
+end

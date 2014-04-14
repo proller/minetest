@@ -1,20 +1,23 @@
 /*
-Minetest
+clientiface.h
 Copyright (C) 2010-2014 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 #ifndef _CLIENTIFACE_H_
 #define _CLIENTIFACE_H_
@@ -29,6 +32,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <vector>
 #include <map>
 #include <set>
+
+#include <msgpack.hpp>
 
 class MapBlock;
 class ServerEnvironment;
@@ -209,10 +214,18 @@ public:
 	//
 	u16 net_proto_version;
 
-	RemoteClient():
+	s16 m_nearest_unsent_nearest;
+	s16 wanted_range;
+	
+	ServerEnvironment *m_env;
+
+	RemoteClient(ServerEnvironment *env):
 		peer_id(PEER_ID_INEXISTENT),
 		serialization_version(SER_FMT_VER_INVALID),
 		net_proto_version(0),
+		m_nearest_unsent_nearest(0),
+		wanted_range(9 * MAP_BLOCKSIZE),
+		m_env(env),
 		m_time_from_building(9999),
 		m_pending_serialization_version(SER_FMT_VER_INVALID),
 		m_state(Created),
@@ -239,14 +252,15 @@ public:
 		dtime is used for resetting send radius at slow interval
 	*/
 	void GetNextBlocks(ServerEnvironment *env, EmergeManager* emerge,
-			float dtime, std::vector<PrioritySortedBlockTransfer> &dest);
+			float dtime, double m_uptime, std::vector<PrioritySortedBlockTransfer> &dest);
 
-	void GotBlock(v3s16 p);
+	void GotBlock(v3s16 p, double time);
 
 	void SentBlock(v3s16 p);
 
 	void SetBlockNotSent(v3s16 p);
 	void SetBlocksNotSent(std::map<v3s16, MapBlock*> &blocks);
+	void SetBlockDeleted(v3s16 p);
 
 	s32 SendingCount()
 	{
@@ -265,6 +279,7 @@ public:
 				<<", m_blocks_sending.size()="<<m_blocks_sending.size()
 				<<", m_nearest_unsent_d="<<m_nearest_unsent_d
 				<<", m_excess_gotblocks="<<m_excess_gotblocks
+				<<", wanted_range="<<wanted_range
 				<<std::endl;
 		m_excess_gotblocks = 0;
 	}
@@ -330,8 +345,12 @@ private:
 		Key is position, value is dummy.
 		No MapBlock* is stored here because the blocks can get deleted.
 	*/
-	std::set<v3s16> m_blocks_sent;
+	std::map<v3s16, int> m_blocks_sent;
+
+public:
 	s16 m_nearest_unsent_d;
+private:
+
 	v3s16 m_last_center;
 	float m_nearest_unsent_reset_timer;
 
@@ -398,8 +417,12 @@ public:
 	/* send message to client */
 	void send(u16 peer_id, u8 channelnum, SharedBuffer<u8> data, bool reliable);
 
+	/* send message to client */
+	void send(u16 peer_id, u8 channelnum, const msgpack::sbuffer &data, bool reliable);
+
 	/* send to all clients */
 	void sendToAll(u16 channelnum, SharedBuffer<u8> data, bool reliable);
+	void sendToAll(u16 channelnum, msgpack::sbuffer const &buffer, bool reliable);
 
 	/* delete a client */
 	void DeleteClient(u16 peer_id);
@@ -433,7 +456,7 @@ public:
 	{ assert(m_env == 0); m_env = env; }
 
 	static std::string state2Name(ClientState state) {
-		assert(state < sizeof(statenames));
+		//assert(state < sizeof(statenames));
 		return statenames[state];
 	}
 
@@ -444,6 +467,7 @@ protected:
 	void Unlock()
 		{ m_clients_mutex.Unlock(); }
 
+public:
 	std::map<u16, RemoteClient*>& getClientList()
 		{ return m_clients; }
 

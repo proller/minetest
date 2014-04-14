@@ -1,21 +1,24 @@
 /*
-Minetest
+itemdef.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 Copyright (C) 2013 Kahrl <kahrl@gmx.net>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef ITEMDEF_HEADER
@@ -27,6 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <set>
 #include "itemgroup.h"
 #include "sound.h"
+#include <msgpack.hpp>
 class IGameDef;
 struct ToolCapabilities;
 
@@ -40,6 +44,24 @@ enum ItemType
 	ITEM_NODE,
 	ITEM_CRAFT,
 	ITEM_TOOL,
+};
+
+enum {
+	ITEMDEF_TYPE,
+	ITEMDEF_NAME,
+	ITEMDEF_DESCRIPTION,
+	ITEMDEF_INVENTORY_IMAGE,
+	ITEMDEF_WIELD_IMAGE,
+	ITEMDEF_WIELD_SCALE,
+	ITEMDEF_STACK_MAX,
+	ITEMDEF_USABLE,
+	ITEMDEF_LIQUIDS_POINTABLE,
+	ITEMDEF_TOOL_CAPABILITIES,
+	ITEMDEF_GROUPS,
+	ITEMDEF_NODE_PLACEMENT_PREDICTION,
+	ITEMDEF_SOUND_PLACE_NAME,
+	ITEMDEF_SOUND_PLACE_GAIN,
+	ITEMDEF_RANGE
 };
 
 struct ItemDefinition
@@ -83,8 +105,9 @@ struct ItemDefinition
 	ItemDefinition& operator=(const ItemDefinition &def);
 	~ItemDefinition();
 	void reset();
-	void serialize(std::ostream &os, u16 protocol_version) const;
-	void deSerialize(std::istream &is);
+
+	void msgpack_pack(msgpack::packer<msgpack::sbuffer> &pk) const;
+	void msgpack_unpack(msgpack::object o);
 private:
 	void resetInitial();
 };
@@ -112,7 +135,8 @@ public:
 		IGameDef *gamedef) const=0;
 #endif
 
-	virtual void serialize(std::ostream &os, u16 protocol_version)=0;
+	virtual void msgpack_pack(msgpack::packer<msgpack::sbuffer> &pk) const=0;
+	virtual void msgpack_unpack(msgpack::object o)=0;
 };
 
 class IWritableItemDefManager : public IItemDefManager
@@ -148,9 +172,6 @@ public:
 	// Alias will be removed if <name> is defined at a later point of time.
 	virtual void registerAlias(const std::string &name,
 			const std::string &convert_to)=0;
-
-	virtual void serialize(std::ostream &os, u16 protocol_version)=0;
-	virtual void deSerialize(std::istream &is)=0;
 
 	// Do stuff asked by threads that can only be done in the main thread
 	virtual void processQueue(IGameDef *gamedef)=0;

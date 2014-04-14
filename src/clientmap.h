@@ -1,20 +1,23 @@
 /*
-Minetest
+clientmap.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef CLIENTMAP_HEADER
@@ -27,16 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 struct MapDrawControl
 {
-	MapDrawControl():
-		range_all(false),
-		wanted_range(50),
-		wanted_max_blocks(0),
-		wanted_min_range(0),
-		blocks_drawn(0),
-		blocks_would_have_drawn(0),
-		farthest_drawn(0)
-	{
-	}
+	MapDrawControl();
 	// Overrides limits by drawing everything
 	bool range_all;
 	// Wanted drawing range
@@ -51,6 +45,14 @@ struct MapDrawControl
 	u32 blocks_would_have_drawn;
 	// Distance to the farthest block drawn
 	float farthest_drawn;
+
+	float farmesh;
+	int farmesh_step;
+
+	float fps;
+	float fps_avg;
+	float fps_wanted;
+	float drawtime_avg;
 };
 
 class Client;
@@ -111,8 +113,10 @@ public:
 	virtual void render()
 	{
 		video::IVideoDriver* driver = SceneManager->getVideoDriver();
-		driver->setTransform(video::ETS_WORLD, AbsoluteTransformation);
-		renderMap(driver, SceneManager->getSceneNodeRenderPass());
+		if (driver->getDriverType() != video::EDT_NULL) {
+			driver->setTransform(video::ETS_WORLD, AbsoluteTransformation);
+			renderMap(driver, SceneManager->getSceneNodeRenderPass());
+		}
 	}
 	
 	virtual const core::aabbox3d<f32>& getBoundingBox() const
@@ -120,13 +124,17 @@ public:
 		return m_box;
 	}
 	
-	void updateDrawList(video::IVideoDriver* driver);
+	void updateDrawList(video::IVideoDriver* driver, float dtime);
 	void renderMap(video::IVideoDriver* driver, s32 pass);
 
 	int getBackgroundBrightness(float max_d, u32 daylight_factor,
 			int oldvalue, bool *sunlight_seen_result);
 
+
 	void renderPostFx();
+
+	// For debugging the status and position of MapBlocks
+	void renderBlockBoundaries(std::map<v3s16, MapBlock*> blocks);
 
 	// For debug printing
 	virtual void PrintInfo(std::ostream &out);
@@ -137,6 +145,8 @@ public:
 		return (m_last_drawn_sectors.find(p) != m_last_drawn_sectors.end());
 	}
 	
+	MapDrawControl & getControl() { return m_control; }
+
 private:
 	Client *m_client;
 	

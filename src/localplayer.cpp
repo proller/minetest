@@ -1,20 +1,23 @@
 /*
-Minetest
+localplayer.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "localplayer.h"
@@ -59,6 +62,7 @@ LocalPlayer::LocalPlayer(IGameDef *gamedef):
 	// Initialize hp to 0, so that no hearts will be shown if server
 	// doesn't support health points
 	hp = 0;
+
 }
 
 LocalPlayer::~LocalPlayer()
@@ -365,7 +369,7 @@ void LocalPlayer::move(f32 dtime, ClientEnvironment *env, f32 pos_max_d)
 	move(dtime, env, pos_max_d, NULL);
 }
 
-void LocalPlayer::applyControl(float dtime)
+void LocalPlayer::applyControl(float dtime, ClientEnvironment *env)
 {
 	// Clear stuff
 	swimming_vertical = false;
@@ -389,14 +393,14 @@ void LocalPlayer::applyControl(float dtime)
 	bool fly_allowed = m_gamedef->checkLocalPrivilege("fly");
 	bool fast_allowed = m_gamedef->checkLocalPrivilege("fast");
 
-	bool free_move = fly_allowed && g_settings->getBool("free_move");
+	free_move = fly_allowed && g_settings->getBool("free_move");
 	bool fast_move = fast_allowed && g_settings->getBool("fast_move");
 	// When aux1_descends is enabled the fast key is used to go down, so fast isn't possible
 	bool fast_climb = fast_move && control.aux1 && !g_settings->getBool("aux1_descends");
 	bool continuous_forward = g_settings->getBool("continuous_forward");
-
+	bool fast_pressed = false;
 	// Whether superspeed mode is used or not
-	bool superspeed = false;
+	superspeed = false;
 	
 	if(g_settings->getBool("always_fly_fast") && free_move && fast_move)
 		superspeed = true;
@@ -432,7 +436,7 @@ void LocalPlayer::applyControl(float dtime)
 			{
 				// If not free movement but fast is allowed, aux1 is
 				// "Turbo button"
-				if(fast_move)
+				if(fast_allowed)
 					superspeed = true;
 			}
 		}
@@ -446,9 +450,11 @@ void LocalPlayer::applyControl(float dtime)
 			if(!is_climbing)
 			{
 				// aux1 is "Turbo button"
-				if(fast_move)
+				if(fast_allowed)
 					superspeed = true;
 			}
+			if(fast_allowed)
+				fast_pressed = true;
 		}
 
 		if(control.sneak)
@@ -553,7 +559,7 @@ void LocalPlayer::applyControl(float dtime)
 	}
 
 	// The speed of the player (Y is ignored)
-	if(superspeed || (is_climbing && fast_climb) || ((in_liquid || in_liquid_stable) && fast_climb))
+	if(superspeed || (is_climbing && fast_climb) || ((in_liquid || in_liquid_stable) && fast_climb) || fast_pressed)
 		speedH = speedH.normalize() * movement_speed_fast;
 	else if(control.sneak && !free_move && !in_liquid && !in_liquid_stable)
 		speedH = speedH.normalize() * movement_speed_crouch;
@@ -571,6 +577,21 @@ void LocalPlayer::applyControl(float dtime)
 		else
 			incH = movement_acceleration_air * BS * dtime;
 		incV = 0; // No vertical acceleration in air
+
+		// better air control when falling fast
+		float speed = m_speed.getLength();
+		if (!superspeed && speed > movement_speed_fast && (control.down || control.up || control.left || control.right)) {
+			v3f rotate = move_direction * (speed / (BS * 120)); // 80 - good wingsuit
+			if(control.up)		rotate = rotate.crossProduct(v3f(0,1,0));
+			if(control.down)	rotate = rotate.crossProduct(v3f(0,-1,0));
+			if(control.left)	rotate *=-1;
+			m_speed.rotateYZBy(rotate.X);
+			m_speed.rotateXZBy(rotate.Y);
+			m_speed.rotateXYBy(rotate.Z);
+			m_speed = m_speed.normalize() * speed * (1-speed*0.00001); // 0.998
+			if (m_speed.Y)
+				return;
+		}
 	}
 	else if (superspeed || (is_climbing && fast_climb) || ((in_liquid || in_liquid_stable) && fast_climb))
 		incH = incV = movement_acceleration_fast * BS * dtime;
@@ -578,7 +599,15 @@ void LocalPlayer::applyControl(float dtime)
 		incH = incV = movement_acceleration_default * BS * dtime;
 
 	// Accelerate to target speed with maximum increment
-	accelerateHorizontal(speedH * physics_override_speed, incH * physics_override_speed);
+	INodeDefManager *nodemgr = m_gamedef->ndef();
+	Map *map = &env->getMap();
+	v3s16 p = floatToInt(getPosition() - v3f(0,BS/2,0), BS);
+	float slippery = 0;
+	try {
+		slippery = itemgroup_get(nodemgr->get(map->getNode(p)).groups, "slippery");
+	}
+	catch (...) {}
+	accelerateHorizontal(speedH * physics_override_speed, incH * physics_override_speed, slippery);
 	accelerateVertical(speedV * physics_override_speed, incV * physics_override_speed);
 }
 

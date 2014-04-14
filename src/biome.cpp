@@ -1,20 +1,23 @@
 /*
-Minetest
+biome.cpp
 Copyright (C) 2010-2013 kwolekr, Ryan Kwolek <kwolekr@minetest.net>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "biome.h"
@@ -136,6 +139,9 @@ void BiomeDefManager::resolveNodeNames(INodeDefManager *ndef) {
 				<< b->nname_water << "' not defined" << std::endl;
 			b->c_water = CONTENT_AIR;
 		}
+		b->c_ice = ndef->getId(b->nname_ice);
+		if (b->c_ice == CONTENT_IGNORE)
+			b->c_ice = b->c_water;
 		
 		b->c_dust = ndef->getId(b->nname_dust);
 		if (b->c_dust == CONTENT_IGNORE) {
@@ -208,7 +214,7 @@ u8 BiomeDefManager::getBiomeIdByName(const char *name) {
 ///////////////////////////// Weather
 
 
-s16 BiomeDefManager::calcBlockHeat(v3s16 p, u64 seed, float timeofday, float totaltime) {
+s16 BiomeDefManager::calcBlockHeat(v3s16 p, u64 seed, float timeofday, float totaltime, bool use_weather) {
 	//variant 1: full random
 	//f32 heat = NoisePerlin3D(np_heat, p.X, env->getGameTime()/100, p.Z, seed);
 
@@ -224,32 +230,37 @@ s16 BiomeDefManager::calcBlockHeat(v3s16 p, u64 seed, float timeofday, float tot
 	if (np_heat->scale)
 		heat /= np_heat->scale / scale; //  -20..0..+20
 
-	f32 seasonv = totaltime;
-	seasonv /= 86400 * g_settings->getS16("year_days"); // season change speed
-	seasonv += (f32)p.X / 3000; // you can walk to area with other season
-	seasonv = sin(seasonv * M_PI);
-	heat += (range * (heat < 0 ? 2 : 0.5)) * seasonv; // -60..0..30
+	if (use_weather) {
+		f32 seasonv = totaltime;
+		seasonv /= 86400 * g_settings->getS16("year_days"); // season change speed
+		seasonv += (f32)p.X / 3000; // you can walk to area with other season
+		seasonv = sin(seasonv * M_PI);
+		heat += (range * (heat < 0 ? 2 : 0.5)) * seasonv; // -60..0..30
 
-	heat += offset; // -40..0..50
+		// daily change, hotter at sun +4, colder at night -4
+		heat += 8 * (sin(cycle_shift(timeofday, -0.25) * M_PI) - 0.5); //-44..20..54
+	}
+	heat += offset; // -40..20..50
 	heat += p.Y / -333; // upper=colder, lower=hotter, 3c per 1000
 
-	// daily change, hotter at sun +4, colder at night -4
-	heat += 8 * (sin(cycle_shift(timeofday, -0.25) * M_PI) - 0.5); //-44..20..54
-	
+	if (p.Y < -(MAP_GENERATION_LIMIT-1000)) heat += 6000 * (1-((float)(p.Y - -MAP_GENERATION_LIMIT)/1000)); //hot core, later via realms, DISABLE BEFORE MERGING
+
 	return heat;
 }
 
 
-s16 BiomeDefManager::calcBlockHumidity(v3s16 p, u64 seed, float timeofday, float totaltime) {
+s16 BiomeDefManager::calcBlockHumidity(v3s16 p, u64 seed, float timeofday, float totaltime, bool use_weather) {
 
 	f32 humidity = NoisePerlin2D(np_humidity, p.X, p.Z, seed);
 
-	f32 seasonv = totaltime;
-	seasonv /= 86400 * 2; // bad weather change speed (2 days)
-	seasonv += (f32)p.Z / 300;
-	humidity += 30 * sin(seasonv * M_PI);
+	if (use_weather) {
+		f32 seasonv = totaltime;
+		seasonv /= 86400 * 2; // bad weather change speed (2 days)
+		seasonv += (f32)p.Z / 300;
+		humidity += 30 * sin(seasonv * M_PI);
+		humidity += -12 * (sin(cycle_shift(timeofday, -0.1) * M_PI) - 0.5);
+	}
 
-	humidity += -12 * (sin(cycle_shift(timeofday, -0.1) * M_PI) - 0.5);
 	humidity = rangelim(humidity, 0, 100);
 	
 	return humidity;

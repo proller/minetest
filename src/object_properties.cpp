@@ -1,20 +1,23 @@
 /*
-Minetest
+object_properties.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "object_properties.h"
@@ -42,7 +45,8 @@ ObjectProperties::ObjectProperties():
 	automatic_rotate(0),
 	stepheight(0),
 	automatic_face_movement_dir(false),
-	automatic_face_movement_dir_offset(0.0)
+	automatic_face_movement_dir_offset(0.0),
+	force_load(false)
 {
 	textures.push_back("unknown_object.png");
 	colors.push_back(video::SColor(255,255,255,255));
@@ -74,6 +78,7 @@ std::string ObjectProperties::dump()
 	os<<", is_visible="<<is_visible;
 	os<<", makes_footstep_sound="<<makes_footstep_sound;
 	os<<", automatic_rotate="<<automatic_rotate;
+	os<<", force_load="<<force_load;
 	return os.str();
 }
 
@@ -106,6 +111,7 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeF1000(os,stepheight);
 	writeU8(os, automatic_face_movement_dir);
 	writeF1000(os, automatic_face_movement_dir_offset);
+	writeU8(os, force_load);
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this
 }
@@ -142,6 +148,7 @@ void ObjectProperties::deSerialize(std::istream &is)
 			stepheight = readF1000(is);
 			automatic_face_movement_dir = readU8(is);
 			automatic_face_movement_dir_offset = readF1000(is);
+			force_load = readU8(is);
 		}catch(SerializationError &e){}
 	}
 	else

@@ -1,20 +1,23 @@
 /*
-Minetest
+guiTextInputMenu.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "guiTextInputMenu.h"
@@ -30,10 +33,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <IGUIFont.h>
 
 #include "gettext.h"
-
-#if USE_FREETYPE
 #include "intlGUIEditBox.h"
-#endif
 
 GUITextInputMenu::GUITextInputMenu(gui::IGUIEnvironment* env,
 		gui::IGUIElement* parent, s32 id,
@@ -112,16 +112,8 @@ void GUITextInputMenu::regenerateGui(v2u32 screensize)
 		core::rect<s32> rect(0, 0, 300, 30);
 		rect = rect + v2s32(size.X/2-300/2, size.Y/2-30/2-25);
 		gui::IGUIElement *e;
-		#if USE_FREETYPE
-		if (g_settings->getBool("freetype")) {
-			e = (gui::IGUIElement *) new gui::intlGUIEditBox(text.c_str(), true, Environment, this, 256, rect);
-			e->drop();
-		} else {
-			e = Environment->addEditBox(text.c_str(), rect, true, this, 256);
-		}
-		#else
-			e = Environment->addEditBox(text.c_str(), rect, true, this, 256);
-		#endif
+		e = (gui::IGUIElement *) new gui::intlGUIEditBox(text.c_str(), true, Environment, this, 256, rect);
+		// e->drop(); TODO: figure out what actually happens here.
 		Environment->setFocus(e);
 
 		irr::SEvent evt;

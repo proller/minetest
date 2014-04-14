@@ -1,20 +1,23 @@
 /*
-Minetest
+map.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef MAP_HEADER
@@ -46,6 +49,8 @@ class EmergeManager;
 class ServerEnvironment;
 struct BlockMakeData;
 struct MapgenParams;
+class Circuit;
+class Server;
 
 
 /*
@@ -139,8 +144,8 @@ public:
 class Map /*: public NodeContainer*/
 {
 public:
-
 	Map(std::ostream &dout, IGameDef *gamedef);
+	Map(std::ostream &dout, IGameDef *gamedef, Circuit* circuit);
 	virtual ~Map();
 
 	/*virtual u16 nodeContainerId() const
@@ -229,12 +234,14 @@ public:
 	s16 propagateSunlight(v3s16 start,
 			std::map<v3s16, MapBlock*> & modified_blocks);
 
-	void updateLighting(enum LightBank bank,
+	u32 updateLighting(enum LightBank bank,
 			std::map<v3s16, MapBlock*>  & a_blocks,
-			std::map<v3s16, MapBlock*> & modified_blocks);
+			std::map<v3s16, MapBlock*> & modified_blocks, int max_cycle_ms = 0);
 
-	void updateLighting(std::map<v3s16, MapBlock*>  & a_blocks,
-			std::map<v3s16, MapBlock*> & modified_blocks);
+	u32 updateLighting(std::map<v3s16, MapBlock*>  & a_blocks,
+			std::map<v3s16, MapBlock*> & modified_blocks, int max_cycle_ms = 0);
+
+	u32 updateLighting_last[2];
 
 	/*
 		These handle lighting but not faces.
@@ -266,7 +273,7 @@ public:
 	virtual void beginSave() {return;};
 	virtual void endSave() {return;};
 
-	virtual void save(ModifiedState save_level){assert(0);};
+	virtual s32 save(ModifiedState save_level, bool breakable){assert(0); return 0;};
 
 	// Server implements this.
 	// Client leaves it as no-op.
@@ -276,7 +283,7 @@ public:
 		Updates usage timers and unloads unused blocks and sectors.
 		Saves modified blocks before unloading on MAPTYPE_SERVER.
 	*/
-	void timerUpdate(float dtime, float unload_timeout,
+	u32 timerUpdate(float uptime, float unload_timeout, int max_cycle_ms = 100,
 			std::list<v3s16> *unloaded_blocks=NULL);
 
 	/*
@@ -303,9 +310,8 @@ public:
 	// For debug printing. Prints "Map: ", "ServerMap: " or "ClientMap: "
 	virtual void PrintInfo(std::ostream &out);
 
-	void transformLiquids(std::map<v3s16, MapBlock*> & modified_blocks);
-	void transformLiquidsFinite(std::map<v3s16, MapBlock*> & modified_blocks);
-
+	u32 transformLiquids(Server *m_server, std::map<v3s16, MapBlock*> & modified_blocks, std::map<v3s16, MapBlock*> & lighting_modified_blocks, int max_cycle_ms);
+	u32 transformLiquidsFinite(Server *m_server, std::map<v3s16, MapBlock*> & modified_blocks, std::map<v3s16, MapBlock*> & lighting_modified_blocks, int max_cycle_ms);
 	/*
 		Node metadata
 		These are basically coordinate wrappers to MapBlock
@@ -348,11 +354,19 @@ public:
 		Variables
 	*/
 
-	void transforming_liquid_add(v3s16 p);
-	s32 transforming_liquid_size();
+	void transforming_liquid_push_back(v3s16 & p);
+	u32 transforming_liquid_size();
+	u32 m_liquid_step_flow;
 
-	virtual s16 getHeat(v3s16 p);
-	virtual s16 getHumidity(v3s16 p);
+	virtual s16 getHeat(v3s16 p, bool no_random = 0);
+	virtual s16 getHumidity(v3s16 p, bool no_random = 0);
+
+	virtual int getSurface(v3s16 basepos, int searchup, bool walkable_only) {
+		return basepos.Y -1;
+	}
+
+	Circuit* getCircuit();
+	INodeDefManager* getNodeDefManager();
 
 protected:
 	friend class LuaVoxelManip;
@@ -360,10 +374,13 @@ protected:
 	std::ostream &m_dout; // A bit deprecated, could be removed
 
 	IGameDef *m_gamedef;
+	Circuit* m_circuit;
 
 	std::set<MapEventReceiver*> m_event_receivers;
 
 	std::map<v2s16, MapSector*> m_sectors;
+	u32 m_sectors_update_last;
+	u32 m_sectors_save_last;
 
 	// Be sure to set this to NULL when the cached sector is deleted
 	MapSector *m_sector_cache;
@@ -371,6 +388,8 @@ protected:
 
 	// Queued transforming water nodes
 	UniqueQueue<v3s16> m_transforming_liquid;
+	JMutex m_transforming_liquid_mutex;
+	JMutex m_update_lighting_mutex;
 };
 
 /*
@@ -385,7 +404,7 @@ public:
 	/*
 		savedir: directory to which map data should be saved
 	*/
-	ServerMap(std::string savedir, IGameDef *gamedef, EmergeManager *emerge);
+	ServerMap(std::string savedir, IGameDef *gamedef, EmergeManager *emerge, Circuit* m_circuit);
 	~ServerMap();
 
 	s32 mapType() const
@@ -436,7 +455,7 @@ public:
 	void prepareBlock(MapBlock *block);
 
 	// Helper for placing objects on ground level
-	s16 findGroundLevel(v2s16 p2d);
+	s16 findGroundLevel(v2s16 p2d, bool cacheBlocks);
 
 	/*
 		Misc. helper functions for fiddling with directory and file
@@ -463,7 +482,7 @@ public:
 	void beginSave();
 	void endSave();
 
-	void save(ModifiedState save_level);
+	s32 save(ModifiedState save_level, bool breakable = 0);
 	void listAllLoadableBlocks(std::list<v3s16> &dst);
 	void listAllLoadedBlocks(std::list<v3s16> &dst);
 	// Saves map seed and possibly other stuff
@@ -504,14 +523,22 @@ public:
 	u64 getSeed();
 	s16 getWaterLevel();
 
-	virtual s16 updateBlockHeat(ServerEnvironment *env, v3s16 p, MapBlock *block = NULL);
-	virtual s16 updateBlockHumidity(ServerEnvironment *env, v3s16 p, MapBlock *block = NULL);
+	virtual s16 updateBlockHeat(ServerEnvironment *env, v3s16 p, MapBlock *block = NULL, std::map<v3s16, s16> *cache = NULL);
+	virtual s16 updateBlockHumidity(ServerEnvironment *env, v3s16 p, MapBlock *block = NULL, std::map<v3s16, s16> *cache = NULL);
+
+	//getSurface level starting on basepos.y up to basepos.y + searchup
+	//returns basepos.y -1 if no surface has been found
+	// (due to limited data range of basepos.y this will always give a unique
+	// return value as long as minetest is compiled at least on 32bit architecture)
+	int getSurface(v3s16 basepos, int searchup, bool walkable_only);
 
 private:
 	// Emerge manager
 	EmergeManager *m_emerge;
 
+public:
 	std::string m_savedir;
+private:
 	bool m_map_saving_enabled;
 
 #if 0

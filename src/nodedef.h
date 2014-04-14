@@ -1,20 +1,23 @@
 /*
-Minetest
+nodedef.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef NODEDEF_HEADER
@@ -25,6 +28,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <iostream>
 #include <map>
 #include <list>
+#include <bitset>
 #include "mapnode.h"
 #ifndef SERVER
 #include "tile.h"
@@ -32,6 +36,48 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "itemgroup.h"
 #include "sound.h" // SimpleSoundSpec
 #include "constants.h" // BS
+#include "fmbitset.h"
+
+#include <msgpack.hpp>
+
+enum {
+	CONTENTFEATURES_NAME,
+	CONTENTFEATURES_GROUPS,
+	CONTENTFEATURES_DRAWTYPE,
+	CONTENTFEATURES_VISUAL_SCALE,
+	CONTENTFEATURES_TILEDEF,
+	CONTENTFEATURES_TILEDEF_SPECIAL,
+	CONTENTFEATURES_ALPHA,
+	CONTENTFEATURES_POST_EFFECT_COLOR,
+	CONTENTFEATURES_PARAM_TYPE,
+	CONTENTFEATURES_PARAM_TYPE_2,
+	CONTENTFEATURES_IS_GROUND_CONTENT,
+	CONTENTFEATURES_LIGHT_PROPAGATES,
+	CONTENTFEATURES_SUNLIGHT_PROPAGATES,
+	CONTENTFEATURES_WALKABLE,
+	CONTENTFEATURES_POINTABLE,
+	CONTENTFEATURES_DIGGABLE,
+	CONTENTFEATURES_CLIMBABLE,
+	CONTENTFEATURES_BUILDABLE_TO,
+	CONTENTFEATURES_LIQUID_TYPE,
+	CONTENTFEATURES_LIQUID_ALTERNATIVE_FLOWING,
+	CONTENTFEATURES_LIQUID_ALTERNATIVE_SOURCE,
+	CONTENTFEATURES_LIQUID_VISCOSITY,
+	CONTENTFEATURES_LIQUID_RENEWABLE,
+	CONTENTFEATURES_LIGHT_SOURCE,
+	CONTENTFEATURES_DAMAGE_PER_SECOND,
+	CONTENTFEATURES_NODE_BOX,
+	CONTENTFEATURES_SELECTION_BOX,
+	CONTENTFEATURES_LEGACY_FACEDIR_SIMPLE,
+	CONTENTFEATURES_LEGACY_WALLMOUNTED,
+	CONTENTFEATURES_SOUND_FOOTSTEP,
+	CONTENTFEATURES_SOUND_DIG,
+	CONTENTFEATURES_SOUND_DUG,
+	CONTENTFEATURES_RIGHTCLICKABLE,
+	CONTENTFEATURES_DROWNING,
+	CONTENTFEATURES_LEVELED,
+	CONTENTFEATURES_WAVING
+};
 
 class IItemDefManager;
 class ITextureSource;
@@ -75,6 +121,15 @@ enum NodeBoxType
 	NODEBOX_LEVELED, // Same as fixed, but with dynamic height from param2. for snow, ...
 };
 
+// _S_ is serialized, added to make sure collisions with NodeBoxType never happen
+enum {
+	NODEBOX_S_TYPE,
+	NODEBOX_S_FIXED,
+	NODEBOX_S_WALL_TOP,
+	NODEBOX_S_WALL_BOTTOM,
+	NODEBOX_S_WALL_SIDE
+};
+
 struct NodeBox
 {
 	enum NodeBoxType type;
@@ -90,8 +145,8 @@ struct NodeBox
 	{ reset(); }
 
 	void reset();
-	void serialize(std::ostream &os, u16 protocol_version) const;
-	void deSerialize(std::istream &is);
+	void msgpack_pack(msgpack::packer<msgpack::sbuffer> &pk) const;
+	void msgpack_unpack(msgpack::object o);
 };
 
 struct MapNode;
@@ -100,6 +155,14 @@ class NodeMetadata;
 /*
 	Stand-alone definition of a TileSpec (basically a server-side TileSpec)
 */
+enum {
+	TILEDEF_NAME,
+	TILEDEF_ANIMATION_TYPE,
+	TILEDEF_ANIMATION_ASPECT_W,
+	TILEDEF_ANIMATION_ASPECT_H,
+	TILEDEF_ANIMATION_LENGTH,
+	TILEDEF_BACKFACE_CULLING
+};
 enum TileAnimationType{
 	TAT_NONE=0,
 	TAT_VERTICAL_FRAMES=1,
@@ -125,8 +188,8 @@ struct TileDef
 		animation.length = 1.0;
 	}
 
-	void serialize(std::ostream &os, u16 protocol_version) const;
-	void deSerialize(std::istream &is);
+	void msgpack_pack(msgpack::packer<msgpack::sbuffer> &pk) const;
+	void msgpack_unpack(msgpack::object o);
 };
 
 enum NodeDrawType
@@ -166,12 +229,16 @@ struct ContentFeatures
 	u8 solidness; // Used when choosing which face is drawn
 	u8 visual_solidness; // When solidness=0, this tells how it looks like
 	bool backface_culling;
+	video::SColor color_avg; //far mesh average color
+
 #endif
 
 	// Server-side cached callback existence for fast skipping
 	bool has_on_construct;
 	bool has_on_destruct;
 	bool has_after_destruct;
+	bool has_on_activate;
+	bool has_on_deactivate;
 
 	/*
 		Actual data
@@ -225,9 +292,9 @@ struct ContentFeatures
 	// Is liquid renewable (new liquid source will be created between 2 existing)
 	bool liquid_renewable;
 	// Ice for water, water for ice
-	std::string freezemelt;
+	std::string freeze;
+	std::string melt;
 	// Number of flowing liquids surrounding source
-	u8 liquid_range;
 	u8 drowning;
 	// Amount of light the node emits
 	u8 light_source;
@@ -241,6 +308,13 @@ struct ContentFeatures
 	bool legacy_facedir_simple;
 	// Set to true if wall_mounted used to be set to true
 	bool legacy_wallmounted;
+	
+	bool is_wire;
+	bool is_connector;
+	bool is_circuit_element;
+	unsigned char wire_connections[6];
+	unsigned char circuit_element_states[64];
+	unsigned int circuit_element_delay;
 
 	// Sound properties
 	SimpleSoundSpec sound_footstep;
@@ -254,10 +328,9 @@ struct ContentFeatures
 	ContentFeatures();
 	~ContentFeatures();
 	void reset();
-	void serialize(std::ostream &os, u16 protocol_version);
-	void deSerialize(std::istream &is);
-	void serializeOld(std::ostream &os, u16 protocol_version);
-	void deSerializeOld(std::istream &is, int version);
+
+	void msgpack_pack(msgpack::packer<msgpack::sbuffer> &pk) const;
+	void msgpack_unpack(msgpack::object o);
 
 	/*
 		Some handy methods
@@ -269,6 +342,16 @@ struct ContentFeatures
 		if(!isLiquid() || !f.isLiquid()) return false;
 		return (liquid_alternative_flowing == f.liquid_alternative_flowing);
 	}
+	u8 getMaxLevel(bool compress = 0) const{
+		if(param_type_2 == CPT2_LEVELED && liquid_type == LIQUID_FLOWING && leveled)
+			return(compress ? LEVELED_MAX : leveled);
+		if(leveled || param_type_2 == CPT2_LEVELED)
+			return LEVELED_MAX;
+		if(param_type_2 == CPT2_FLOWINGLIQUID || liquid_type == LIQUID_FLOWING) //remove liquid_type
+			return LIQUID_LEVEL_SOURCE;
+		return 0;
+	}
+
 };
 
 class INodeDefManager
@@ -284,9 +367,11 @@ public:
 	// Allows "group:name" in addition to regular node names
 	virtual void getIds(const std::string &name, std::set<content_t> &result)
 			const=0;
+	virtual void getIds(const std::string &name, FMBitset &result) const=0;
 	virtual const ContentFeatures& get(const std::string &name) const=0;
 	
-	virtual void serialize(std::ostream &os, u16 protocol_version)=0;
+	virtual void msgpack_pack(msgpack::packer<msgpack::sbuffer> &pk) const=0;
+	virtual void msgpack_unpack(msgpack::object o)=0;
 };
 
 class IWritableNodeDefManager : public INodeDefManager
@@ -324,9 +409,6 @@ public:
 		Update tile textures to latest return values of TextueSource.
 	*/
 	virtual void updateTextures(ITextureSource *tsrc)=0;
-
-	virtual void serialize(std::ostream &os, u16 protocol_version)=0;
-	virtual void deSerialize(std::istream &is)=0;
 };
 
 IWritableNodeDefManager* createNodeDefManager();

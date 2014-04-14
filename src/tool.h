@@ -1,20 +1,23 @@
 /*
-Minetest
+tool.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef TOOL_HEADER
@@ -25,6 +28,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <iostream>
 #include <map>
 #include "itemgroup.h"
+
+#include "connection.h"
+
+enum {
+	TOOLGROUPCAP_USES,
+	TOOLGROUPCAP_MAXLEVEL,
+	TOOLGROUPCAP_TIMES
+};
 
 struct ToolGroupCap
 {
@@ -47,12 +58,37 @@ struct ToolGroupCap
 		*time = i->second;
 		return true;
 	}
+
+	template<typename Packer>
+	void msgpack_pack(Packer& pk) const
+	{
+		pk.pack_map(3);
+		PACK(TOOLGROUPCAP_USES, uses);
+		PACK(TOOLGROUPCAP_MAXLEVEL, maxlevel);
+		PACK(TOOLGROUPCAP_TIMES, times);
+	}
+	void msgpack_unpack(msgpack::object o)
+	{
+		MsgpackPacket packet;
+		o.convert(&packet);
+
+		packet[TOOLGROUPCAP_USES].convert(&uses);
+		packet[TOOLGROUPCAP_MAXLEVEL].convert(&maxlevel);
+		packet[TOOLGROUPCAP_TIMES].convert(&times);
+	}
 };
 
 
 // CLANG SUCKS DONKEY BALLS
 typedef std::map<std::string, struct ToolGroupCap> ToolGCMap;
 typedef std::map<std::string, s16> DamageGroup;
+
+enum {
+	TOOLCAP_FULL_PUNCH_INTERVAL,
+	TOOLCAP_MAX_DROP_LEVEL,
+	TOOLCAP_GROUPCAPS,
+	TOOLCAP_DAMAGEGROUPS
+};
 
 struct ToolCapabilities
 {
@@ -77,6 +113,9 @@ struct ToolCapabilities
 
 	void serialize(std::ostream &os, u16 version) const;
 	void deSerialize(std::istream &is);
+
+	void msgpack_pack(msgpack::packer<msgpack::sbuffer> &pk) const;
+	void msgpack_unpack(msgpack::object o);
 };
 
 struct DigParams

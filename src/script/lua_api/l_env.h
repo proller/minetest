@@ -1,20 +1,23 @@
 /*
-Minetest
+script/lua_api/l_env.h
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef L_ENV_H_
@@ -151,6 +154,9 @@ private:
 	static int l_get_heat(lua_State *L);
 	static int l_get_humidity(lua_State *L);
 	
+	// minetest.get_surface(basepos,yoffset,walkable_only=false)
+	static int l_get_surface(lua_State *L);
+
 	// minetest.forceload_block(blockpos)
 	// forceloads a block
 	static int l_forceload_block(lua_State *L);
@@ -170,16 +176,19 @@ private:
 
 	std::set<std::string> m_trigger_contents;
 	std::set<std::string> m_required_neighbors;
+	u32 m_neighbors_range;
 	float m_trigger_interval;
 	u32 m_trigger_chance;
 public:
 	LuaABM(lua_State *L, int id,
 			const std::set<std::string> &trigger_contents,
 			const std::set<std::string> &required_neighbors,
+			int neighbors_range,
 			float trigger_interval, u32 trigger_chance):
 		m_id(id),
 		m_trigger_contents(trigger_contents),
 		m_required_neighbors(required_neighbors),
+		m_neighbors_range(neighbors_range),
 		m_trigger_interval(trigger_interval),
 		m_trigger_chance(trigger_chance)
 	{
@@ -188,9 +197,13 @@ public:
 	{
 		return m_trigger_contents;
 	}
-	virtual std::set<std::string> getRequiredNeighbors()
+	virtual std::set<std::string> getRequiredNeighbors(bool activate)
 	{
 		return m_required_neighbors;
+	}
+	virtual u32 getNeighborsRange()
+	{
+		return m_neighbors_range;
 	}
 	virtual float getTriggerInterval()
 	{
@@ -201,7 +214,7 @@ public:
 		return m_trigger_chance;
 	}
 	virtual void trigger(ServerEnvironment *env, v3s16 p, MapNode n,
-			u32 active_object_count, u32 active_object_count_wider);
+			u32 active_object_count, u32 active_object_count_wider, MapNode neighbor, bool activate);
 };
 
 #endif /* L_ENV_H_ */

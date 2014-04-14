@@ -1,20 +1,23 @@
 /*
-Minetest
+guiTable.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -59,7 +62,8 @@ GUITable::GUITable(gui::IGUIEnvironment *env,
 	m_highlight_text(255, 255, 255, 255),
 	m_rowheight(1),
 	m_font(NULL),
-	m_scrollbar(NULL)
+	m_scrollbar(NULL),
+	m_scrollbar_enabled(true)
 {
 	assert(tsrc != NULL);
 
@@ -897,7 +901,7 @@ s32 GUITable::allocString(const std::string &text)
 	std::map<std::string, s32>::iterator it = m_alloc_strings.find(text);
 	if (it == m_alloc_strings.end()) {
 		s32 id = m_strings.size();
-		std::wstring wtext = narrow_to_wide(text);
+		std::wstring wtext = utf8_to_wide(text);
 		m_strings.push_back(core::stringw(wtext.c_str()));
 		m_alloc_strings.insert(std::make_pair(text, id));
 		return id;
@@ -1021,11 +1025,15 @@ void GUITable::autoScroll()
 	}
 }
 
+void GUITable::setScrollBarEnabled(bool value) {
+	m_scrollbar_enabled = value;
+}
+
 void GUITable::updateScrollBar()
 {
 	s32 totalheight = m_rowheight * m_visible_rows.size();
 	s32 scrollmax = MYMAX(0, totalheight - AbsoluteRect.getHeight());
-	m_scrollbar->setVisible(scrollmax > 0);
+	m_scrollbar->setVisible(scrollmax > 0 && m_scrollbar_enabled);
 	m_scrollbar->setMax(scrollmax);
 	m_scrollbar->setSmallStep(m_rowheight);
 	m_scrollbar->setLargeStep(2 * m_rowheight);

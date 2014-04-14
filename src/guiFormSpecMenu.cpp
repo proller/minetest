@@ -1,20 +1,23 @@
 /*
-Minetest
+guiFormSpecMenu.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -45,6 +48,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "filesys.h"
 #include "gettime.h"
 #include "gettext.h"
+
+#include "intlGUIEditBox.h"
 
 #define MY_CHECKPOS(a,b)													\
 	if (v_pos.size() != 2) {												\
@@ -204,7 +209,7 @@ void GUIFormSpecMenu::setInitialFocus()
 		Environment->setFocus(*(children.begin()));
 }
 
-GUITable* GUIFormSpecMenu::getTable(std::wstring tablename)
+GUITable* GUIFormSpecMenu::getTable(const std::string &tablename)
 {
 	for (u32 i = 0; i < m_tables.size(); ++i) {
 		if (tablename == m_tables[i].first.fname)
@@ -389,17 +394,16 @@ void GUIFormSpecMenu::parseCheckbox(parserData* data,std::string element)
 		if (selected == "true")
 			fselected = true;
 
-		std::wstring wlabel = narrow_to_wide(label.c_str());
+		std::wstring wlabel = utf8_to_wide(label);
 
 		FieldSpec spec = FieldSpec(
-				narrow_to_wide(name.c_str()),
+				name,
+				utf8_to_wide(label),
 				L"",
-				wlabel,
 				258+m_fields.size()
 			);
 
 		spec.ftype = f_CheckBox;
-		spec.flabel = wlabel; //Needed for displaying text on MSVC
 		gui::IGUICheckBox* e = Environment->addCheckBox(fselected, rect, this,
 					spec.fid, spec.flabel.c_str());
 
@@ -515,10 +519,10 @@ void GUIFormSpecMenu::parseButton(parserData* data,std::string element,
 
 		label = unescape_string(label);
 
-		std::wstring wlabel = narrow_to_wide(label.c_str());
+		std::wstring wlabel = utf8_to_wide(label);
 
 		FieldSpec spec = FieldSpec(
-			narrow_to_wide(name.c_str()),
+			name,
 			wlabel,
 			L"",
 			258+m_fields.size()
@@ -637,10 +641,8 @@ void GUIFormSpecMenu::parseTable(parserData* data,std::string element)
 
 		core::rect<s32> rect = core::rect<s32>(pos.X, pos.Y, pos.X+geom.X, pos.Y+geom.Y);
 
-		std::wstring fname_w = narrow_to_wide(name.c_str());
-
 		FieldSpec spec = FieldSpec(
-			fname_w,
+			name,
 			L"",
 			L"",
 			258+m_fields.size()
@@ -663,12 +665,11 @@ void GUIFormSpecMenu::parseTable(parserData* data,std::string element)
 
 		e->setTable(data->table_options, data->table_columns, items);
 
-		if (data->table_dyndata.find(fname_w) != data->table_dyndata.end()) {
-			e->setDynamicData(data->table_dyndata[fname_w]);
+		if (data->table_dyndata.find(name) != data->table_dyndata.end()) {
+			e->setDynamicData(data->table_dyndata[name]);
 		}
 
-		if ((str_initial_selection != "") &&
-				(str_initial_selection != "0"))
+		if (str_initial_selection != "" && str_initial_selection != "0")
 			e->setSelected(stoi(str_initial_selection.c_str()));
 
 		m_tables.push_back(std::pair<FieldSpec,GUITable*>(spec, e));
@@ -710,10 +711,8 @@ void GUIFormSpecMenu::parseTextList(parserData* data,std::string element)
 
 		core::rect<s32> rect = core::rect<s32>(pos.X, pos.Y, pos.X+geom.X, pos.Y+geom.Y);
 
-		std::wstring fname_w = narrow_to_wide(name.c_str());
-
 		FieldSpec spec = FieldSpec(
-			fname_w,
+			name,
 			L"",
 			L"",
 			258+m_fields.size()
@@ -736,12 +735,10 @@ void GUIFormSpecMenu::parseTextList(parserData* data,std::string element)
 
 		e->setTextList(items, is_yes(str_transparent));
 
-		if (data->table_dyndata.find(fname_w) != data->table_dyndata.end()) {
-			e->setDynamicData(data->table_dyndata[fname_w]);
-		}
+		if (data->table_dyndata.find(name) != data->table_dyndata.end())
+			e->setDynamicData(data->table_dyndata[name]);
 
-		if ((str_initial_selection != "") &&
-				(str_initial_selection != "0"))
+		if (str_initial_selection != "" && str_initial_selection != "0")
 			e->setSelected(stoi(str_initial_selection.c_str()));
 
 		m_tables.push_back(std::pair<FieldSpec,GUITable*>(spec, e));
@@ -773,10 +770,8 @@ void GUIFormSpecMenu::parseDropDown(parserData* data,std::string element)
 
 		core::rect<s32> rect = core::rect<s32>(pos.X, pos.Y, pos.X+width, pos.Y+30);
 
-		std::wstring fname_w = narrow_to_wide(name.c_str());
-
 		FieldSpec spec = FieldSpec(
-			fname_w,
+			name,
 			L"",
 			L"",
 			258+m_fields.size()
@@ -792,9 +787,8 @@ void GUIFormSpecMenu::parseDropDown(parserData* data,std::string element)
 			Environment->setFocus(e);
 		}
 
-		for (unsigned int i=0; i < items.size(); i++) {
-			e->addItem(narrow_to_wide(items[i]).c_str());
-		}
+		for (unsigned int i=0; i < items.size(); i++)
+			e->addItem(utf8_to_wide(items[i]).c_str());
 
 		if (str_initial_selection != "")
 			e->setSelected(stoi(str_initial_selection.c_str())-1);
@@ -810,11 +804,13 @@ void GUIFormSpecMenu::parsePwdField(parserData* data,std::string element)
 {
 	std::vector<std::string> parts = split(element,';');
 
-	if (parts.size() == 4) {
+	if (parts.size() == 4 || parts.size() == 5) {
 		std::vector<std::string> v_pos = split(parts[0],',');
 		std::vector<std::string> v_geom = split(parts[1],',');
 		std::string name = parts[2];
 		std::string label = parts[3];
+		std::string default_val;
+		if (parts.size() == 5) default_val = parts[4];
 
 		MY_CHECKPOS("pwdfield",0);
 		MY_CHECKGEOM("pwdfield",1);
@@ -832,14 +828,18 @@ void GUIFormSpecMenu::parsePwdField(parserData* data,std::string element)
 
 		core::rect<s32> rect = core::rect<s32>(pos.X, pos.Y, pos.X+geom.X, pos.Y+geom.Y);
 
+		if(m_form_src && default_val.size())
+			default_val = m_form_src->resolveText(default_val);
+
+		default_val = unescape_string(default_val);
 		label = unescape_string(label);
 
-		std::wstring wlabel = narrow_to_wide(label.c_str());
+		std::wstring wlabel = utf8_to_wide(label);
 
 		FieldSpec spec = FieldSpec(
-			narrow_to_wide(name.c_str()),
+			name,
 			wlabel,
-			L"",
+			narrow_to_wide(default_val.c_str()),
 			258+m_fields.size()
 			);
 
@@ -911,12 +911,10 @@ void GUIFormSpecMenu::parseSimpleField(parserData* data,
 	default_val = unescape_string(default_val);
 	label = unescape_string(label);
 
-	std::wstring wlabel = narrow_to_wide(label.c_str());
-
 	FieldSpec spec = FieldSpec(
-		narrow_to_wide(name.c_str()),
-		wlabel,
-		narrow_to_wide(default_val.c_str()),
+		name,
+		utf8_to_wide(label),
+		utf8_to_wide(default_val),
 		258+m_fields.size()
 	);
 
@@ -928,7 +926,8 @@ void GUIFormSpecMenu::parseSimpleField(parserData* data,
 	else
 	{
 		spec.send = true;
-		gui::IGUIEditBox *e = Environment->addEditBox(spec.fdefault.c_str(), rect, true, this, spec.fid);
+		gui::IGUIEditBox *e = (gui::IGUIEditBox *) new gui::intlGUIEditBox(spec.fdefault.c_str(), true, Environment, this, spec.fid, rect);
+		e->drop();
 
 		if (spec.fname == data->focused_fieldname) {
 			Environment->setFocus(e);
@@ -999,12 +998,10 @@ void GUIFormSpecMenu::parseTextArea(parserData* data,
 	default_val = unescape_string(default_val);
 	label = unescape_string(label);
 
-	std::wstring wlabel = narrow_to_wide(label.c_str());
-
 	FieldSpec spec = FieldSpec(
-		narrow_to_wide(name.c_str()),
-		wlabel,
-		narrow_to_wide(default_val.c_str()),
+		name,
+		utf8_to_wide(label),
+		utf8_to_wide(default_val),
 		258+m_fields.size()
 	);
 
@@ -1016,7 +1013,8 @@ void GUIFormSpecMenu::parseTextArea(parserData* data,
 	else
 	{
 		spec.send = true;
-		gui::IGUIEditBox *e = Environment->addEditBox(spec.fdefault.c_str(), rect, true, this, spec.fid);
+		gui::IGUIEditBox *e = (gui::IGUIEditBox *) new gui::intlGUIEditBox(spec.fdefault.c_str(), true, Environment, this, spec.fid, rect);
+		e->drop();
 
 		if (spec.fname == data->focused_fieldname) {
 			Environment->setFocus(e);
@@ -1085,11 +1083,9 @@ void GUIFormSpecMenu::parseLabel(parserData* data,std::string element)
 
 		text = unescape_string(text);
 
-		std::wstring wlabel = narrow_to_wide(text.c_str());
-
 		FieldSpec spec = FieldSpec(
-			L"",
-			wlabel,
+			"",
+			utf8_to_wide(text),
 			L"",
 			258+m_fields.size()
 		);
@@ -1106,7 +1102,7 @@ void GUIFormSpecMenu::parseVertLabel(parserData* data,std::string element)
 
 	if (parts.size() == 2) {
 		std::vector<std::string> v_pos = split(parts[0],',');
-		std::wstring text = narrow_to_wide(unescape_string(parts[1]));
+		std::wstring text = utf8_to_wide(unescape_string(parts[1]));
 
 		MY_CHECKPOS("vertlabel",1);
 
@@ -1127,7 +1123,7 @@ void GUIFormSpecMenu::parseVertLabel(parserData* data,std::string element)
 		}
 
 		FieldSpec spec = FieldSpec(
-			L"",
+			"",
 			label,
 			L"",
 			258+m_fields.size()
@@ -1189,12 +1185,10 @@ void GUIFormSpecMenu::parseImageButton(parserData* data,std::string element,
 		pressed_image_name = unescape_string(pressed_image_name);
 		label = unescape_string(label);
 
-		std::wstring wlabel = narrow_to_wide(label.c_str());
-
 		FieldSpec spec = FieldSpec(
-			narrow_to_wide(name.c_str()),
-			wlabel,
-			narrow_to_wide(image_name.c_str()),
+			name,
+			utf8_to_wide(label),
+			utf8_to_wide(image_name),
 			258+m_fields.size()
 		);
 		spec.ftype = f_Button;
@@ -1252,7 +1246,7 @@ void GUIFormSpecMenu::parseTabHeader(parserData* data,std::string element)
 		}
 
 		FieldSpec spec = FieldSpec(
-			narrow_to_wide(name.c_str()),
+			name,
 			L"",
 			L"",
 			258+m_fields.size()
@@ -1278,12 +1272,8 @@ void GUIFormSpecMenu::parseTabHeader(parserData* data,std::string element)
 		e->setNotClipped(true);
 
 		for (unsigned int i=0; i< buttons.size(); i++) {
-			wchar_t* wbutton = 0;
-
-			std::wstring wlabel = narrow_to_wide(buttons[i]); //Needed for displaying text on windows
-			wbutton = (wchar_t*) wlabel.c_str();
-
-			e->addTab(wbutton,-1);
+			std::wstring wlabel = utf8_to_wide(buttons[i]);
+			e->addTab(wlabel.c_str(), -1);
 		}
 
 		if ((tab_index >= 0) &&
@@ -1337,9 +1327,9 @@ void GUIFormSpecMenu::parseItemImageButton(parserData* data,std::string element)
 
 		label = unescape_string(label);
 		FieldSpec spec = FieldSpec(
-			narrow_to_wide(name.c_str()),
-			narrow_to_wide(label.c_str()),
-			narrow_to_wide(item_name.c_str()),
+			name,
+			utf8_to_wide(label.c_str()),
+			utf8_to_wide(item_name.c_str()),
 			258+m_fields.size()
 		);
 
@@ -1589,7 +1579,7 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 
 	//preserve tables
 	for (u32 i = 0; i < m_tables.size(); ++i) {
-		std::wstring tablename = m_tables[i].first.fname;
+		std::string tablename = m_tables[i].first.fname;
 		GUITable *table = m_tables[i].second;
 		mydata.table_dyndata[tablename] = table->getDynamicData();
 	}
@@ -1601,8 +1591,7 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 		if (focused_id > 257) {
 			for (u32 i=0; i<m_fields.size(); i++) {
 				if (m_fields[i].fid == focused_id) {
-					mydata.focused_fieldname =
-						m_fields[i].fname;
+					mydata.focused_fieldname = m_fields[i].fname;
 					break;
 				}
 			}
@@ -1652,7 +1641,7 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 		// Note: parent != this so that the tooltip isn't clipped by the menu rectangle
 		m_tooltip_element = Environment->addStaticText(L"",core::rect<s32>(0,0,110,18));
 		m_tooltip_element->enableOverrideColor(true);
-		m_tooltip_element->setBackgroundColor(video::SColor(255,110,130,60));
+		m_tooltip_element->setBackgroundColor(video::SColor(255,56,121,65));
 		m_tooltip_element->setDrawBackground(true);
 		m_tooltip_element->setDrawBorder(true);
 		m_tooltip_element->setOverrideColor(video::SColor(255,255,255,255));
@@ -1826,7 +1815,7 @@ void GUIFormSpecMenu::drawList(const ListDrawSpec &s, int phase)
 			{
 				m_tooltip_element->setVisible(true);
 				this->bringToFront(m_tooltip_element);
-				m_tooltip_element->setText(narrow_to_wide(tooltip_text).c_str());
+				m_tooltip_element->setText(utf8_to_wide(tooltip_text).c_str());
 				s32 tooltip_x = m_pointer.X + 15;
 				s32 tooltip_y = m_pointer.Y + 15;
 				s32 tooltip_width = m_tooltip_element->getTextWidth() + 15;
@@ -2031,7 +2020,7 @@ void GUIFormSpecMenu::drawMenu()
 			{
 				m_tooltip_element->setVisible(true);
 				this->bringToFront(m_tooltip_element);
-				m_tooltip_element->setText(narrow_to_wide(spec.tooltip).c_str());
+				m_tooltip_element->setText(utf8_to_wide(spec.tooltip).c_str());
 				s32 tooltip_x = m_pointer.X + 15;
 				s32 tooltip_y = m_pointer.Y + 15;
 				s32 tooltip_width = m_tooltip_element->getTextWidth() + 15;
@@ -2206,15 +2195,11 @@ void GUIFormSpecMenu::acceptInput(FormspecQuitMode quitmode=quit_mode_no)
 			if(s.send)
 			{
 				if(s.ftype == f_Button)
-				{
-					fields[wide_to_narrow(s.fname.c_str())] = wide_to_narrow(s.flabel.c_str());
-				}
+					fields[s.fname] = wide_to_utf8(s.flabel);
 				else if(s.ftype == f_Table) {
 					GUITable *table = getTable(s.fname);
-					if (table) {
-						fields[wide_to_narrow(s.fname.c_str())]
-							= table->checkEvent();
-					}
+					if (table)
+						fields[s.fname] = table->checkEvent();
 				}
 				else if(s.ftype == f_DropDown) {
 					// no dynamic cast possible due to some distributions shipped
@@ -2225,10 +2210,8 @@ void GUIFormSpecMenu::acceptInput(FormspecQuitMode quitmode=quit_mode_no)
 						e = static_cast<gui::IGUIComboBox*>(element);
 					}
 					s32 selected = e->getSelected();
-					if (selected >= 0) {
-						fields[wide_to_narrow(s.fname.c_str())] =
-							wide_to_narrow(e->getItem(selected));
-					}
+					if (selected >= 0)
+						fields[s.fname] = wide_to_utf8(e->getItem(selected));
 				}
 				else if (s.ftype == f_TabHeader) {
 					// no dynamic cast possible due to some distributions shipped
@@ -2242,7 +2225,7 @@ void GUIFormSpecMenu::acceptInput(FormspecQuitMode quitmode=quit_mode_no)
 					if (e != 0) {
 						std::stringstream ss;
 						ss << (e->getActiveTab() +1);
-						fields[wide_to_narrow(s.fname.c_str())] = ss.str();
+						fields[s.fname] = ss.str();
 					}
 				}
 				else if (s.ftype == f_CheckBox) {
@@ -2256,9 +2239,9 @@ void GUIFormSpecMenu::acceptInput(FormspecQuitMode quitmode=quit_mode_no)
 
 					if (e != 0) {
 						if (e->isChecked())
-							fields[wide_to_narrow(s.fname.c_str())] = "true";
+							fields[s.fname] = "true";
 						else
-							fields[wide_to_narrow(s.fname.c_str())] = "false";
+							fields[s.fname] = "false";
 					}
 				}
 				else
@@ -2266,7 +2249,7 @@ void GUIFormSpecMenu::acceptInput(FormspecQuitMode quitmode=quit_mode_no)
 					IGUIElement* e = getElementFromId(s.fid);
 					if(e != NULL)
 					{
-						fields[wide_to_narrow(s.fname.c_str())] = wide_to_narrow(e->getText());
+						fields[s.fname] = wide_to_utf8(e->getText());
 					}
 				}
 			}
@@ -2324,7 +2307,7 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 				acceptInput(quit_mode_cancel);
 				quitMenu();
 			} else {
-				m_text_dst->gotText(narrow_to_wide("MenuQuit"));
+				m_text_dst->gotText(L"MenuQuit");
 			}
 			return true;
 		}
@@ -2686,7 +2669,7 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 					quitMenu();
 				} else {
 					acceptInput();
-					m_text_dst->gotText(narrow_to_wide("ExitButton"));
+					m_text_dst->gotText(L"ExitButton");
 				}
 				// quitMenu deallocates menu
 				return true;
@@ -2707,7 +2690,7 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 							acceptInput(quit_mode_accept);
 							quitMenu();
 						} else {
-							m_text_dst->gotText(narrow_to_wide("ExitButton"));
+							m_text_dst->gotText(L"ExitButton");
 						}
 						return true;
 					}else{
@@ -2765,63 +2748,9 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 bool GUIFormSpecMenu::parseColor(const std::string &value, video::SColor &color,
 		bool quiet)
 {
-	const char *hexpattern = NULL;
-	if (value[0] == '#') {
-		if (value.size() == 9)
-			hexpattern = "#RRGGBBAA";
-		else if (value.size() == 7)
-			hexpattern = "#RRGGBB";
-		else if (value.size() == 5)
-			hexpattern = "#RGBA";
-		else if (value.size() == 4)
-			hexpattern = "#RGB";
-	}
-
-	if (hexpattern) {
-		assert(strlen(hexpattern) == value.size());
-		video::SColor outcolor(255, 255, 255, 255);
-		for (size_t pos = 0; pos < value.size(); ++pos) {
-			// '#' in the pattern means skip that character
-			if (hexpattern[pos] == '#')
-				continue;
-
-			// Else assume hexpattern[pos] is one of 'R' 'G' 'B' 'A'
-			// Read one or two digits, depending on hexpattern
-			unsigned char c1, c2;
-			if (hexpattern[pos+1] == hexpattern[pos]) {
-				// Two digits, e.g. hexpattern == "#RRGGBB"
-				if (!hex_digit_decode(value[pos], c1) ||
-				    !hex_digit_decode(value[pos+1], c2))
-					goto fail;
-				++pos;
-			}
-			else {
-				// One digit, e.g. hexpattern == "#RGB"
-				if (!hex_digit_decode(value[pos], c1))
-					goto fail;
-				c2 = c1;
-			}
-			u32 colorpart = ((c1 & 0x0f) << 4) | (c2 & 0x0f);
-
-			// Update outcolor with newly read color part
-			if (hexpattern[pos] == 'R')
-				outcolor.setRed(colorpart);
-			else if (hexpattern[pos] == 'G')
-				outcolor.setGreen(colorpart);
-			else if (hexpattern[pos] == 'B')
-				outcolor.setBlue(colorpart);
-			else if (hexpattern[pos] == 'A')
-				outcolor.setAlpha(colorpart);
-		}
-
-		color = outcolor;
-		return true;
-	}
-
-	// Optionally, named colors could be implemented here
-
-fail:
-	if (!quiet)
+	if (!::parseColor(value, color) && !quiet) {
 		errorstream<<"Invalid color: \""<<value<<"\""<<std::endl;
-	return false;
+		return false;
+	}
+	return true;
 }

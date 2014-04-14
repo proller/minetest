@@ -1,21 +1,24 @@
 /*
- Minetest
- Copyright (C) 2013 sapier
+guiFileSelectMenu.cpp
+Copyright (C) 2013 sapier
+*/
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation; either version 2.1 of the License, or
- (at your option) any later version.
+/*
+This file is part of Freeminer.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
- You should have received a copy of the GNU Lesser General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
+Freeminer  is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "guiFileSelectMenu.h"
 #include "util/string.h"
@@ -26,7 +29,7 @@ GUIFileSelectMenu::GUIFileSelectMenu(gui::IGUIEnvironment* env,
 				std::string title, std::string formname) :
 GUIModalMenu(env, parent, id, menumgr)
 {
-	m_title = narrow_to_wide(title);
+	m_title = utf8_to_wide(title);
 	m_parent = parent;
 	m_formname = formname;
 	m_text_dst = 0;
@@ -87,7 +90,7 @@ void GUIFileSelectMenu::acceptInput() {
 		std::map<std::string, std::string> fields;
 
 		if (m_accepted)
-			fields[m_formname + "_accepted"] = wide_to_narrow(m_fileOpenDialog->getFileName());
+			fields[m_formname + "_accepted"] = wide_to_utf8(m_fileOpenDialog->getFileName());
 		else
 			fields[m_formname + "_canceled"] = m_formname;
 

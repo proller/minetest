@@ -1,8 +1,8 @@
 # This file is read by default from:
-# ../minetest.conf
-# ../../minetest.conf
+# ../freeminer.conf
+# ../../freeminer.conf
 # Any other path can be chosen by passing the path as a parameter
-# to the program, eg. "minetest.exe --config ../minetest.conf.example"
+# to the program, eg. "freeminer.exe --config ../freeminer.conf.example"
 #
 # By default, all the settings are commented and not functional.
 # Uncomment settings by removing the preceding #.
@@ -12,7 +12,7 @@
 #
 # NOTE: This file might not be up-to-date, refer to the
 #       defaultsettings.cpp file for an up-to-date list:
-# https://github.com/minetest/minetest/blob/master/src/defaultsettings.cpp
+# https://github.com/freeminer/freeminer/blob/master/src/defaultsettings.cpp
 #
 # A vim command to convert most of defaultsettings.cpp to conf file format:
 # :'<,'>s/\tsettings->setDefault("\([^"]*\)", "\([^"]*\)");.*/#\1 = \2/g
@@ -40,6 +40,7 @@
 #keymap_jump = KEY_SPACE
 #keymap_sneak = KEY_LSHIFT
 #keymap_inventory = KEY_KEY_I
+#keymap_zoom = KEY_KEY_Z
 # Go down ladder / go down in fly mode / go fast in fast mode
 #keymap_special1 = KEY_KEY_E
 #keymap_chat = KEY_KEY_T
@@ -55,6 +56,8 @@
 #doubletap_jump = false
 # If false aux1 is used to fly fast
 #always_fly_fast = true
+# FOV when using zoom, default 15
+#zoom_fov=15
 # Some (temporary) keys for debugging
 #keymap_print_debug_stacks = KEY_KEY_P
 #keymap_quicktune_prev = KEY_HOME
@@ -73,6 +76,9 @@
 # The allowed adjustment range for the automatic rendering range adjustment
 #viewing_range_nodes_max = 160
 #viewing_range_nodes_min = 35
+#Start optimizing far blocks, in blocks. good values 2 - 5 . 0 = disable
+#farmesh = 0
+#farmesh_step = 2
 # Initial window size
 #screenW = 800
 #screenH = 600
@@ -87,6 +93,8 @@
 #address =
 # Enable random user input, for testing
 #random_input = false
+# Disable death screen, respawn automaticaly
+#respawn_auto = false
 # Timeout for client to remove unused map data from memory
 #client_unload_unused_data_timeout = 600
 # Whether to fog out the end of the visible area
@@ -95,10 +103,10 @@
 #new_style_water = false
 # Constant volume liquids
 #liquid_finite = false
-# Max liquids processed per step
-#liquid_loop_max = 10000
 # Update liquids every .. recommend for finite: 0.2
-#liquid_update = 1.0
+#liquid_update = 0.4
+# Send to client updated liquid every (increase on high loaded servers with liquid_finite)
+#liquid_send = 1.0
 # Relax flowing blocks to source if level near max and N nearby
 #  source blocks, more realistic, but not true constant.
 #  values: 0,1,2,3,4 : 0 - disable, 1 - most aggresive
@@ -107,8 +115,6 @@
 # Optimization: faster cave flood (and not true constant)
 #  (for finite liquids)
 #liquid_fast_flood = 1
-# Underground water and lava springs, its infnity sources if liquid_finite enabled
-#underground_springs = 1
 # Enable weather (cold-hot, water freeze-melt). use only with liquid_finite=1
 #weather = false
 # Enable nice leaves; disable for speed
@@ -131,7 +137,7 @@
 #invert_mouse = false
 # Enable/disable clouds
 #enable_clouds = true
-#cloud_height = 120
+#cloud_height = 300
 #enable_3d_clouds = true
 # Use a cloud animation for the main menu background
 #menu_clouds = true
@@ -196,9 +202,16 @@
 #enable_waving_leaves = false
 # Set to true enables waving plants. Requires shaders enabled.
 #enable_waving_plants = false
+# Set to true to disable wield light (enabled by default, requires shaders)
+#disable_wieldlight = false
 # The time in seconds it takes between repeated
 # right clicks when holding the right mouse button
 #repeat_rightclick_time = 0.25
+# Increases performance on modern GPUs a lot
+# it may be needed to decrease client_unload_unused_data_timeout to limit the RAM usage
+#enable_vbo = false
+# Greater FOV when running or flying
+#enable_movement_fov = true
 # Make fog and sky colors depend on daytime (dawn/sunset) and view direction
 #directional_colored_fog = true
 
@@ -213,7 +226,7 @@
 #curl_parallel_limit = 8
 
 # Url to the server list displayed in the Multiplayer Tab
-#serverlist_url = servers.minetest.net
+#serverlist_url = servers.freeminer.org
 # File in client/serverlist/ that contains your favorite servers displayed in the Multiplayer Tab
 #serverlist_file = favoriteservers.txt
 
@@ -235,6 +248,9 @@
 #fallback_font_shadow = 1
 #fallback_font_shadow_alpha = 128
 
+#Save password for every server in favorites (in plaintext)
+#password_save = 1
+
 #
 # Server stuff
 #
@@ -243,23 +259,23 @@
 # Bind address
 #bind_address =
 # Name of server
-#server_name = Minetest server
+#server_name = Freeminer server
 # Description of server
 #server_description = mine here
 # Domain name of server
-#server_address = game.minetest.net
+#server_address = game.freeminer.net
 # Homepage of server
-#server_url = http://minetest.net
+#server_url = http://freeminer.org
 # Automaticaly report to masterserver
 #server_announce = 0
-# Announce to this masterserver. if you want to announce your ipv6 address - use  serverlist_url = v6.servers.minetest.net
+# Announce to this masterserver. if you want to announce your ipv6 address - use  serverlist_url = v6.servers.freeminer.org
 #serverlist_url = servers.minetest.net
 # Default game (default when creating a new world)
-#default_game = minetest
+#default_game = default
 # World directory (everything in the world is stored here)
 #map-dir = /custom/world
 # Message of the Day
-#motd = Welcome to this awesome Minetest server!
+#motd = Welcome to this awesome Freeminer server!
 # Maximum number of players connected simultaneously
 #max_users = 15
 # Set to true to disallow old clients from connecting
@@ -291,6 +307,12 @@
 #disable_anticheat = false
 # If true, actions are recorded for rollback
 #enable_rollback_recording = false
+# If true, blocks are cached (and generated if not before) before a player is spawned.
+#cache_block_before_spawn = true
+# Defines the maximum height a player can spawn in a map, above water level
+#max_spawn_height = 50
+# Allow players with any symbols in names
+#enable_any_name = 0 # WARNING!!! SECURITY RISK WITH SOME MODULES
 
 # Profiler data print interval. #0 = disable.
 #profiler_print_interval = 0
@@ -299,10 +321,10 @@
 #active_object_send_range_blocks = 3
 # how large area of blocks are subject to the active block stuff (active = objects are loaded and ABMs run)
 #active_block_range = 2
+# if entities are allowed to force load the world
+#enable_force_load = true
 # how many blocks are flying in the wire simultaneously per client
 #max_simultaneous_block_sends_per_client = 10
-# how many blocks are flying in the wire simultaneously per server
-#max_simultaneous_block_sends_server_total = 40
 # From how far blocks are sent to clients (value * 16 nodes)
 #max_block_send_distance = 10
 # From how far blocks are generated for clients (value * 16 nodes)
@@ -346,6 +368,8 @@
 # Level of logging to be written to debug.txt.
 # 0 = none, 1 = errors and debug, 2 = action, 3 = info, 4 = verbose
 #debug_log_level = 2
+# Cpu-eating debug timing tool (also automatically enabled with debug_log_level>=3)
+#time_taker_enabled = 0
 # Maximum number of blocks that can be queued for loading.
 #emergequeue_limit_total = 256
 # Maximum number of blocks to be queued that are to be loaded from file.
@@ -379,6 +403,23 @@
 #movement_liquid_fluidity_smooth = 0.5
 #movement_liquid_sink = 10
 #movement_gravity = 9.81
+
+#
+# Player model animations (sent to client to be handled locally)
+#
+
+# Animation range for model when not walking, digging or doin both
+#animation_default_start = 0
+#animation_default_stop = 79
+# Animation range for model when walking
+#animation_walk_start = 168
+#animation_walk_stop = 187
+# Animation range for model when digging
+#animation_dig_start = 189
+#animation_dig_stop = 198
+# Animation range for model when walking and digging
+#animation_wd_start = 200
+#animation_wd_stop = 219
 
 #
 # Mapgen stuff
@@ -432,8 +473,10 @@
 # Float islands starts from height, 0 to disable
 #mgindev_float_islands = 500
 
-# Math mapgen generator: sphere, mandelbox, mengersponge      dont forget to lower water_level = -30000
-#mgmath_generator = mandelbox
+# Params for math mapgen in json format. generators supported: sphere, mandelbox, mengersponge, ...      dont forget to lower water_level = -30000
+#mg_math = {"generator":"sphere"}
+#some possible params:
+#mg_math = {"generator":"mengersponge", "size":1000, "distance":0.01, "center":{"x":5,"y":-100,"z":42}, "invert":1, "scale":0.001, "iterations":10}
 
 # Enable/disable IPv6
 #enable_ipv6 = true
@@ -455,3 +498,8 @@
 # Override language. When no value is provided (default) system language is used.
 # Check "locale" directory for the list of available translations.
 #language =
+
+# Start profiler when the server starts. Profiler is only available when LuaJIT is used.
+# Use /profiler_start to start the profiler manually and /profiler_stop to stop it.
+# The log name profile.txt will only be generated when you manually execute /profiler_stop
+#profiler_autostart = false

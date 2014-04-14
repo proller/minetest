@@ -1,20 +1,23 @@
 /*
-Minetest
+mapgen_v6.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "mapgen.h"
@@ -36,6 +39,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "cavegen.h"
 #include "treegen.h"
 #include "mapgen_v6.h"
+#include "environment.h"
 
 FlagDesc flagdesc_mapgen_v6[] = {
 	{"jungles",    MGV6_JUNGLES},
@@ -429,6 +433,7 @@ void MapgenV6::makeChunk(BlockMakeData *data) {
 	c_stone           = ndef->getId("mapgen_stone");
 	c_dirt            = ndef->getId("mapgen_dirt");
 	c_dirt_with_grass = ndef->getId("mapgen_dirt_with_grass");
+	c_dirt_with_snow  = ndef->getId("mapgen_dirt_with_snow");
 	c_sand            = ndef->getId("mapgen_sand");
 	c_water_source    = ndef->getId("mapgen_water_source");
 	c_lava_source     = ndef->getId("mapgen_lava_source");
@@ -436,6 +441,7 @@ void MapgenV6::makeChunk(BlockMakeData *data) {
 	c_cobble          = ndef->getId("mapgen_cobble");
 	c_desert_sand     = ndef->getId("mapgen_desert_sand");
 	c_desert_stone    = ndef->getId("mapgen_desert_stone");
+	c_ice             = ndef->getId("mapgen_ice");
 	c_mossycobble     = ndef->getId("mapgen_mossycobble");
 	c_sandbrick       = ndef->getId("mapgen_sandstonebrick");
 	c_stair_cobble    = ndef->getId("mapgen_stair_cobble");
@@ -596,6 +602,7 @@ int MapgenV6::generateGround() {
 	//TimeTaker timer1("Generating ground level");
 	MapNode n_air(CONTENT_AIR), n_water_source(c_water_source);
 	MapNode n_stone(c_stone), n_desert_stone(c_desert_stone);
+	MapNode n_ice(c_ice);
 	int stone_surface_max_y = -MAP_GENERATION_LIMIT;
 	u32 index = 0;
 	
@@ -616,10 +623,11 @@ int MapgenV6::generateGround() {
 		for (s16 y = node_min.Y; y <= node_max.Y; y++) {
 			if (vm->m_data[i].getContent() == CONTENT_IGNORE) {
 				if (y <= surface_y) {
-					vm->m_data[i] = (y > water_level && bt == BT_DESERT) ? 
+					vm->m_data[i] = (y > water_level - surface_y && bt == BT_DESERT) ? 
 						n_desert_stone : n_stone;
 				} else if (y <= water_level) {
-					vm->m_data[i] = n_water_source;
+					s16 heat = emerge->env->m_use_weather ? emerge->env->getServerMap().updateBlockHeat(emerge->env, v3s16(x,y,z), NULL, &heat_cache) : 0;
+					vm->m_data[i] = (heat < 0 && y > heat/3) ? n_ice : n_water_source;
 				} else {
 					vm->m_data[i] = n_air;
 				}
@@ -694,7 +702,7 @@ void MapgenV6::addMud() {
 
 void MapgenV6::flowMud(s16 &mudflow_minpos, s16 &mudflow_maxpos) {
 	// 340ms @cs=8
-	TimeTaker timer1("flow mud");
+	//TimeTaker timer1("flow mud");
 
 	// Iterate a few times
 	for(s16 k = 0; k < 3; k++) {
@@ -867,10 +875,11 @@ void MapgenV6::addDirtGravelBlobs() {
 
 void MapgenV6::placeTreesAndJungleGrass() {
 	//TimeTaker t("placeTrees");
-	if (node_max.Y < water_level)
-		return;
 	
 	PseudoRandom grassrandom(blockseed + 53);
+
+	content_t c_sand            = ndef->getId("mapgen_sand");
+
 	content_t c_junglegrass = ndef->getId("mapgen_junglegrass");
 	// if we don't have junglegrass, don't place cignore... that's bad
 	if (c_junglegrass == CONTENT_IGNORE)
@@ -906,7 +915,7 @@ void MapgenV6::placeTreesAndJungleGrass() {
 		// Amount of trees, jungle area
 		u32 tree_count = area * getTreeAmount(p2d_center);
 		
-		float humidity;
+		float humidity = 0;
 		bool is_jungle = false;
 		if (spflags & MGV6_JUNGLES) {
 			humidity = getHumidity(p2d_center);
@@ -915,6 +924,9 @@ void MapgenV6::placeTreesAndJungleGrass() {
 				tree_count *= 4;
 			}
 		}
+
+		if (node_max.Y < water_level)
+			tree_count /= 2;
 
 		// Add jungle grass
 		if (is_jungle) {			
@@ -943,7 +955,7 @@ void MapgenV6::placeTreesAndJungleGrass() {
 			s16 y = findGroundLevelFull(v2s16(x, z)); ////////////////////optimize this!
 			// Don't make a tree under water level
 			// Don't make a tree so high that it doesn't fit
-			if(y < water_level || y > node_max.Y - 6)
+			if(y > node_max.Y - 6)
 				continue;
 			
 			v3s16 p(x,y,z);
@@ -952,13 +964,18 @@ void MapgenV6::placeTreesAndJungleGrass() {
 				u32 i = vm->m_area.index(p);
 				MapNode *n = &vm->m_data[i];
 				if (n->getContent() != c_dirt &&
-					n->getContent() != c_dirt_with_grass)
+					n->getContent() != c_dirt_with_grass &&
+					(y >= water_level || n->getContent() != c_sand))
 					continue;
 			}
 			p.Y++;
 			
 			// Make a tree
-			if (is_jungle) {
+			if (y < water_level) {
+				if (y < water_level - 20) // do not spawn trees in lakes
+					treegen::make_cavetree(*vm, p, is_jungle, ndef, myrand());
+			}
+			else if (is_jungle) {
 				treegen::make_jungletree(*vm, p, ndef, myrand());
 			} else {
 				bool is_apple_tree = (myrand_range(0, 3) == 0) &&
@@ -995,7 +1012,13 @@ void MapgenV6::growGrass() {
 		u32 i = vm->m_area.index(x, surface_y, z);
 		MapNode *n = &vm->m_data[i];
 		if (n->getContent() == c_dirt && surface_y >= water_level - 20)
+		{
+			if (emerge->env->m_use_weather) {
+				int heat = emerge->env->getServerMap().updateBlockHeat(emerge->env, v3s16(x, surface_y, z), NULL, &heat_cache);
+				n->setContent(heat < -10 ? c_dirt_with_snow : (heat < -5 || heat > 50) ? c_dirt : c_dirt_with_grass);
+			} else
 			n->setContent(c_dirt_with_grass);
+		}
 	}
 }
 

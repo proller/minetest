@@ -1,20 +1,24 @@
 /*
-Minetest
+treegen.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>,
-			  2012-2013 RealBadAngel, Maciej Kasatkin <mk@realbadangel.pl>
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+Copyright (C) 2012-2013 RealBadAngel, Maciej Kasatkin <mk@realbadangel.pl>
+*/
+
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "irr_v3d.h"
@@ -26,6 +30,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "environment.h"
 #include "nodedef.h"
 #include "treegen.h"
+
+#include "log.h"
 
 namespace treegen
 {
@@ -43,7 +49,7 @@ void make_tree(ManualMapVoxelManipulator &vmanip, v3s16 p0,
 	MapNode applenode(ndef->getId("mapgen_apple"));
 
 	PseudoRandom pr(seed);
-	s16 trunk_h = pr.range(4, 5);
+	s16 trunk_h = pr.range(4, 6);
 	v3s16 p1 = p0;
 	for(s16 ii=0; ii<trunk_h; ii++)
 	{
@@ -56,7 +62,8 @@ void make_tree(ManualMapVoxelManipulator &vmanip, v3s16 p0,
 	// p1 is now the last piece of the trunk
 	p1.Y -= 1;
 
-	VoxelArea leaves_a(v3s16(-2,-1,-2), v3s16(2,2,2));
+	s16 size = pr.range(2, 3);
+	VoxelArea leaves_a(v3s16(-size,-pr.range(2, 3),-size), v3s16(size,pr.range(2, 3),size));
 	//SharedPtr<u8> leaves_d(new u8[leaves_a.getVolume()]);
 	Buffer<u8> leaves_d(leaves_a.getVolume());
 	for(s32 i=0; i<leaves_a.getVolume(); i++)
@@ -131,7 +138,7 @@ void spawn_ltree(ServerEnvironment *env, v3s16 p0, INodeDefManager *ndef, TreeDe
 	// update lighting
 	std::map<v3s16, MapBlock*> lighting_modified_blocks;
 	lighting_modified_blocks.insert(modified_blocks.begin(), modified_blocks.end());
-	map->updateLighting(lighting_modified_blocks, modified_blocks);
+	map->updateLighting(lighting_modified_blocks, modified_blocks, 100);
 	// Send a MEET_OTHER event
 	MapEditEvent event;
 	event.type = MEET_OTHER;
@@ -566,7 +573,8 @@ void make_jungletree(VoxelManipulator &vmanip, v3s16 p0,
 	// p1 is now the last piece of the trunk
 	p1.Y -= 1;
 
-	VoxelArea leaves_a(v3s16(-3,-2,-3), v3s16(3,2,3));
+	s16 size = pr.range(2, 4);
+	VoxelArea leaves_a(v3s16(-size,-pr.range(2, 4),-size), v3s16(size, pr.range(2, 4), size));
 	//SharedPtr<u8> leaves_d(new u8[leaves_a.getVolume()]);
 	Buffer<u8> leaves_d(leaves_a.getVolume());
 	for(s32 i=0; i<leaves_a.getVolume(); i++)
@@ -619,6 +627,32 @@ void make_jungletree(VoxelManipulator &vmanip, v3s16 p0,
 		if(leaves_d[i] == 1)
 			vmanip.m_data[vi] = leavesnode;
 	}
+}
+
+void make_cavetree(ManualMapVoxelManipulator &vmanip, v3s16 p0,
+		bool is_jungle_tree, INodeDefManager *ndef, int seed)
+{
+	MapNode treenode(ndef->getId(is_jungle_tree ? "mapgen_jungletree" : "mapgen_tree"));
+	MapNode leavesnode(ndef->getId(is_jungle_tree ? "mapgen_jungleleaves" : "mapgen_leaves"));
+
+	PseudoRandom pr(seed);
+	s16 trunk_h = pr.range(2, pr.range(2, 5));
+	v3s16 p1 = p0;
+	for(s16 ii=0; ii<trunk_h; ii++)
+	{
+		if(vmanip.m_area.contains(p1)) {
+			if(vmanip.getNodeNoExNoEmerge(p1).getContent() != CONTENT_AIR)
+				return;
+			if (ii == 0 && vmanip.getNodeNoExNoEmerge(p1).getLight(LIGHTBANK_DAY, ndef) == LIGHT_SUN)
+				return;
+			vmanip.m_data[vmanip.m_area.index(p1)] = treenode;
+		}
+		p1.Y++;
+	}
+	if(vmanip.m_area.contains(p1))
+		if(vmanip.getNodeNoExNoEmerge(p1).getContent() != CONTENT_AIR)
+			return;
+		vmanip.m_data[vmanip.m_area.index(p1)] = leavesnode;
 }
 
 }; // namespace treegen

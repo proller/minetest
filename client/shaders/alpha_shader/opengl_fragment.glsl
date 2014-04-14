@@ -14,6 +14,8 @@ varying vec3 tsEyeVec;
 varying vec3 lightVec;
 varying vec3 tsLightVec;
 
+uniform float wieldLight;
+
 bool normalTexturePresent = false;
 
 const float e = 2.718281828459;
@@ -101,7 +103,8 @@ vec4 base = texture2D(baseTexture, uv).rgba;
 	col.g = 1.0 - exp(1.0 - col.g) / e;
 	col.b = 1.0 - exp(1.0 - col.b) / e;
 	col = sqrt(col); // Linear -> SRGB
-	col *= gl_Color;
+	float light = max((wieldLight/2.0)/vPosition.z, 0.0);
+	col *= min(gl_Color+vec4(light), 1.0);
 	if(fogDistance != 0.0){
 		float d = max(0.0, min(vPosition.z / fogDistance * 1.5 - 0.6, 1.0));
 		col = mix(col, skyBgColor, d);

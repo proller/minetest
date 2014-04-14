@@ -1,20 +1,23 @@
 /*
-Minetest
+clientiface.cpp
 Copyright (C) 2010-2014 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <sstream>
@@ -38,10 +41,10 @@ void RemoteClient::GetNextBlocks(
 		ServerEnvironment *env,
 		EmergeManager * emerge,
 		float dtime,
+		double m_uptime,
 		std::vector<PrioritySortedBlockTransfer> &dest)
 {
 	DSTACK(__FUNCTION_NAME);
-
 
 	// Increment timers
 	m_nothing_to_send_pause_timer -= dtime;
@@ -98,12 +101,12 @@ void RemoteClient::GetNextBlocks(
 			<<m_nearest_unsent_reset_timer<<std::endl;*/
 
 	// Reset periodically to workaround for some bugs or stuff
-	if(m_nearest_unsent_reset_timer > 20.0)
+	if(m_nearest_unsent_reset_timer > 120.0)
 	{
 		m_nearest_unsent_reset_timer = 0;
 		m_nearest_unsent_d = 0;
-		//infostream<<"Resetting m_nearest_unsent_d for "
-		//		<<server->getPlayerName(peer_id)<<std::endl;
+		m_nearest_unsent_nearest = 0;
+		//infostream<<"Resetting m_nearest_unsent_d for "<<peer_id<<std::endl;
 	}
 
 	//s16 last_nearest_unsent_d = m_nearest_unsent_d;
@@ -142,29 +145,81 @@ void RemoteClient::GetNextBlocks(
 	*/
 	s32 new_nearest_unsent_d = -1;
 
-	const s16 full_d_max = g_settings->getS16("max_block_send_distance");
+	s16 full_d_max = g_settings->getS16("max_block_send_distance");
+	if (wanted_range) {
+		s16 wanted_blocks = wanted_range / MAP_BLOCKSIZE + 1;
+		if (wanted_blocks < full_d_max)
+			full_d_max = wanted_blocks;
+	}
+
 	s16 d_max = full_d_max;
 	s16 d_max_gen = g_settings->getS16("max_block_generate_distance");
 
 	// Don't loop very much at a time
-	s16 max_d_increment_at_time = 2;
+	s16 max_d_increment_at_time = 5;
 	if(d_max > d_start + max_d_increment_at_time)
 		d_max = d_start + max_d_increment_at_time;
+	/*if(d_max_gen > d_start+2)
+		d_max_gen = d_start+2;*/
+
+	//infostream<<"Starting from "<<d_start<<std::endl;
 
 	s32 nearest_emerged_d = -1;
 	s32 nearest_emergefull_d = -1;
 	s32 nearest_sent_d = -1;
 	bool queue_is_full = false;
 
+	f32 speed_in_blocks = (playerspeed/(MAP_BLOCKSIZE*BS)).getLength();
+
 	s16 d;
 	for(d = d_start; d <= d_max; d++)
 	{
+		/*errorstream<<"checking d="<<d<<" for "
+				<<server->getPlayerName(peer_id)<<std::endl;*/
+		//infostream<<"RemoteClient::SendBlocks(): d="<<d<<" d_start="<<d_start<<" d_max="<<d_max<<" d_max_gen="<<d_max_gen<<std::endl;
+
+		/*
+			If m_nearest_unsent_d was changed by the EmergeThread
+			(it can change it to 0 through SetBlockNotSent),
+			update our d to it.
+			Else update m_nearest_unsent_d
+		*/
+		/*if(m_nearest_unsent_d != last_nearest_unsent_d)
+		{
+			d = m_nearest_unsent_d;
+			last_nearest_unsent_d = m_nearest_unsent_d;
+		}*/
+
+		std::list<v3s16> list;
+		bool can_skip = true;
+		// Fast fall/move optimize. speed_in_blocks now limited to 6.4
+		if (speed_in_blocks>0.8 && d <= 2) {
+			can_skip = false;
+			if (d == 0) {
+				for(s16 addn = 0; addn < (speed_in_blocks+1)*2; ++addn)
+					list.push_back(floatToInt(playerspeeddir*addn, 1));
+			} else if (d == 1) {
+				for(s16 addn = 0; addn < (speed_in_blocks+1)*1.5; ++addn) {
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 0,  0,  1)); // back
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( -1, 0,  0)); // left
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 1,  0,  0)); // right
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 0,  0, -1)); // front
+				}
+			} else if (d == 2) {
+				for(s16 addn = 0; addn < (speed_in_blocks+1)*1.5; ++addn) {
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( -1, 0,  1)); // back left
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 1,  0,  1)); // left right
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( -1, 0, -1)); // right left
+					list.push_back(floatToInt(playerspeeddir*addn, 1) + v3s16( 1,  0, -1)); // front right
+				}
+			}
+		} else {
 		/*
 			Get the border/face dot coordinates of a "d-radiused"
 			box
 		*/
-		std::list<v3s16> list;
-		getFacePositions(list, d);
+			getFacePositions(list, d);
+		}
 
 		std::list<v3s16>::iterator li;
 		for(li=list.begin(); li!=list.end(); ++li)
@@ -217,18 +272,20 @@ void RemoteClient::GetNextBlocks(
 					generate = false;*/
 
 				// Limit the send area vertically to 1/2
-				if(abs(p.Y - center.Y) > full_d_max / 2)
-					continue;
+				if(can_skip && abs(p.Y - center.Y) > full_d_max / 2)
+					generate = false;
 			}
 
+
+			//infostream<<"d="<<d<<std::endl;
 			/*
 				Don't generate or send if not in sight
 				FIXME This only works if the client uses a small enough
 				FOV setting. The default of 72 degrees is fine.
 			*/
 
-			float camera_fov = (72.0*M_PI/180) * 4./3.;
-			if(isBlockInSight(p, camera_pos, camera_dir, camera_fov, 10000*BS) == false)
+			float camera_fov = (80.0*M_PI/180) * 4./3.;
+			if(can_skip && isBlockInSight(p, camera_pos, camera_dir, camera_fov, 10000*BS) == false)
 			{
 				continue;
 			}
@@ -237,8 +294,7 @@ void RemoteClient::GetNextBlocks(
 				Don't send already sent blocks
 			*/
 			{
-				if(m_blocks_sent.find(p) != m_blocks_sent.end())
-				{
+				if(m_blocks_sent.find(p) != m_blocks_sent.end() && m_blocks_sent[p] > 0 && m_blocks_sent[p] + (d <= 2 ? 1 : d*d) > m_uptime) {
 					continue;
 				}
 			}
@@ -252,6 +308,11 @@ void RemoteClient::GetNextBlocks(
 			bool block_is_invalid = false;
 			if(block != NULL)
 			{
+
+				if (m_blocks_sent[p] > 0 && m_blocks_sent[p] >= block->m_changed_timestamp) {
+					continue;
+				}
+
 				// Reset usage timer, this block will be of use in the future.
 				block->resetUsageTimer();
 
@@ -278,11 +339,13 @@ void RemoteClient::GetNextBlocks(
 					Block is near ground level if night-time mesh
 					differs from day-time mesh.
 				*/
+/*
 				if(d >= 4)
 				{
 					if(block->getDayNightDiff() == false)
 						continue;
 				}
+*/
 			}
 
 			/*
@@ -319,6 +382,7 @@ void RemoteClient::GetNextBlocks(
 			/*
 				Add block to send queue
 			*/
+
 			PrioritySortedBlockTransfer q((float)d, p, peer_id);
 
 			dest.push_back(q);
@@ -328,6 +392,13 @@ void RemoteClient::GetNextBlocks(
 	}
 queue_full_break:
 
+	//infostream<<"Stopped at "<<d<<" d_start="<<d_start<< " d_max="<<d_max<<" nearest_emerged_d="<<nearest_emerged_d<<" nearest_emergefull_d="<<nearest_emergefull_d<< " new_nearest_unsent_d="<<new_nearest_unsent_d<< " sel="<<num_blocks_selected<<std::endl;
+	if(!num_blocks_selected && d_start == d) {
+		//new_nearest_unsent_d = 0;
+		m_nothing_to_send_pause_timer = 1.0;
+	}
+		
+
 	// If nothing was found for sending and nothing was queued for
 	// emerging, continue next time browsing from here
 	if(nearest_emerged_d != -1){
@@ -335,7 +406,7 @@ queue_full_break:
 	} else if(nearest_emergefull_d != -1){
 		new_nearest_unsent_d = nearest_emergefull_d;
 	} else {
-		if(d > g_settings->getS16("max_block_send_distance")){
+		if(d > full_d_max){
 			new_nearest_unsent_d = 0;
 			m_nothing_to_send_pause_timer = 2.0;
 		} else {
@@ -350,7 +421,7 @@ queue_full_break:
 		m_nearest_unsent_d = new_nearest_unsent_d;
 }
 
-void RemoteClient::GotBlock(v3s16 p)
+void RemoteClient::GotBlock(v3s16 p, double time)
 {
 	if(m_blocks_sending.find(p) != m_blocks_sending.end())
 		m_blocks_sending.erase(p);
@@ -358,7 +429,7 @@ void RemoteClient::GotBlock(v3s16 p)
 	{
 		m_excess_gotblocks++;
 	}
-	m_blocks_sent.insert(p);
+	m_blocks_sent[p] = time;
 }
 
 void RemoteClient::SentBlock(v3s16 p)
@@ -372,29 +443,26 @@ void RemoteClient::SentBlock(v3s16 p)
 
 void RemoteClient::SetBlockNotSent(v3s16 p)
 {
-	m_nearest_unsent_d = 0;
+	++m_nearest_unsent_nearest;
 
 	if(m_blocks_sending.find(p) != m_blocks_sending.end())
 		m_blocks_sending.erase(p);
-	if(m_blocks_sent.find(p) != m_blocks_sent.end())
-		m_blocks_sent.erase(p);
 }
 
 void RemoteClient::SetBlocksNotSent(std::map<v3s16, MapBlock*> &blocks)
 {
-	m_nearest_unsent_d = 0;
-
 	for(std::map<v3s16, MapBlock*>::iterator
 			i = blocks.begin();
 			i != blocks.end(); ++i)
 	{
 		v3s16 p = i->first;
-
-		if(m_blocks_sending.find(p) != m_blocks_sending.end())
-			m_blocks_sending.erase(p);
-		if(m_blocks_sent.find(p) != m_blocks_sent.end())
-			m_blocks_sent.erase(p);
+		SetBlockNotSent(p);
 	}
+}
+
+void RemoteClient::SetBlockDeleted(v3s16 p) {
+	SetBlockNotSent(p);
+	m_blocks_sent.erase(p);
 }
 
 void RemoteClient::notifyEvent(ClientStateEvent event)
@@ -624,6 +692,13 @@ void ClientInterface::send(u16 peer_id,u8 channelnum,
 	m_con->Send(peer_id, channelnum, data, reliable);
 }
 
+void ClientInterface::send(u16 peer_id,u8 channelnum,
+		const msgpack::sbuffer &buffer, bool reliable)
+{
+	SharedBuffer<u8> data((unsigned char*)buffer.data(), buffer.size());
+	send(peer_id, channelnum, data, reliable);
+}
+
 void ClientInterface::sendToAll(u16 channelnum,
 		SharedBuffer<u8> data, bool reliable)
 {
@@ -639,6 +714,13 @@ void ClientInterface::sendToAll(u16 channelnum,
 			m_con->Send(client->peer_id, channelnum, data, reliable);
 		}
 	}
+}
+
+void ClientInterface::sendToAll(u16 channelnum,
+		const msgpack::sbuffer &buffer, bool reliable)
+{
+	SharedBuffer<u8> data((unsigned char*)buffer.data(), buffer.size());
+	sendToAll(channelnum, data, reliable);
 }
 
 RemoteClient* ClientInterface::getClientNoEx(u16 peer_id, ClientState state_min)
@@ -742,7 +824,7 @@ void ClientInterface::CreateClient(u16 peer_id)
 	if(n != m_clients.end()) return;
 
 	// Create client
-	RemoteClient *client = new RemoteClient();
+	RemoteClient *client = new RemoteClient(m_env);
 	client->peer_id = peer_id;
 	m_clients[client->peer_id] = client;
 }

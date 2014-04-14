@@ -1,20 +1,23 @@
 /*
-Minetest
+util/string.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef UTIL_STRING_HEADER
@@ -26,12 +29,21 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <cstring>
 #include <vector>
 #include <sstream>
+#include "SColor.h"
 
 struct FlagDesc {
 	const char *name;
 	u32 flag;
 };
 
+// try not to convert between wide/utf8 encodings; this can result in data loss
+// try to only convert between them when you need to input/output stuff via Irrlicht
+std::wstring utf8_to_wide(const std::string &input);
+std::string wide_to_utf8(const std::wstring &input);
+
+// NEVER use those two functions unless you have a VERY GOOD reason to
+// they just convert between wide and multibyte encoding
+// multibyte encoding depends on current locale, this is no good, especially on Windows
 std::wstring narrow_to_wide(const std::string& mbs);
 std::string wide_to_narrow(const std::wstring& wcs);
 
@@ -180,7 +192,7 @@ inline s32 mystoi(const std::string &s)
 
 inline s32 mystoi(const std::wstring &s)
 {
-	return atoi(wide_to_narrow(s).c_str());
+	return atoi(wide_to_utf8(s).c_str());
 }
 
 inline float mystof(const std::string &s)
@@ -316,7 +328,7 @@ inline std::string unescape_string(std::string &s)
 	return res;
 }
 
-std::string translatePassword(std::string playername, std::wstring password);
+std::string translatePassword(std::string playername, std::string password);
 std::string urlencode(std::string str);
 std::string urldecode(std::string str);
 u32 readFlagString(std::string str, FlagDesc *flagdesc, u32 *flagmask);
@@ -325,5 +337,10 @@ size_t mystrlcpy(char *dst, const char *src, size_t size);
 char *mystrtok_r(char *s, const char *sep, char **lasts);
 u64 read_seed(const char *str);
 
+bool parseColor(const std::string &value, video::SColor &color);
+std::wstring colorizeText(const std::wstring &s, std::vector<video::SColor> &colors, const video::SColor &initial_color);
+std::wstring sanitizeChatString(const std::wstring &s);
+bool char_icompare(char c1, char c2);
+bool string_icompare(const std::string& a, const std::string& b);
 #endif
 

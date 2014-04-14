@@ -1,21 +1,29 @@
 /*
-Minetest
+clientserver.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+#include "clientserver_msgpack.h"
+#if 0
+Not used, keep for reduce MT merge conflicts
+
 
 #ifndef CLIENTSERVER_HEADER
 #define CLIENTSERVER_HEADER
@@ -95,7 +103,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 		TOCLIENT_BREATH
 		TOSERVER_BREATH
 		range added to ItemDefinition
-		drowning, leveled and liquid_range added to ContentFeatures
+		drowning, leveled added to ContentFeatures
 		stepheight and collideWithObjects added to object properties
 		version, heat and humidity transfer in MapBock
 		automatic_face_movement_dir and automatic_face_movement_dir_offset
@@ -123,6 +131,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
                                // base64-encoded SHA-1 (27+\0).
 
 #define TEXTURENAME_ALLOWED_CHARS "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
+
+#define MAX_PACKET_SIZE 512
 
 enum ToClientCommand
 {
@@ -512,7 +522,7 @@ enum ToClientCommand
 		u16 breath
 	*/
 
-	TOCLIENT_SET_SKY = 0x4f,
+	TOCLIENT_SET_SKY = 0xae, // MUST BE 0x4f (as in MT )BUT IT BROKE OLD FM SERVERS
 	/*
 		u16 command
 		u8[4] color (ARGB)
@@ -591,6 +601,7 @@ enum ToServerCommand
 		[2] u8 count
 		[3] v3s16 pos_0
 		[3+6] v3s16 pos_1
+		[9] u16 wanted range
 		...
 	*/
 
@@ -790,3 +801,4 @@ enum ToServerCommand
 
 #endif
 
+#endif

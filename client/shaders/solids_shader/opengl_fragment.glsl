@@ -6,6 +6,8 @@ uniform vec4 skyBgColor;
 uniform float fogDistance;
 uniform vec3 eyePosition;
 
+uniform float wieldLight;
+
 varying vec3 vPosition;
 varying vec3 worldPosition;
 
@@ -101,7 +103,8 @@ vec4 base = texture2D(baseTexture, uv).rgba;
 	col.g = 1.0 - exp(1.0 - col.g) / e;
 	col.b = 1.0 - exp(1.0 - col.b) / e;
 	col = sqrt(col); // Linear -> SRGB
-	col *= gl_Color;
+	float light = max((wieldLight/2.0)/vPosition.z, 0.0);
+	col *= min(gl_Color+vec4(light), 1.0);
 	if(fogDistance != 0.0){
 		float d = max(0.0, min(vPosition.z / fogDistance * 1.5 - 0.6, 1.0));
 		col = mix(col, skyBgColor, d);

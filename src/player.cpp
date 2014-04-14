@@ -1,20 +1,23 @@
 /*
-Minetest
+player.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "player.h"
@@ -26,6 +29,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "util/numeric.h"
 
 Player::Player(IGameDef *gamedef):
+	refs(0),
 	touching_ground(false),
 	in_liquid(false),
 	in_liquid_stable(false),
@@ -38,8 +42,13 @@ Player::Player(IGameDef *gamedef):
 	hp(PLAYER_MAX_HP),
 	hurt_tilt_timer(0),
 	hurt_tilt_strength(0),
+	zoom(false),
+	superspeed(false),
+	free_move(false),
+	movement_fov(0),
 	peer_id(PEER_ID_INEXISTENT),
 	keyPressed(0),
+	need_save(false),
 // protected
 	m_gamedef(gamedef),
 	m_breath(-1),
@@ -47,12 +56,14 @@ Player::Player(IGameDef *gamedef):
 	m_yaw(0),
 	m_speed(0,0,0),
 	m_position(0,0,0),
-	m_collisionbox(-BS*0.30,0.0,-BS*0.30,BS*0.30,BS*1.75,BS*0.30),
+	m_collisionbox(-BS*0.30,0.0,-BS*0.30,BS*0.30,BS*1.75,BS*0.30)
+#if WTF
 	m_last_pitch(0),
 	m_last_yaw(0),
 	m_last_pos(0,0,0),
 	m_last_hp(PLAYER_MAX_HP),
 	m_last_inventory(gamedef->idef())
+#endif
 {
 	updateName("<not set>");
 	inventory.clear();
@@ -61,7 +72,9 @@ Player::Player(IGameDef *gamedef):
 	craft->setWidth(3);
 	inventory.addList("craftpreview", 1);
 	inventory.addList("craftresult", 1);
+#if WTF
 	m_last_inventory = inventory;
+#endif
 
 	// Can be redefined via Lua
 	inventory_formspec = "size[8,7.5]"
@@ -103,12 +116,19 @@ Player::~Player()
 }
 
 // Horizontal acceleration (X and Z), Y direction is ignored
-void Player::accelerateHorizontal(v3f target_speed, f32 max_increase)
+void Player::accelerateHorizontal(v3f target_speed, f32 max_increase, float slippery)
 {
 	if(max_increase == 0)
 		return;
-
+	
 	v3f d_wanted = target_speed - m_speed;
+	if (slippery)
+	{
+		if (target_speed == v3f(0))
+			d_wanted = -m_speed*(1-slippery/100)/2;
+		else
+			d_wanted = target_speed*(1-slippery/100) - m_speed*(1-slippery/100);
+	}
 	d_wanted.Y = 0;
 	f32 dl = d_wanted.getLength();
 	if(dl > max_increase)
@@ -243,7 +263,9 @@ void Player::deSerialize(std::istream &is, std::string playername)
 	}
 
 	// Set m_last_*
+#if WTF
 	checkModified();
+#endif
 }
 
 /*
@@ -260,3 +282,68 @@ void RemotePlayer::setPosition(const v3f &position)
 	if(m_sao)
 		m_sao->setBasePosition(position);
 }
+
+
+
+Json::Value operator<<(Json::Value &json, v3f &v) {
+	json["X"] = v.X;
+	json["Y"] = v.Y;
+	json["Z"] = v.Z;
+	return json;
+}
+
+Json::Value operator>>(Json::Value &json, v3f &v) {
+	v.X = json["X"].asFloat();
+	v.Y = json["Y"].asFloat();
+	v.Z = json["Z"].asFloat();
+	return json;
+}
+
+Json::Value operator<<(Json::Value &json, Player &player) {
+	std::ostringstream ss(std::ios_base::binary);
+	//todo
+	player.inventory.serialize(ss);
+	json["inventory_old"] = ss.str();
+
+	json["name"] = player.m_name;
+	json["pitch"] = player.m_pitch;
+	json["yaw"] = player.m_yaw;
+	json["position"] << player.m_position;
+	json["hp"] = player.hp;
+	json["breath"] = player.m_breath;
+	return json;
+}
+
+Json::Value operator>>(Json::Value &json, Player &player) {
+	player.updateName(json["name"].asCString());
+	player.setPitch(json["pitch"].asFloat());
+	player.setYaw(json["yaw"].asFloat());
+	v3f position;
+	json["position"]>>position;
+	player.setPosition(position);
+	player.hp = json["hp"].asInt();
+	player.m_breath = json["breath"].asInt();
+
+	//todo
+	std::istringstream ss(json["inventory_old"].asString());
+	auto & inventory = player.inventory;
+	inventory.deSerialize(ss);
+
+	if(inventory.getList("craftpreview") == NULL)
+	{
+		// Convert players without craftpreview
+		inventory.addList("craftpreview", 1);
+
+		bool craftresult_is_preview = true;
+		//if(args.exists("craftresult_is_preview"))
+		//	craftresult_is_preview = args.getBool("craftresult_is_preview");
+		if(craftresult_is_preview)
+		{
+			// Clear craftresult
+			inventory.getList("craftresult")->changeItem(0, ItemStack());
+		}
+	}
+
+	return json;
+}
+

@@ -1,20 +1,23 @@
 /*
-Minetest
+sky.h
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "irrlichttypes_extrabloated.h"
@@ -24,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SKY_HEADER
 #define SKY_HEADER
 
-#define SKY_MATERIAL_COUNT 3
+#define SKY_MATERIAL_COUNT 5
 #define SKY_STAR_COUNT 200
 
 // Skybox, rendered with zbuffer turned off, before all other nodes.
@@ -128,6 +131,8 @@ private:
 	u16 m_star_indices[SKY_STAR_COUNT*4];
 	video::S3DVertex m_star_vertices[SKY_STAR_COUNT*4];
 	LocalPlayer* m_player;
+	video::ITexture* m_sun_tonemap;
+	video::ITexture* m_moon_tonemap;
 };
 
 #endif

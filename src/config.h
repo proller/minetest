@@ -6,7 +6,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define PROJECT_NAME "Minetest"
+#define PROJECT_NAME "Freeminer"
 #define RUN_IN_PLACE 0
 #define USE_GETTEXT 0
 #ifndef USE_SOUND
@@ -17,15 +17,25 @@
 	#define USE_CURL 0
 #endif
 
-#define USE_FREETYPE 0
-#define STATIC_SHAREDIR ""
-
+#ifndef USE_FREETYPE
+	#define USE_FREETYPE 0
+#endif
+#ifndef STATIC_SHAREDIR
+	#define STATIC_SHAREDIR ""
+#endif
 #ifndef USE_LEVELDB
 	#define USE_LEVELDB 0
 #endif
 
 #ifndef USE_LUAJIT
 	#define USE_LUAJIT 0
+#endif
+#ifndef USE_MANDELBULBER
+	#define USE_MANDELBULBER 0
+#endif
+
+#ifndef STATIC_BUILD
+	#define STATIC_BUILD 0
 #endif
 
 #ifdef USE_CMAKE_CONFIG_H
@@ -40,14 +50,16 @@
 	#define USE_SOUND CMAKE_USE_SOUND
 	#undef USE_CURL
 	#define USE_CURL CMAKE_USE_CURL
-	#undef USE_FREETYPE
-	#define USE_FREETYPE CMAKE_USE_FREETYPE
 	#undef STATIC_SHAREDIR
 	#define STATIC_SHAREDIR CMAKE_STATIC_SHAREDIR
 	#undef USE_LEVELDB
 	#define USE_LEVELDB CMAKE_USE_LEVELDB
 	#undef USE_LUAJIT
 	#define USE_LUAJIT CMAKE_USE_LUAJIT
+	#undef USE_MANDELBULBER
+	#define USE_MANDELBULBER CMAKE_USE_MANDELBULBER
+	#undef STATIC_BUILD
+	#define STATIC_BUILD CMAKE_STATIC_BUILD
 	#undef VERSION_MAJOR
 	#define VERSION_MAJOR CMAKE_VERSION_MAJOR
 	#undef VERSION_MINOR

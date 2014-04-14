@@ -1,20 +1,23 @@
 /*
-Minetest
+camera.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "camera.h"
@@ -38,7 +41,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "util/mathconstants.h"
 #include "constants.h"
 
-#define CAMERA_OFFSET_STEP 200
+#define CAMERA_OFFSET_STEP 1000
+
+#include "nodedef.h"
+#include "game.h" // CameraModes
 
 #include "nodedef.h"
 
@@ -52,6 +58,7 @@ Camera::Camera(scene::ISceneManager* smgr, MapDrawControl& draw_control,
 	m_wieldmgr(NULL),
 	m_wieldnode(NULL),
 	m_wieldlight(0),
+	m_wieldlight_add(0),
 
 	m_draw_control(draw_control),
 	m_gamedef(gamedef),
@@ -108,31 +115,31 @@ Camera::~Camera()
 	delete m_dummymesh;
 }
 
-bool Camera::successfullyCreated(std::wstring& error_message)
+bool Camera::successfullyCreated(std::string& error_message)
 {
 	if (m_playernode == NULL)
 	{
-		error_message = L"Failed to create the player scene node";
+		error_message = "Failed to create the player scene node";
 		return false;
 	}
 	if (m_headnode == NULL)
 	{
-		error_message = L"Failed to create the head scene node";
+		error_message = "Failed to create the head scene node";
 		return false;
 	}
 	if (m_cameranode == NULL)
 	{
-		error_message = L"Failed to create the camera scene node";
+		error_message = "Failed to create the camera scene node";
 		return false;
 	}
 	if (m_wieldmgr == NULL)
 	{
-		error_message = L"Failed to create the wielded item scene manager";
+		error_message = "Failed to create the wielded item scene manager";
 		return false;
 	}
 	if (m_wieldnode == NULL)
 	{
-		error_message = L"Failed to create the wielded item scene node";
+		error_message = "Failed to create the wielded item scene node";
 		return false;
 	}
 	return true;
@@ -417,10 +424,21 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 busytime,
 	if (current_camera_mode == CAMERA_MODE_THIRD_FRONT)
 		m_camera_position = my_cp;
 
-	// Get FOV setting
-	f32 fov_degrees = g_settings->getFloat("fov");
-	fov_degrees = MYMAX(fov_degrees, 10.0);
-	fov_degrees = MYMIN(fov_degrees, 170.0);
+	// Get FOV
+	f32 fov_degrees;
+	if (player->zoom) {
+		fov_degrees = g_settings->getFloat("zoom_fov");
+		m_wieldnode->setVisible(false);
+	} else {
+		fov_degrees = g_settings->getFloat("fov");
+		fov_degrees = MYMAX(fov_degrees, 10.0);
+		fov_degrees = MYMIN(fov_degrees, 170.0);
+		m_wieldnode->setVisible(true);
+	}
+
+	// Greater FOV if running
+	if (g_settings->getBool("enable_movement_fov"))
+		fov_degrees += player->movement_fov;
 
 	// FOV and aspect ratio
 	m_aspect = (f32)screensize.X / (f32) screensize.Y;
@@ -489,7 +507,7 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 busytime,
 	if ((hypot(speed.X, speed.Z) > BS) &&
 		(player->touching_ground) &&
 		(g_settings->getBool("view_bobbing") == true) &&
-		(g_settings->getBool("free_move") == false ||
+		(g_settings->getBool("free_move") == false && current_camera_mode == CAMERA_MODE_FIRST ||
 				!m_gamedef->checkLocalPrivilege("fly")))
 	{
 		// Start animation
@@ -533,6 +551,8 @@ void Camera::updateViewingRange(f32 frametime_in, f32 busytime_in)
 
 	f32 viewing_range_max = g_settings->getS16("viewing_range_nodes_max");
 	viewing_range_max = MYMAX(viewing_range_min, viewing_range_max);
+	// vrange+position must be smaller than 32767
+	viewing_range_max = MYMIN(viewing_range_max, 32760 - MYMAX(MYMAX(abs(m_camera_position.X/BS), abs(m_camera_position.Y/BS)), abs(m_camera_position.Z/BS)));
 	
 	// Immediately apply hard limits
 	if(m_draw_control.wanted_range < viewing_range_min)
@@ -547,6 +567,10 @@ void Camera::updateViewingRange(f32 frametime_in, f32 busytime_in)
 		m_cameranode->setFarValue(200 * BS * 10);
 	else
 		m_cameranode->setFarValue(viewing_range_max * BS * 10);
+
+	int farmesh = g_settings->getS32("farmesh");
+	int farmesh_step = g_settings->getS32("farmesh_step");
+	int farmesh_wanted = g_settings->getS32("farmesh_wanted");
 
 	f32 wanted_fps = g_settings->getFloat("wanted_fps");
 	wanted_fps = MYMAX(wanted_fps, 1.0);
@@ -575,9 +599,36 @@ void Camera::updateViewingRange(f32 frametime_in, f32 busytime_in)
 	//dstream<<"wanted_frametime_change="<<wanted_frametime_change<<std::endl;
 	g_profiler->avg("wanted_frametime_change", wanted_frametime_change);
 
+	m_draw_control.fps_wanted = wanted_fps;
+	if (farmesh) {
+			if (m_draw_control.fps > wanted_fps && m_draw_control.fps_avg >= wanted_fps*1.4) {
+				if (m_draw_control.wanted_range >= farmesh_wanted)
+					m_draw_control.farmesh = (int)m_draw_control.farmesh + 1;
+				if (m_draw_control.farmesh >= farmesh*1.3 && m_draw_control.farmesh_step < farmesh_step)
+					++m_draw_control.farmesh_step;
+			} else if (m_draw_control.fps <= wanted_fps*0.8){
+				float farmesh_was = m_draw_control.farmesh;
+				if (m_draw_control.fps <= wanted_fps*0.6)
+					m_draw_control.farmesh = farmesh;
+				else if (m_draw_control.fps <= wanted_fps*0.7)
+					m_draw_control.farmesh *= 0.5;
+				else if (m_draw_control.farmesh>10)
+					m_draw_control.farmesh *= 0.8;
+				else
+					m_draw_control.farmesh -= 1;
+				if (m_draw_control.farmesh < farmesh)
+					m_draw_control.farmesh = farmesh;
+				if (m_draw_control.farmesh <= farmesh && m_draw_control.farmesh_step > 1 && m_draw_control.fps <= wanted_fps*0.3)
+					--m_draw_control.farmesh_step;
+				if (farmesh_was != m_draw_control.farmesh)
+					return;
+			}
+	}
+
 	// If needed frametime change is small, just return
 	// This value was 0.4 for many months until 2011-10-18 by c55;
-	if (fabs(wanted_frametime_change) < wanted_frametime*0.33)
+	//if (fabs(wanted_frametime_change) < wanted_frametime*0.33)
+	if (wanted_frametime_change > -wanted_frametime*0.33 && wanted_frametime_change < wanted_frametime*0.15)
 	{
 		//dstream<<"ignoring small wanted_frametime_change"<<std::endl;
 		return;
@@ -593,7 +644,7 @@ void Camera::updateViewingRange(f32 frametime_in, f32 busytime_in)
 		m_time_per_range = d_busytime / d_range;
 	}
 	//dstream<<"time_per_range="<<m_time_per_range<<std::endl;
-	g_profiler->avg("time_per_range", m_time_per_range);
+	//g_profiler->avg("time_per_range", m_time_per_range);
 
 	// The minimum allowed calculated frametime-range derivative:
 	// Practically this sets the maximum speed of changing the range.
@@ -678,12 +729,20 @@ void Camera::wield(const ItemStack &item, u16 playeritem)
 		else
 			m_wield_change_timer = 0.125;
 	}
+	m_wieldlight_add = ((ItemGroupList)idef->get(itemname).groups)["wield_light"]*200/14;
 }
 
 void Camera::drawWieldedTool()
 {
 	// Set vertex colors of wield mesh according to light level
 	u8 li = m_wieldlight;
+	if (g_settings->getBool("enable_shaders"))
+	{
+		if (li+m_wieldlight_add < 200)
+			li += m_wieldlight_add;
+		else
+			li = 200;
+	}
 	video::SColor color(255,li,li,li);
 	setMeshColor(m_wieldnode->getMesh(), color);
 

@@ -1,20 +1,23 @@
 /*
-Minetest
+mapblock.h
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef MAPBLOCK_HEADER
@@ -37,6 +40,7 @@ class NodeMetadataList;
 class IGameDef;
 class MapBlockMesh;
 class VoxelManipulator;
+class Circuit;
 
 #define BLOCK_TIMESTAMP_UNDEFINED 0xffffffff
 
@@ -127,7 +131,9 @@ public:
 			//data[i] = MapNode();
 			data[i] = MapNode(CONTENT_IGNORE);
 		}
+/*
 		raiseModified(MOD_STATE_WRITE_NEEDED, "reallocate");
+*/
 	}
 
 	/*
@@ -145,8 +151,25 @@ public:
 	}
 	
 	// m_modified methods
-	void raiseModified(u32 mod, const std::string &reason="unknown")
+	void raiseModified(u32 mod)
 	{
+		if(mod >= MOD_STATE_WRITE_NEEDED && m_timestamp != BLOCK_TIMESTAMP_UNDEFINED) {
+			m_changed_timestamp = m_timestamp;
+		}
+		if(mod > m_modified){
+			m_modified = mod;
+			if(m_modified >= MOD_STATE_WRITE_AT_UNLOAD)
+				m_disk_timestamp = m_timestamp;
+		}
+	}
+	void raiseModified(u32 mod, const std::string &reason)
+	{
+		raiseModified(mod);
+
+#ifdef WTFdebug
+		if(mod >= MOD_STATE_WRITE_NEEDED && m_timestamp != BLOCK_TIMESTAMP_UNDEFINED) {
+			m_changed_timestamp = m_timestamp;
+		}
 		if(mod > m_modified){
 			m_modified = mod;
 			m_modified_reason = reason;
@@ -165,6 +188,7 @@ public:
 				}
 			}
 		}
+#endif
 	}
 	u32 getModified()
 	{
@@ -189,14 +213,18 @@ public:
 	void setIsUnderground(bool a_is_underground)
 	{
 		is_underground = a_is_underground;
+/*
 		raiseModified(MOD_STATE_WRITE_NEEDED, "setIsUnderground");
+*/
 	}
 
 	void setLightingExpired(bool expired)
 	{
 		if(expired != m_lighting_expired){
 			m_lighting_expired = expired;
+/*
 			raiseModified(MOD_STATE_WRITE_NEEDED, "setLightingExpired");
+*/
 		}
 	}
 	bool getLightingExpired()
@@ -211,7 +239,9 @@ public:
 	void setGenerated(bool b)
 	{
 		if(b != m_generated){
+/*
 			raiseModified(MOD_STATE_WRITE_NEEDED, "setGenerated");
+*/
 			m_generated = b;
 		}
 	}
@@ -292,7 +322,7 @@ public:
 		if(y < 0 || y >= MAP_BLOCKSIZE) throw InvalidPositionException();
 		if(z < 0 || z >= MAP_BLOCKSIZE) throw InvalidPositionException();
 		data[z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + y*MAP_BLOCKSIZE + x] = n;
-		raiseModified(MOD_STATE_WRITE_NEEDED, "setNode");
+		raiseModified(MOD_STATE_WRITE_NEEDED/*, "setNode"*/);
 	}
 	
 	void setNode(v3s16 p, MapNode & n)
@@ -321,7 +351,7 @@ public:
 		if(data == NULL)
 			throw InvalidPositionException();
 		data[z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + y*MAP_BLOCKSIZE + x] = n;
-		raiseModified(MOD_STATE_WRITE_NEEDED, "setNodeNoCheck");
+		raiseModified(MOD_STATE_WRITE_NEEDED/*, "setNodeNoCheck"*/);
 	}
 	
 	void setNodeNoCheck(v3s16 p, MapNode & n)
@@ -417,14 +447,11 @@ public:
 	{
 		m_usage_timer = 0;
 	}
-	void incrementUsageTimer(float dtime)
-	{
-		m_usage_timer += dtime;
-	}
 	u32 getUsageTimer()
 	{
 		return m_usage_timer;
 	}
+	void incrementUsageTimer(float dtime);
 
 	/*
 		See m_refcount
@@ -473,8 +500,13 @@ public:
 	// unknown blocks from id-name mapping to wndef
 	void deSerialize(std::istream &is, u8 version, bool disk);
 
-	void serializeNetworkSpecific(std::ostream &os, u16 net_proto_version);
-	void deSerializeNetworkSpecific(std::istream &is);
+	void pushElementsToCircuit(Circuit* circuit);
+
+#ifndef SERVER // Only on client
+	MapBlockMesh* getMesh(int step = 1);
+	void setMesh(MapBlockMesh* rmesh);
+	void delMesh();
+#endif
 
 private:
 	/*
@@ -508,6 +540,7 @@ public:
 
 #ifndef SERVER // Only on client
 	MapBlockMesh *mesh;
+	MapBlockMesh  *mesh2, *mesh4, *mesh8, *mesh16;
 #endif
 	
 	NodeMetadataList m_node_metadata;
@@ -518,7 +551,10 @@ public:
 	s16 humidity;
 	u32 heat_last_update;
 	u32 humidity_last_update;
+	float m_uptime_timer_last;
 
+	// Last really changed time (need send to client)
+	u32 m_changed_timestamp;
 private:
 	/*
 		Private member variables

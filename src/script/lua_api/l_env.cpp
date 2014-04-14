@@ -1,20 +1,23 @@
 /*
-Minetest
+script/lua_api/l_env.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "lua_api/l_env.h"
@@ -42,9 +45,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 ///////////////////////////////////////////////////////////////////////////////
 
+v3s16 start_pos;
 
 void LuaABM::trigger(ServerEnvironment *env, v3s16 p, MapNode n,
-		u32 active_object_count, u32 active_object_count_wider)
+		u32 active_object_count, u32 active_object_count_wider, MapNode neighbor, bool activate)
 {
 	GameScripting *scriptIface = env->getScriptIface();
 	scriptIface->realityCheck();
@@ -78,14 +82,16 @@ void LuaABM::trigger(ServerEnvironment *env, v3s16 p, MapNode n,
 	pushnode(L, n, env->getGameDef()->ndef());
 	lua_pushnumber(L, active_object_count);
 	lua_pushnumber(L, active_object_count_wider);
-	if(lua_pcall(L, 4, 0, errorhandler))
+	pushnode(L, neighbor, env->getGameDef()->ndef());
+	lua_pushboolean(L, activate);
+	if(lua_pcall(L, 6, 0, errorhandler))
 		script_error(L);
 	lua_pop(L, 1); // Pop error handler
 }
 
 // Exported functions
 
-// minetest.set_node(pos, node)
+// minetest.set_node(pos, node, fast)
 // pos = {x=num, y=num, z=num}
 int ModApiEnvMod::l_set_node(lua_State *L)
 {
@@ -96,7 +102,7 @@ int ModApiEnvMod::l_set_node(lua_State *L)
 	v3s16 pos = read_v3s16(L, 1);
 	MapNode n = readnode(L, 2, ndef);
 	// Do it
-	bool succeeded = env->setNode(pos, n);
+	bool succeeded = env->setNode(pos, n, lua_tonumber(L, 3));
 	lua_pushboolean(L, succeeded);
 	return 1;
 }
@@ -106,7 +112,7 @@ int ModApiEnvMod::l_add_node(lua_State *L)
 	return l_set_node(L);
 }
 
-// minetest.remove_node(pos)
+// minetest.remove_node(pos, fast)
 // pos = {x=num, y=num, z=num}
 int ModApiEnvMod::l_remove_node(lua_State *L)
 {
@@ -115,7 +121,7 @@ int ModApiEnvMod::l_remove_node(lua_State *L)
 	// parameters
 	v3s16 pos = read_v3s16(L, 1);
 	// Do it
-	bool succeeded = env->removeNode(pos);
+	bool succeeded = env->removeNode(pos, lua_tonumber(L, 2));
 	lua_pushboolean(L, succeeded);
 	return 1;
 }
@@ -328,10 +334,13 @@ int ModApiEnvMod::l_add_node_level(lua_State *L)
 
 	v3s16 pos = read_v3s16(L, 1);
 	u8 level = 1;
+	bool compress = 0;
 	if(lua_isnumber(L, 2))
 		level = lua_tonumber(L, 2);
+	if(lua_isnumber(L, 3))
+		compress = lua_tonumber(L, 3);
 	MapNode n = env->getMap().getNodeNoEx(pos);
-	lua_pushnumber(L, n.addLevel(env->getGameDef()->ndef(), level));
+	lua_pushnumber(L, n.addLevel(env->getGameDef()->ndef(), level, compress));
 	env->setNode(pos, n);
 	return 1;
 }
@@ -408,19 +417,6 @@ int ModApiEnvMod::l_add_item(lua_State *L)
 		script_error(L);
 	lua_remove(L, errorhandler); // Remove error handler
 	return 1;
-	/*lua_pushvalue(L, 1);
-	lua_pushstring(L, "__builtin:item");
-	lua_pushstring(L, item.getItemString().c_str());
-	return l_add_entity(L);*/
-	/*// Do it
-	ServerActiveObject *obj = createItemSAO(env, pos, item.getItemString());
-	int objectid = env->addActiveObject(obj);
-	// If failed to add, return nothing (reads as nil)
-	if(objectid == 0)
-		return 0;
-	// Return ObjectRef
-	objectrefGetOrCreate(L, obj);
-	return 1;*/
 }
 
 // minetest.get_player_by_name(name)
@@ -684,19 +680,14 @@ int ModApiEnvMod::l_find_path(lua_State *L)
 	unsigned int searchdistance = luaL_checkint(L, 3);
 	unsigned int max_jump       = luaL_checkint(L, 4);
 	unsigned int max_drop       = luaL_checkint(L, 5);
-	algorithm algo              = A_PLAIN_NP;
+	Algorithm algo              = A_STAR;
 	if (!lua_isnil(L, 6)) {
 		std::string algorithm = luaL_checkstring(L,6);
-
-		if (algorithm == "A*")
-			algo = A_PLAIN;
-
-		if (algorithm == "Dijkstra")
-			algo = DIJKSTRA;
 	}
 
 	std::vector<v3s16> path =
-			get_Path(env,pos1,pos2,searchdistance,max_jump,max_drop,algo);
+		getPath(env, pos1, pos2, searchdistance,
+		        max_jump, max_drop, algo, ADJACENCY_4);
 
 	if (path.size() > 0)
 	{
@@ -714,6 +705,30 @@ int ModApiEnvMod::l_find_path(lua_State *L)
 	}
 
 	return 0;
+}
+
+// minetest.get_surface(basepos,yoffset,walkable_only=false)
+int ModApiEnvMod::l_get_surface(lua_State *L)
+{
+	GET_ENV_PTR;
+
+	v3s16 basepos = read_v3s16(L, 1);
+	int max_y = luaL_checkint(L, 2);
+	bool walkable_only = false;
+
+	if (!lua_isnil(L,3)) {
+		walkable_only = lua_toboolean(L, -1);
+	}
+
+	int result = env->getMap().getSurface(basepos,max_y,walkable_only);
+
+	if (result >= basepos.Y) {
+		lua_pushnumber(L,result);
+		return 1;
+	}
+
+	lua_pushnil(L);
+	return 1;
 }
 
 // minetest.spawn_tree(pos, treedef)
@@ -772,7 +787,7 @@ int ModApiEnvMod::l_transforming_liquid_add(lua_State *L)
 	GET_ENV_PTR;
 
 	v3s16 p0 = read_v3s16(L, 1);
-	env->getMap().transforming_liquid_add(p0);
+	env->getMap().transforming_liquid_push_back(p0);
 	return 1;
 }
 
@@ -857,6 +872,7 @@ void ModApiEnvMod::Initialize(lua_State *L, int top)
 	API_FCT(transforming_liquid_add);
 	API_FCT(get_heat);
 	API_FCT(get_humidity);
+	API_FCT(get_surface);
 	API_FCT(forceload_block);
 	API_FCT(forceload_free_block);
 }

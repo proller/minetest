@@ -1,26 +1,33 @@
 /*
-Minetest
+mapsector.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "mapsector.h"
 #include "exceptions.h"
 #include "mapblock.h"
 #include "serialization.h"
+#include "log.h"
+#ifndef SERVER
+#include "mapblock_mesh.h"
+#endif
 
 MapSector::MapSector(Map *parent, v2s16 pos, IGameDef *gamedef):
 		differs_from_disk(false),
@@ -33,7 +40,23 @@ MapSector::MapSector(Map *parent, v2s16 pos, IGameDef *gamedef):
 
 MapSector::~MapSector()
 {
-	deleteBlocks();
+	// Clear cache
+	m_block_cache = NULL;
+
+	// Delete all
+	for(std::map<s16, MapBlock*>::iterator i = m_blocks.begin();
+		i != m_blocks.end(); ++i)
+	{
+#ifndef SERVER
+		// We dont have gamedef here anymore, so we cant remove the hardwarebuffers
+		if(i->second->mesh)
+			i->second->mesh->clearHardwareBuffer = false;
+#endif
+		delete i->second;
+	}
+
+	// Clear container
+	m_blocks.clear();
 }
 
 void MapSector::deleteBlocks()
@@ -85,11 +108,14 @@ MapBlock * MapSector::getBlockNoCreateNoEx(s16 y)
 
 MapBlock * MapSector::createBlankBlockNoInsert(s16 y)
 {
-	assert(getBlockBuffered(y) == NULL);
-
+	MapBlock *block = getBlockBuffered(y);
+	if (block != NULL) {
+		errorstream<<"Block already created"<<"std::endl";
+		return block;
+	}
 	v3s16 blockpos_map(m_pos.X, y, m_pos.Y);
 	
-	MapBlock *block = new MapBlock(m_parent, blockpos_map, m_gamedef);
+	block = new MapBlock(m_parent, blockpos_map, m_gamedef);
 	
 	return block;
 }
@@ -109,7 +135,8 @@ void MapSector::insertBlock(MapBlock *block)
 
 	MapBlock *block2 = getBlockBuffered(block_y);
 	if(block2 != NULL){
-		throw AlreadyExistsException("Block already exists");
+		//throw AlreadyExistsException("Block already exists");
+		errorstream<<"Block already exists" /*<PP(block->getPos())*/ <<std::endl;
 	}
 
 	v2s16 p2d(block->getPos().X, block->getPos().Z);

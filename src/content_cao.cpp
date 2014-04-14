@@ -1,20 +1,23 @@
 /*
-Minetest
+content_cao.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "content_cao.h"
@@ -668,7 +671,9 @@ public:
 
 	void initialize(const std::string &data)
 	{
+		/*
 		infostream<<"GenericCAO: Got init data"<<std::endl;
+		*/
 		std::istringstream is(data, std::ios::binary);
 		int num_messages = 0;
 		// version
@@ -865,7 +870,9 @@ public:
 		//video::IVideoDriver* driver = smgr->getVideoDriver();
 
 		if(m_prop.visual == "sprite"){
+/*
 			infostream<<"GenericCAO::addToScene(): single_sprite"<<std::endl;
+*/
 			m_spritenode = smgr->addBillboardSceneNode(
 					NULL, v2f(1, 1), v3f(0,0,0), -1);
 			m_spritenode->setMaterialTexture(0,
@@ -979,10 +986,14 @@ public:
 				errorstream<<"GenericCAO::addToScene(): Could not load mesh "<<m_prop.mesh<<std::endl;
 		}
 		else if(m_prop.visual == "wielditem"){
+/*
 			infostream<<"GenericCAO::addToScene(): node"<<std::endl;
 			infostream<<"textures: "<<m_prop.textures.size()<<std::endl;
+*/
 			if(m_prop.textures.size() >= 1){
+/*
 				infostream<<"textures[0]: "<<m_prop.textures[0]<<std::endl;
+*/
 				IItemDefManager *idef = m_gamedef->idef();
 				ItemStack item(m_prop.textures[0], 1, 0, "", idef);
 				scene::IMesh *item_mesh = idef->getWieldMesh(item.getDefinition(idef).name, m_gamedef);
@@ -1017,7 +1028,7 @@ public:
 		if(node && m_is_player && !m_is_local_player){
 			// Add a text node for showing the name
 			gui::IGUIEnvironment* gui = irr->getGUIEnvironment();
-			std::wstring wname = narrow_to_wide(m_name);
+			std::wstring wname = utf8_to_wide(m_name);
 			m_textnode = smgr->addTextSceneNode(gui->getBuiltInFont(),
 					wname.c_str(), video::SColor(255,255,255,255), node);
 			m_textnode->setPosition(v3f(0, BS*1.1, 0));

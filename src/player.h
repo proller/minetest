@@ -1,20 +1,23 @@
 /*
-Minetest
+player.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef PLAYER_HEADER
@@ -23,6 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "irrlichttypes_bloated.h"
 #include "inventory.h"
 #include "constants.h" // BS
+#include "json/json.h"
 
 #define PLAYERNAME_SIZE 20
 
@@ -109,7 +113,7 @@ public:
 		m_speed = speed;
 	}
 	
-	void accelerateHorizontal(v3f target_speed, f32 max_increase);
+	void accelerateHorizontal(v3f target_speed, f32 max_increase, float slippery=0);
 	void accelerateVertical(v3f target_speed, f32 max_increase);
 
 	v3f getPosition()
@@ -180,12 +184,12 @@ public:
 		return (m_yaw + 90.) * core::DEGTORAD;
 	}
 
-	void updateName(const char *name)
+	void updateName(const std::string &name)
 	{
-		snprintf(m_name, PLAYERNAME_SIZE, "%s", name);
+		m_name = name;
 	}
 
-	const char * getName() const
+	const std::string & getName() const
 	{
 		return m_name;
 	}
@@ -218,6 +222,7 @@ public:
 	void serialize(std::ostream &os);
 	void deSerialize(std::istream &is, std::string playername);
 
+#if WTF
 	bool checkModified()
 	{
 		if(m_last_hp != hp || m_last_pitch != m_pitch ||
@@ -234,7 +239,9 @@ public:
 			return false;
 		}
 	}
+#endif
 
+        s16 refs;
 	bool touching_ground;
 	// This oscillates so that the player jumps a bit above the surface
 	bool in_liquid;
@@ -277,6 +284,11 @@ public:
 	float hurt_tilt_timer;
 	float hurt_tilt_strength;
 
+	bool zoom;
+	bool  superspeed;
+	bool  free_move;
+	float movement_fov;
+
 	u16 peer_id;
 
 	std::string inventory_formspec;
@@ -293,10 +305,14 @@ public:
 	u32 hud_flags;
 	s32 hud_hotbar_itemcount;
 
+	std::string path; //todo: remove
+	bool need_save;
+
 protected:
 	IGameDef *m_gamedef;
 
-	char m_name[PLAYERNAME_SIZE];
+public:
+	std::string m_name;
 	u16 m_breath;
 	f32 m_pitch;
 	f32 m_yaw;
@@ -304,11 +320,13 @@ protected:
 	v3f m_position;
 	core::aabbox3d<f32> m_collisionbox;
 
+#if WTF
 	f32 m_last_pitch;
 	f32 m_last_yaw;
 	v3f m_last_pos;
 	u16 m_last_hp;
 	Inventory m_last_inventory;
+#endif
 };
 
 
@@ -330,6 +348,9 @@ public:
 private:
 	PlayerSAO *m_sao;
 };
+
+Json::Value operator<<(Json::Value &json, Player &player);
+Json::Value operator>>(Json::Value &json, Player &player);
 
 #endif
 

@@ -1,20 +1,23 @@
 /*
-Minetest
+environment.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef ENVIRONMENT_HEADER
@@ -38,6 +41,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "util/numeric.h"
 #include "mapnode.h"
 #include "mapblock.h"
+#include "connection.h"
+#include "fmbitset.h"
 
 class ServerEnvironment;
 class ActiveBlockModifier;
@@ -49,6 +54,8 @@ class ServerMap;
 class ClientMap;
 class GameScripting;
 class Player;
+class Circuit;
+class KeyValueStorage;
 
 class Environment
 {
@@ -63,14 +70,14 @@ public:
 		- Step mobs
 		- Run timers of map
 	*/
-	virtual void step(f32 dtime) = 0;
+	virtual void step(f32 dtime, float uptime, int max_cycle_ms) = 0;
 
 	virtual Map & getMap() = 0;
 
 	virtual void addPlayer(Player *player);
 	void removePlayer(u16 peer_id);
 	Player * getPlayer(u16 peer_id);
-	Player * getPlayer(const char *name);
+	Player * getPlayer(const std::string &name);
 	Player * getRandomConnectedPlayer();
 	Player * getNearestConnectedPlayer(v3f pos);
 	std::list<Player*> getPlayers();
@@ -141,16 +148,20 @@ public:
 	virtual std::set<std::string> getTriggerContents()=0;
 	// Set of required neighbors (trigger doesn't happen if none are found)
 	// Empty = do not check neighbors
-	virtual std::set<std::string> getRequiredNeighbors()
+	virtual std::set<std::string> getRequiredNeighbors(bool activate)
 	{ return std::set<std::string>(); }
+	// Maximum range to neighbors
+	virtual u32 getNeighborsRange()
+	{ return 1; };
 	// Trigger interval in seconds
 	virtual float getTriggerInterval() = 0;
 	// Random chance of (1 / return value), 0 is disallowed
 	virtual u32 getTriggerChance() = 0;
 	// This is called usually at interval for 1/chance of the nodes
-	virtual void trigger(ServerEnvironment *env, v3s16 p, MapNode n){};
+	//virtual void trigger(ServerEnvironment *env, v3s16 p, MapNode n){};
+	//virtual void trigger(ServerEnvironment *env, v3s16 p, MapNode n, MapNode neighbor){};
 	virtual void trigger(ServerEnvironment *env, v3s16 p, MapNode n,
-			u32 active_object_count, u32 active_object_count_wider){};
+			u32 active_object_count, u32 active_object_count_wider, MapNode neighbor, bool activate = false){};
 };
 
 struct ABMWithState
@@ -187,6 +198,34 @@ public:
 private:
 };
 
+struct ActiveABM
+{
+	ActiveABM():
+		required_neighbors(CONTENT_ID_CAPACITY)
+	{}
+	ActiveBlockModifier *abm;
+	int chance;
+	int neighbors_range;
+	FMBitset required_neighbors;
+};
+
+class ABMHandler
+{
+private:
+	ServerEnvironment *m_env;
+	std::list<ActiveABM> *m_aabms[CONTENT_ID_CAPACITY];
+	std::list<std::list<ActiveABM>*> m_aabms_list;
+	bool m_aabms_empty;
+public:
+	ABMHandler(std::list<ABMWithState> &abms,
+			float dtime_s, ServerEnvironment *env,
+			bool use_timers, bool activate);
+	~ABMHandler();
+	u32 countObjects(MapBlock *block, ServerMap * map, u32 &wider);
+	void apply(MapBlock *block, bool activate = false);
+
+};
+
 /*
 	The server-side environment.
 
@@ -196,7 +235,8 @@ private:
 class ServerEnvironment : public Environment
 {
 public:
-	ServerEnvironment(ServerMap *map, GameScripting *scriptIface,
+	ServerEnvironment(const std::string &savedir, ServerMap *map, GameScripting *scriptIface,
+			Circuit* circuit,
 			IGameDef *gamedef);
 	~ServerEnvironment();
 
@@ -214,11 +254,18 @@ public:
 	float getSendRecommendedInterval()
 		{ return m_recommended_send_interval; }
 
+	Player * getPlayer(u16 peer_id) { return Environment::getPlayer(peer_id); };
+	Player * getPlayer(const std::string &name);
+
+	KeyValueStorage *getKeyValueStorage();
 	/*
 		Save players
 	*/
 	void serializePlayers(const std::string &savedir);
+#if WTF
 	void deSerializePlayers(const std::string &savedir);
+#endif
+	Player * deSerializePlayer(const std::string &name);
 
 	/*
 		Save and load time of day and game timer
@@ -293,8 +340,8 @@ public:
 	*/
 
 	// Script-aware node setters
-	bool setNode(v3s16 p, const MapNode &n);
-	bool removeNode(v3s16 p);
+	bool setNode(v3s16 p, const MapNode &n, s16 fast = 0);
+	bool removeNode(v3s16 p, s16 fast = 0);
 	bool swapNode(v3s16 p, const MapNode &n);
 	
 	// Find all active objects inside a radius around a point
@@ -304,7 +351,7 @@ public:
 	void clearAllObjects();
 	
 	// This makes stuff happen
-	void step(f32 dtime);
+	void step(f32 dtime, float uptime, int max_cycle_ms);
 	
 	//check if there's a line of sight between two positions
 	bool line_of_sight(v3f pos1, v3f pos2, float stepsize=1.0, v3s16 *p=NULL);
@@ -316,9 +363,12 @@ public:
 	
 	// is weather active in this environment?
 	bool m_use_weather;
+	ABMHandler * m_abmhandler;
 	
 	std::set<v3s16>* getForceloadedBlocks() { return &m_active_blocks.m_forceloaded_list; };
 	
+	u32 m_game_time_start;
+
 private:
 
 	/*
@@ -362,13 +412,20 @@ private:
 	/*
 		Member variables
 	*/
-	
+
+	std::string m_savedir;
+
 	// The map
 	ServerMap *m_map;
 	// Lua state
 	GameScripting* m_script;
+	// Circuit manager
+	Circuit* m_circuit;
 	// Game definition
 	IGameDef *m_gamedef;
+	// Key-value storage
+	KeyValueStorage *m_key_value_storage;
+	KeyValueStorage *m_players_storage;
 	// Active object list
 	std::map<u16, ServerActiveObject*> m_active_objects;
 	// Outgoing network message buffer for active objects
@@ -382,7 +439,13 @@ private:
 	IntervalLimiter m_active_blocks_management_interval;
 	IntervalLimiter m_active_block_modifier_interval;
 	IntervalLimiter m_active_blocks_nodemetadata_interval;
-	int m_active_block_interval_overload_skip;
+	//loop breakers
+	u32 m_active_objects_last;
+	u32 m_active_block_abm_last;
+	float m_active_block_abm_dtime;
+	u32 m_active_block_timer_last;
+	std::set<v3s16> m_blocks_added;
+	u32 m_blocks_added_last;
 	// Time from the beginning of the game in seconds.
 	// Incremented in step().
 	u32 m_game_time;
@@ -446,7 +509,7 @@ public:
 	IGameDef *getGameDef()
 	{ return m_gamedef; }
 
-	void step(f32 dtime);
+	void step(f32 dtime, float uptime, int max_cycle_ms);
 
 	virtual void addPlayer(Player *player);
 	LocalPlayer * getLocalPlayer();
@@ -516,6 +579,8 @@ private:
 	IGameDef *m_gamedef;
 	IrrlichtDevice *m_irr;
 	std::map<u16, ClientActiveObject*> m_active_objects;
+	u32 m_active_objects_client_last;
+	u32 m_move_max_loop;
 	std::list<ClientSimpleObject*> m_simple_objects;
 	std::list<ClientEnvEvent> m_client_event_queue;
 	IntervalLimiter m_active_object_light_update_interval;

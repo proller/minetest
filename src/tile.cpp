@@ -1,20 +1,23 @@
 /*
-Minetest
+tile.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "tile.h"
@@ -159,24 +162,6 @@ void clearTextureNameCache()
 /*
 	Stores internal information about a texture.
 */
-
-struct TextureInfo
-{
-	std::string name;
-	video::ITexture *texture;
-	video::IImage *img; // The source image
-
-	TextureInfo(
-			const std::string &name_,
-			video::ITexture *texture_=NULL,
-			video::IImage *img_=NULL
-		):
-		name(name_),
-		texture(texture_),
-		img(img_)
-	{
-	}
-};
 
 /*
 	SourceImageCache: A cache used for storing source images.
@@ -341,6 +326,8 @@ public:
 	video::ITexture* getTexture(u32 id);
 
 	video::ITexture* getTexture(const std::string &name, u32 *id);
+
+	TextureInfo* getTextureInfo(u32 id);
 
 	// Returns a pointer to the irrlicht device
 	virtual IrrlichtDevice* getDevice()
@@ -770,6 +757,16 @@ video::ITexture* TextureSource::getTexture(const std::string &name, u32 *id)
 	return getTexture(actual_id);
 }
 
+TextureInfo * TextureSource::getTextureInfo(u32 id)
+{
+	JMutexAutoLock lock(m_textureinfo_cache_mutex);
+
+	if(id >= m_textureinfo_cache.size())
+		return NULL;
+
+	return &m_textureinfo_cache[id];
+}
+
 void TextureSource::processQueue()
 {
 	/*
@@ -880,10 +877,16 @@ video::ITexture* TextureSource::generateTextureFromMesh(
 			params.light_color,
 			params.light_radius);
 
+	// Wield light shouldn't be used here
+	bool disable_wieldlight = g_settings->getBool("disable_wieldlight");
+	g_settings->setBool("disable_wieldlight", true);
+
 	// Render scene
 	driver->beginScene(true, true, video::SColor(0,0,0,0));
 	smgr->drawAll();
 	driver->endScene();
+	
+	g_settings->setBool("disable_wieldlight", disable_wieldlight);
 
 	// NOTE: The scene nodes should not be dropped, otherwise
 	//       smgr->drop() segfaults
@@ -1409,6 +1412,7 @@ bool TextureSource::generateImage(std::string part_of_name, video::IImage *& bas
 			}
 
 			v2u32 frame_size = baseimg->getDimension();
+			if (frame_count)
 			frame_size.Y /= frame_count;
 
 			video::IImage *img = driver->createImage(video::ECF_A8R8G8B8,

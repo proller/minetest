@@ -1,20 +1,23 @@
 /*
-Minetest
+mapblock.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "mapblock.h"
@@ -35,6 +38,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 #include "util/string.h"
 #include "util/serialize.h"
+#include "circuit.h"
 
 #define PP(x) "("<<(x).X<<","<<(x).Y<<","<<(x).Z<<")"
 
@@ -47,10 +51,12 @@ MapBlock::MapBlock(Map *parent, v3s16 pos, IGameDef *gamedef, bool dummy):
 		humidity(0),
 		heat_last_update(0),
 		humidity_last_update(0),
+		m_uptime_timer_last(0),
+		m_changed_timestamp(0),
 		m_parent(parent),
 		m_pos(pos),
 		m_gamedef(gamedef),
-		m_modified(MOD_STATE_WRITE_NEEDED),
+		m_modified(MOD_STATE_CLEAN),
 		m_modified_reason("initial"),
 		m_modified_reason_too_long(false),
 		is_underground(false),
@@ -69,21 +75,14 @@ MapBlock::MapBlock(Map *parent, v3s16 pos, IGameDef *gamedef, bool dummy):
 	
 #ifndef SERVER
 	mesh = NULL;
+	mesh2 = mesh4 = mesh8 = mesh16 = NULL;
 #endif
 }
 
 MapBlock::~MapBlock()
 {
 #ifndef SERVER
-	{
-		//JMutexAutoLock lock(mesh_mutex);
-		
-		if(mesh)
-		{
-			delete mesh;
-			mesh = NULL;
-		}
-	}
+	delMesh();
 #endif
 
 	if(data)
@@ -637,25 +636,11 @@ void MapBlock::serialize(std::ostream &os, u8 version, bool disk)
 	}
 }
 
-void MapBlock::serializeNetworkSpecific(std::ostream &os, u16 net_proto_version)
-{
-	if(data == NULL)
-	{
-		throw SerializationError("ERROR: Not writing dummy block.");
-	}
-
-	if(net_proto_version >= 21){
-		int version = 1;
-		writeU8(os, version);
-		writeF1000(os, heat);
-		writeF1000(os, humidity);
-	}
-}
-
 void MapBlock::deSerialize(std::istream &is, u8 version, bool disk)
 {
 	if(!ser_ver_supported(version))
 		throw VersionMismatchException("ERROR: MapBlock format not supported");
+	
 	
 	TRACESTREAM(<<"MapBlock::deSerialize "<<PP(getPos())<<std::endl);
 
@@ -736,8 +721,9 @@ void MapBlock::deSerialize(std::istream &is, u8 version, bool disk)
 		// Timestamp
 		TRACESTREAM(<<"MapBlock::deSerialize "<<PP(getPos())
 				<<": Timestamp"<<std::endl);
-		setTimestamp(readU32(is));
+		setTimestampNoChangedFlag(readU32(is));
 		m_disk_timestamp = m_timestamp;
+		m_changed_timestamp = m_timestamp != BLOCK_TIMESTAMP_UNDEFINED ? m_timestamp : 0;
 		
 		// Dynamically re-set ids based on node names
 		TRACESTREAM(<<"MapBlock::deSerialize "<<PP(getPos())
@@ -757,23 +743,60 @@ void MapBlock::deSerialize(std::istream &is, u8 version, bool disk)
 			<<": Done."<<std::endl);
 }
 
-void MapBlock::deSerializeNetworkSpecific(std::istream &is)
+void MapBlock::pushElementsToCircuit(Circuit* circuit)
 {
-	try {
-		int version = readU8(is);
-		//if(version != 1)
-		//	throw SerializationError("unsupported MapBlock version");
-		if(version >= 1) {
-			heat = readF1000(is);
-			humidity = readF1000(is);
+	INodeDefManager* ndef = m_gamedef->ndef();
+	v3s16 pos;
+	for(int x = 0; x < 16; ++x)
+	{
+		for(int y = 0; y < 16; ++y)
+		{
+			for(int z = 0; z < 16; ++z)
+			{
+				MapNode tmp_node = data[z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + y*MAP_BLOCKSIZE + x];
+				if(ndef->get(tmp_node).is_circuit_element)
+				{
+					pos.X = m_pos.X * MAP_BLOCKSIZE + x;
+					pos.Y = m_pos.Y * MAP_BLOCKSIZE + y;
+					pos.Z = m_pos.Z * MAP_BLOCKSIZE + z;
+					circuit->pushElementToQueue(pos);
+				}
+			}
 		}
 	}
-	catch(SerializationError &e)
-	{
-		errorstream<<"WARNING: MapBlock::deSerializeNetworkSpecific(): Ignoring an error"
-				<<": "<<e.what()<<std::endl;
-	}
 }
+
+#ifndef SERVER
+MapBlockMesh* MapBlock::getMesh(int step) {
+	if (step >= 16 && mesh16) return mesh16;
+	if (step >= 8  && mesh8)  return mesh8;
+	if (step >= 4  && mesh4)  return mesh4;
+	if (step >= 2  && mesh2)  return mesh2;
+	if (step >= 1  && mesh)   return mesh;
+	if (mesh2)  return mesh2;
+	if (mesh4)  return mesh4;
+	if (mesh8)  return mesh8;
+	if (mesh16) return mesh16;
+	return mesh;
+}
+
+void MapBlock::setMesh(MapBlockMesh* rmesh) {
+	     if (rmesh->step == 16) {if (mesh16) delete mesh16;  mesh16 = rmesh;}
+	else if (rmesh->step == 8 ) {if (mesh8)  delete mesh8;   mesh8  = rmesh;}
+	else if (rmesh->step == 4 ) {if (mesh4)  delete mesh4;   mesh4  = rmesh;}
+	else if (rmesh->step == 2 ) {if (mesh2)  delete mesh2;   mesh2  = rmesh;}
+	else                        {if (mesh)   delete mesh;    mesh   = rmesh;}
+}
+
+void MapBlock::delMesh() {
+	if (mesh16) {delete mesh16; mesh16 = NULL;}
+	if (mesh8)  {delete mesh8;  mesh8  = NULL;}
+	if (mesh4)  {delete mesh4;  mesh4  = NULL;}
+	if (mesh2)  {delete mesh2;  mesh2  = NULL;}
+	if (mesh)   {delete mesh;   mesh   = NULL;}
+}
+#endif
+
 
 /*
 	Legacy serialization
@@ -1010,6 +1033,49 @@ void MapBlock::deSerialize_pre22(std::istream &is, u8 version, bool disk)
 
 }
 
+void MapBlock::incrementUsageTimer(float dtime)
+{
+	m_usage_timer += dtime;
+/*
+#ifndef SERVER
+	if(mesh){
+		if(mesh->getUsageTimer() > 10)
+			mesh->setStatic();
+		else
+			mesh->incrementUsageTimer(dtime);
+	}
+#endif
+*/
+}
+
+/* here for errorstream
+	void MapBlock::setTimestamp(u32 time)
+	{
+//infostream<<"setTimestamp = "<< time <<std::endl;
+		m_timestamp = time;
+		raiseModified(MOD_STATE_WRITE_AT_UNLOAD, "setTimestamp");
+	}
+
+	void MapBlock::setTimestampNoChangedFlag(u32 time)
+	{
+//infostream<<"setTimestampNoChangedFlag = "<< time <<std::endl;
+		m_timestamp = time;
+	}
+
+	void MapBlock::raiseModified(u32 mod)
+	{
+		if(mod >= m_modified){
+			m_modified = mod;
+			if(m_modified >= MOD_STATE_WRITE_AT_UNLOAD)
+				m_disk_timestamp = m_timestamp;
+			if(m_modified >= MOD_STATE_WRITE_NEEDED) {
+//infostream<<"raiseModified = "<< m_changed_timestamp << "=> "<<m_timestamp<<std::endl;
+				m_changed_timestamp = m_timestamp;
+			}
+		}
+	}
+*/
+
 /*
 	Get a quick string to describe what a block actually contains
 */
@@ -1039,7 +1105,7 @@ std::string analyze_block(MapBlock *block)
 	default:
 		desc<<"unknown getModified()="+itos(block->getModified())+", ";
 	}
-
+	desc<<" changed_timestamp="<<block->m_changed_timestamp<<", ";
 	if(block->isGenerated())
 		desc<<"is_gen [X], ";
 	else
@@ -1101,6 +1167,8 @@ std::string analyze_block(MapBlock *block)
 
 		desc<<"}, ";
 	}
+	
+	//desc<<" modifiedBy="<<block->getModifiedReason()<<"; "; // only with raiseModified(..., string)
 
 	return desc.str().substr(0, desc.str().size()-2);
 }

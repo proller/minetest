@@ -1,4 +1,4 @@
-project(minetest)
+project(freeminer)
 cmake_minimum_required( VERSION 2.6 )
 
 INCLUDE(CheckCSourceRuns)
@@ -7,6 +7,8 @@ INCLUDE(CheckCSourceRuns)
 mark_as_advanced(EXECUTABLE_OUTPUT_PATH LIBRARY_OUTPUT_PATH)
 mark_as_advanced(SQLITE3_INCLUDE_DIR SQLITE3_LIBRARY)
 mark_as_advanced(JSON_INCLUDE_DIR JSON_LIBRARY)
+
+find_package(MsgPack)
 
 option(ENABLE_CURL "Enable cURL support for fetching media" 1)
 
@@ -24,7 +26,11 @@ if (CURL_FOUND AND ENABLE_CURL)
 endif(CURL_FOUND AND ENABLE_CURL)
 
 # user-visible option to enable/disable gettext usage
+if(BUILD_CLIENT)
+OPTION(ENABLE_GETTEXT "Use GetText for internationalization" 1)
+else()
 OPTION(ENABLE_GETTEXT "Use GetText for internationalization" 0)
+endif()
 
 # this is only set to 1 if gettext is enabled _and_ available
 set(USE_GETTEXT 0)
@@ -32,7 +38,7 @@ set(USE_GETTEXT 0)
 if(ENABLE_GETTEXT)
 	find_package(GettextLib)
 else()
-	MARK_AS_ADVANCED(GETTEXT_ICONV_DLL GETTEXT_INCLUDE_DIR GETTEXT_LIBRARY GETTEXT_MSGFMT)
+	MARK_AS_ADVANCED(GETTEXT_ICONV_DLL GETTEXT_INCLUDE_DIR GETTEXT_LIBRARY ICONV_LIBRARY GETTEXT_MSGFMT)
 endif()
 
 if(GETTEXT_FOUND AND ENABLE_GETTEXT)
@@ -52,7 +58,11 @@ else(GETTEXT_FOUND AND ENABLE_GETTEXT)
 endif(GETTEXT_FOUND AND ENABLE_GETTEXT)
 
 # user visible option to enable/disable sound
+if(BUILD_CLIENT)
 OPTION(ENABLE_SOUND "Enable sound" ON)
+else()
+OPTION(ENABLE_SOUND "Enable sound" OFF)
+endif()
 
 # this is only set to 1 if sound is enabled _and_ available
 set(USE_SOUND 0)
@@ -95,12 +105,6 @@ if(USE_SOUND)
 		)
 endif()
 
-option(ENABLE_FREETYPE "Enable freetype2 (truetype fonts and basic unicode support)" OFF)
-set(USE_FREETYPE 0)
-if(ENABLE_FREETYPE)
-	set(USE_FREETYPE 1)
-endif(ENABLE_FREETYPE)
-
 if(NOT MSVC)
 	set(USE_GPROF 0 CACHE BOOL "Use -pg flag for g++")
 endif()
@@ -121,18 +125,18 @@ if(WIN32)
 			CACHE PATH "Zlib include directory")
 	set(ZLIB_LIBRARIES "${PROJECT_SOURCE_DIR}/../../zlib125dll/dll32/zlibwapi.lib"
 			CACHE FILEPATH "Path to zlibwapi.lib")
-	set(ZLIB_DLL "${PROJECT_SOURCE_DIR}/../../zlib125dll/dll32/zlibwapi.dll"
-			CACHE FILEPATH "Path to zlibwapi.dll (for installation)")
+	if(NOT STATIC_BUILD)
+		set(ZLIB_DLL "${PROJECT_SOURCE_DIR}/../../zlib125dll/dll32/zlibwapi.dll"
+				CACHE FILEPATH "Path to zlibwapi.dll (for installation)")
+	endif()
 	set(IRRLICHT_SOURCE_DIR "${PROJECT_SOURCE_DIR}/../../irrlicht-1.7.2"
 			CACHE PATH "irrlicht dir")
-	if(USE_FREETYPE)
-		set(FREETYPE_INCLUDE_DIR_ft2build "${PROJECT_SOURCE_DIR}/../../freetype2/include/"
-				CACHE PATH "freetype include dir")
-		set(FREETYPE_INCLUDE_DIR_freetype2 "${PROJECT_SOURCE_DIR}/../../freetype2/include/freetype"
-				CACHE PATH "freetype include dir")
-		set(FREETYPE_LIBRARY "${PROJECT_SOURCE_DIR}/../../freetype2/objs/win32/vc2005/freetype247.lib"
-				CACHE FILEPATH "Path to freetype247.lib")
-	endif(USE_FREETYPE)
+	set(FREETYPE_INCLUDE_DIR_ft2build "${PROJECT_SOURCE_DIR}/../../freetype2/include/"
+			CACHE PATH "freetype include dir")
+	set(FREETYPE_INCLUDE_DIR_freetype2 "${PROJECT_SOURCE_DIR}/../../freetype2/include/freetype"
+			CACHE PATH "freetype include dir")
+	set(FREETYPE_LIBRARY "${PROJECT_SOURCE_DIR}/../../freetype2/objs/win32/vc2005/freetype247.lib"
+			CACHE FILEPATH "Path to freetype247.lib")
 	set(MINGWM10_DLL ""
 			CACHE FILEPATH "Path to mingwm10.dll (for installation)")
 	if(ENABLE_SOUND)
@@ -173,32 +177,40 @@ endif()
 find_package(Sqlite3 REQUIRED)
 find_package(Json REQUIRED)
 
-option(ENABLE_GLES "Enable OpenGL ES support" 0)
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+option(ENABLE_GLES "Enable OpenGL ES support (ARM, android. special irrlicht version needed!)" 1)
+else()
+option(ENABLE_GLES "Enable OpenGL ES support (ARM, android. special irrlicht version needed!)" 0)
 mark_as_advanced(ENABLE_GLES)
-if(ENABLE_GLES)
+endif()
+if(BUILD_CLIENT AND ENABLE_GLES)
 	find_package(OpenGLES2)
-endif(ENABLE_GLES)
+endif()
 
-if(USE_FREETYPE)
-	if(UNIX)
-		include(FindPkgConfig)
-		if(PKG_CONFIG_FOUND)
-			pkg_check_modules(FREETYPE QUIET freetype2)
-			if(FREETYPE_FOUND)
-				SET(FREETYPE_PKGCONFIG_FOUND TRUE)
-				SET(FREETYPE_LIBRARY ${FREETYPE_LIBRARIES})
-				# because cmake is idiotic
-				string(REPLACE ";" " " FREETYPE_CFLAGS_STR ${FREETYPE_CFLAGS})
-				string(REPLACE ";" " " FREETYPE_LDFLAGS_STR ${FREETYPE_LDFLAGS})
-			endif(FREETYPE_FOUND)
-		endif(PKG_CONFIG_FOUND)
-	endif(UNIX)
-	if(NOT FREETYPE_FOUND)
-		find_package(Freetype REQUIRED)
-	endif(NOT FREETYPE_FOUND)
-	set(CGUITTFONT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cguittfont")
-	set(CGUITTFONT_LIBRARY cguittfont)
-endif(USE_FREETYPE)
+if(${CMAKE_SYSTEM} MATCHES "FreeBSD")
+	#PkgConfig not worked. result: /usr/bin/ld: cannot find -lfreetype
+elseif(UNIX)
+	include(FindPkgConfig)
+	if(PKG_CONFIG_FOUND)
+		pkg_check_modules(FREETYPE QUIET freetype2)
+		if(FREETYPE_FOUND)
+			SET(FREETYPE_PKGCONFIG_FOUND TRUE)
+			SET(FREETYPE_LIBRARY ${FREETYPE_LIBRARIES})
+			# because cmake is idiotic
+			string(REPLACE ";" " " FREETYPE_CFLAGS_STR ${FREETYPE_CFLAGS})
+			string(REPLACE ";" " " FREETYPE_LDFLAGS_STR ${FREETYPE_LDFLAGS})
+		endif(FREETYPE_FOUND)
+	endif(PKG_CONFIG_FOUND)
+endif()
+if(NOT FREETYPE_FOUND)
+	find_package(Freetype REQUIRED)
+endif(NOT FREETYPE_FOUND)
+set(CGUITTFONT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cguittfont")
+set(CGUITTFONT_LIBRARY cguittfont)
+
+if(NOT FREETYPE_FOUND)
+	message(FATAL_ERROR "FreeType was not found.")
+endif()
 
 if (NOT DISABLE_LUAJIT)
 	find_library(LUA_LIBRARY luajit
@@ -274,22 +286,31 @@ mark_as_advanced(LUA_INCLUDE_DIR)
 
 set(USE_LEVELDB 0)
 
-OPTION(ENABLE_LEVELDB "Enable LevelDB backend")
+OPTION(ENABLE_LEVELDB "Enable LevelDB backend" ON)
 
 if(ENABLE_LEVELDB)
 	find_library(LEVELDB_LIBRARY leveldb)
 	find_path(LEVELDB_INCLUDE_DIR db.h PATH_SUFFIXES leveldb)
 	message (STATUS "LevelDB library: ${LEVELDB_LIBRARY}")
 	message (STATUS "LevelDB headers: ${LEVELDB_INCLUDE_DIR}")
-	if(LEVELDB_LIBRARY AND LEVELDB_INCLUDE_DIR)
+	find_library(SNAPPY_LIBRARY snappy)
+	find_path(SNAPPY_INCLUDE_DIR snappy.h PATH_SUFFIXES snappy)
+	message (STATUS "Snappy library: ${SNAPPY_LIBRARY}")
+	message (STATUS "Snappy headers: ${SNAPPY_INCLUDE_DIR}")   
+	if(LEVELDB_LIBRARY AND LEVELDB_INCLUDE_DIR AND SNAPPY_LIBRARY AND SNAPPY_INCLUDE_DIR)
 		set(USE_LEVELDB 1)
 		message(STATUS "LevelDB backend enabled")
-		include_directories(${LEVELDB_INCLUDE_DIR})
-	else(LEVELDB_LIBRARY AND LEVELDB_INCLUDE_DIR)
+		include_directories(${LEVELDB_INCLUDE_DIR} ${SNAPPY_INCLUDE_DIR})
+	else(LEVELDB_LIBRARY AND LEVELDB_INCLUDE_DIR AND SNAPPY_LIBRARY AND SNAPPY_INCLUDE_DIR)
 		set(USE_LEVELDB 0)
 		message(STATUS "LevelDB not found!")
-	endif(LEVELDB_LIBRARY AND LEVELDB_INCLUDE_DIR)
+	endif(LEVELDB_LIBRARY AND LEVELDB_INCLUDE_DIR AND SNAPPY_LIBRARY AND SNAPPY_INCLUDE_DIR)
 endif(ENABLE_LEVELDB)
+
+
+#option(ENABLE_MANDELBULBER "Use Mandelbulber source to generate more fractals in math mapgen" OFF)
+set(USE_MANDELBULBER 1)
+#find_package(Mandelbulber)
 
 configure_file(
 	"${PROJECT_SOURCE_DIR}/cmake_config.h.in"
@@ -310,7 +331,14 @@ add_subdirectory(jthread)
 add_subdirectory(script)
 add_subdirectory(util)
 
+add_subdirectory(enet)
+
 set(common_SRCS
+	circuit.cpp
+	circuit_element.cpp
+	circuit_element_virtual.cpp
+	circuit_element_states.cpp
+	key_value_storage.cpp
 	version.cpp
 	rollback_interface.cpp
 	rollback.cpp
@@ -380,6 +408,7 @@ set(common_SRCS
 	convert_json.cpp
 	gettext.cpp
 	httpfetch.cpp
+	fmbitset.cpp
 	${JTHREAD_SRCS}
 	${common_SCRIPT_SRCS}
 	${UTIL_SRCS}
@@ -441,15 +470,11 @@ set(minetest_SRCS
 	guiEngine.cpp
 	guiFileSelectMenu.cpp
 	convert_json.cpp
+	FMColoredString.cpp
 	${minetest_SCRIPT_SRCS}
+	intlGUIEditBox.cpp
+	FMStaticText.cpp
 )
-
-if(USE_FREETYPE)
-	set(minetest_SRCS
-		${minetest_SRCS}
-		intlGUIEditBox.cpp
-	)
-endif(USE_FREETYPE)
 
 list(SORT minetest_SRCS)
 
@@ -472,15 +497,12 @@ include_directories(
 	${SQLITE3_INCLUDE_DIR}
 	${LUA_INCLUDE_DIR}
 	${JSON_INCLUDE_DIR}
+	${MSGPACK_INCLUDE_DIRS}
 	${PROJECT_SOURCE_DIR}/script
+	${PROJECT_SOURCE_DIR}/enet/include
+	${FREETYPE_INCLUDE_DIRS}
+	${CGUITTFONT_INCLUDE_DIR}
 )
-
-if(USE_FREETYPE)
-	include_directories(
-		${FREETYPE_INCLUDE_DIRS}
-		${CGUITTFONT_INCLUDE_DIR}
-	)
-endif(USE_FREETYPE)
 
 if(USE_CURL)
 	include_directories(
@@ -503,35 +525,42 @@ if(BUILD_CLIENT)
 		${PNG_LIBRARIES}
 		${X11_LIBRARIES}
 		${GETTEXT_LIBRARY}
+		${ICONV_LIBRARY}
 		${SOUND_LIBRARIES}
 		${SQLITE3_LIBRARY}
 		${LUA_LIBRARY}
 		${JSON_LIBRARY}
 		${OPENGLES2_LIBRARIES}
+		${MSGPACK_LIBRARIES}
+		enet
 		${PLATFORM_LIBS}
 		${CLIENT_PLATFORM_LIBS}
 	)
+	if(STATIC_BUILD AND USE_GETTEXT)
+		target_link_libraries(
+			${PROJECT_NAME}
+			${ICONV_LIBRARY}
+		)
+	endif()
 	if(USE_CURL)
 		target_link_libraries(
 			${PROJECT_NAME}
 			${CURL_LIBRARY}
 		)
 	endif(USE_CURL)
-	if(USE_FREETYPE)
-		if(FREETYPE_PKGCONFIG_FOUND)
-			set_target_properties(${PROJECT_NAME}
-				PROPERTIES
-				COMPILE_FLAGS "${FREETYPE_CFLAGS_STR}"
-			)
-		endif(FREETYPE_PKGCONFIG_FOUND)
-		target_link_libraries(
-			${PROJECT_NAME}
-			${FREETYPE_LIBRARY}
-			${CGUITTFONT_LIBRARY}
+	if(FREETYPE_PKGCONFIG_FOUND)
+		set_target_properties(${PROJECT_NAME}
+			PROPERTIES
+			COMPILE_FLAGS "${FREETYPE_CFLAGS_STR}"
 		)
-	endif(USE_FREETYPE)
+	endif(FREETYPE_PKGCONFIG_FOUND)
+	target_link_libraries(
+		${PROJECT_NAME}
+		${FREETYPE_LIBRARY}
+		${CGUITTFONT_LIBRARY}
+	)
 	if (USE_LEVELDB)
-		target_link_libraries(${PROJECT_NAME} ${LEVELDB_LIBRARY})
+		target_link_libraries(${PROJECT_NAME} ${LEVELDB_LIBRARY} ${SNAPPY_LIBRARY})
 	endif(USE_LEVELDB)
 endif(BUILD_CLIENT)
 
@@ -544,11 +573,14 @@ if(BUILD_SERVER)
 		${SQLITE3_LIBRARY}
 		${JSON_LIBRARY}
 		${GETTEXT_LIBRARY}
+		${ICONV_LIBRARY}
 		${LUA_LIBRARY}
+		${MSGPACK_LIBRARIES}
+		enet
 		${PLATFORM_LIBS}
 	)
 	if (USE_LEVELDB)
-		target_link_libraries(${PROJECT_NAME}server ${LEVELDB_LIBRARY})
+		target_link_libraries(${PROJECT_NAME}server ${LEVELDB_LIBRARY} ${SNAPPY_LIBRARY})
 	endif(USE_LEVELDB)
 	if(USE_CURL)
 		target_link_libraries(
@@ -570,6 +602,9 @@ if(MSVC)
 
 	# EHa enables SEH exceptions (used for catching segfaults)
 	set(CMAKE_CXX_FLAGS_RELEASE "/EHa /O2 /Ob2 /Oi /Ot /Oy /GL /FD /MT /GS- /arch:SSE /fp:fast /D NDEBUG /D _HAS_ITERATOR_DEBUGGING=0 /TP")
+	if (STATIC_BUILD)
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /D _IRR_STATIC_LIB_ /D AL_LIBTYPE_STATIC /D CURL_STATICLIB")
+	endif()
 	#set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/LTCG /NODEFAULTLIB:\"libcmtd.lib\" /NODEFAULTLIB:\"libcmt.lib\"")
 	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/LTCG")
 
@@ -602,8 +637,10 @@ else()
 		endif(HAS_UNUSED_BUT_SET_VARIABLE_WARNING)
 	endif()
 
+	set(OTHER_FLAGS "")
+
 	if(MINGW)
-		set(OTHER_FLAGS "-mthreads -fexceptions")
+		set(OTHER_FLAGS "${OTHER_FLAGS} -mthreads -fexceptions")
 	endif()
 
 	if(APPLE)
@@ -611,8 +648,12 @@ else()
 		set(ARCH i386)
 	endif()
 
-	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG ${RELEASE_WARNING_FLAGS} ${WARNING_FLAGS} ${OTHER_FLAGS} -O3 -ffast-math -Wall -fomit-frame-pointer -pipe -funroll-loops")
-	set(CMAKE_CXX_FLAGS_DEBUG "-g -O1 -Wall ${WARNING_FLAGS} ${OTHER_FLAGS}")
+	if(SANITIZE_ADDRESS)
+		set(OTHER_FLAGS "${OTHER_FLAGS} -fsanitize=address")
+	endif()
+
+	set(CMAKE_CXX_FLAGS_RELEASE "-std=c++0x -DNDEBUG ${RELEASE_WARNING_FLAGS} ${WARNING_FLAGS} ${OTHER_FLAGS} -O3 -ffast-math -Wall -fomit-frame-pointer -pipe -funroll-loops")
+	set(CMAKE_CXX_FLAGS_DEBUG "-std=c++0x -g -O0 -Wall ${WARNING_FLAGS} ${OTHER_FLAGS}")
 
 	if(USE_GPROF)
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -pg")
@@ -632,6 +673,8 @@ endif()
 # Installation
 #
 if(WIN32)
+	if(NOT STATIC_BUILD)
+
 	if(MINGWM10_DLL)
 		install(FILES ${MINGWM10_DLL} DESTINATION ${BINDIR})
 	endif()
@@ -655,6 +698,8 @@ if(WIN32)
 	if(CURL_DLL)
 		install(FILES ${CURL_DLL} DESTINATION ${BINDIR})
 	endif()
+
+	endif()
 endif()
 
 if(BUILD_CLIENT)
@@ -669,14 +714,14 @@ if(BUILD_CLIENT)
 	endif()
 
 	if(WIN32)
-		if(DEFINED IRRLICHT_DLL)
+		if(DEFINED IRRLICHT_DLL AND NOT STATIC_BUILD)
 			install(FILES ${IRRLICHT_DLL} DESTINATION ${BINDIR})
 		endif()
 		if(USE_GETTEXT)
-			if(DEFINED GETTEXT_DLL)
+			if(DEFINED GETTEXT_DLL AND NOT STATIC_BUILD)
 				install(FILES ${GETTEXT_DLL} DESTINATION ${BINDIR})
 			endif()
-			if(DEFINED GETTEXT_ICONV_DLL)
+			if(DEFINED GETTEXT_ICONV_DLL AND NOT STATIC_BUILD)
 				install(FILES ${GETTEXT_ICONV_DLL} DESTINATION ${BINDIR})
 			endif()
 		endif(USE_GETTEXT)
@@ -720,9 +765,9 @@ else (SQLITE3_FOUND)
 	add_subdirectory(sqlite)
 endif (SQLITE3_FOUND)
 
-if (BUILD_CLIENT AND USE_FREETYPE)
+if (BUILD_CLIENT)
 	add_subdirectory(cguittfont)
-endif (BUILD_CLIENT AND USE_FREETYPE)
+endif()
 
 if (JSON_FOUND)
 else (JSON_FOUND)

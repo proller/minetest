@@ -1,20 +1,23 @@
 /*
-Minetest
+content_mapblock.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "content_mapblock.h"
@@ -165,6 +168,363 @@ void makeCuboid(MeshCollector *collector, const aabb3f &box,
 	}
 }
 
+class neighborRail {
+	public:
+		bool is_rail_x_all[2];
+		bool is_rail_z_all[2];
+		int adjacencies;
+		bool is_straight;
+		bool force_end;
+}; neighborRail recurseRail(v3s16 p, MeshMakeData *data, MeshCollector &collector, int recurse = 0)
+{
+	INodeDefManager *nodedef = data->m_gamedef->ndef();
+	v3s16 blockpos_nodes = data->m_blockpos*MAP_BLOCKSIZE;
+	s16 x = p.X, y = p.Y, z = p.Z;
+	MapNode n = data->m_vmanip.getNodeNoEx(blockpos_nodes+p);
+	const ContentFeatures &f = nodedef->get(n);
+
+	bool is_rail_x [] = { false, false };  /* x-1, x+1 */
+	bool is_rail_z [] = { false, false };  /* z-1, z+1 */
+
+	bool is_rail_z_minus_y [] = { false, false };  /* z-1, z+1; y-1 */
+	bool is_rail_x_minus_y [] = { false, false };  /* x-1, z+1; y-1 */
+	bool is_rail_z_plus_y [] = { false, false };  /* z-1, z+1; y+1 */
+	bool is_rail_x_plus_y [] = { false, false };  /* x-1, x+1; y+1 */
+
+	MapNode n_minus_x = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x-1,y,z));
+	MapNode n_plus_x = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x+1,y,z));
+	MapNode n_minus_z = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y,z-1));
+	MapNode n_plus_z = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y,z+1));
+	MapNode n_plus_x_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x+1, y+1, z));
+	MapNode n_plus_x_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x+1, y-1, z));
+	MapNode n_minus_x_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x-1, y+1, z));
+	MapNode n_minus_x_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x-1, y-1, z));
+	MapNode n_plus_z_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y+1, z+1));
+	MapNode n_minus_z_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y+1, z-1));
+	MapNode n_plus_z_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y-1, z+1));
+	MapNode n_minus_z_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y-1, z-1));
+
+	content_t thiscontent = n.getContent();
+	std::string groupname = "connect_to_raillike"; // name of the group that enables connecting to raillike nodes of different kind
+	bool self_connect_to_raillike = ((ItemGroupList) nodedef->get(n).groups)[groupname] != 0;
+	
+	if ((nodedef->get(n_minus_x).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_minus_x).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_minus_x.getContent() == thiscontent)
+		is_rail_x[0] = true;
+
+	if ((nodedef->get(n_minus_x_minus_y).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_minus_x_minus_y).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_minus_x_minus_y.getContent() == thiscontent)
+		is_rail_x_minus_y[0] = true;
+
+	if ((nodedef->get(n_minus_x_plus_y).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_minus_x_plus_y).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_minus_x_plus_y.getContent() == thiscontent)
+		is_rail_x_plus_y[0] = true;
+
+	if ((nodedef->get(n_plus_x).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_plus_x).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_plus_x.getContent() == thiscontent)
+		is_rail_x[1] = true;
+
+	if ((nodedef->get(n_plus_x_minus_y).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_plus_x_minus_y).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_plus_x_minus_y.getContent() == thiscontent)
+		is_rail_x_minus_y[1] = true;
+
+	if ((nodedef->get(n_plus_x_plus_y).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_plus_x_plus_y).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_plus_x_plus_y.getContent() == thiscontent)
+		is_rail_x_plus_y[1] = true;
+
+	if ((nodedef->get(n_minus_z).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_minus_z).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_minus_z.getContent() == thiscontent)
+		is_rail_z[0] = true;
+
+	if ((nodedef->get(n_minus_z_minus_y).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_minus_z_minus_y).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_minus_z_minus_y.getContent() == thiscontent)
+		is_rail_z_minus_y[0] = true;
+
+	if ((nodedef->get(n_minus_z_plus_y).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_minus_z_plus_y).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_minus_z_plus_y.getContent() == thiscontent)
+		is_rail_z_plus_y[0] = true;
+
+	if ((nodedef->get(n_plus_z).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_plus_z).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_plus_z.getContent() == thiscontent)
+		is_rail_z[1] = true;
+
+	if ((nodedef->get(n_plus_z_minus_y).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_plus_z_minus_y).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_plus_z_minus_y.getContent() == thiscontent)
+		is_rail_z_minus_y[1] = true;
+
+	if ((nodedef->get(n_plus_z_plus_y).drawtype == NDT_RAILLIKE
+			&& ((ItemGroupList) nodedef->get(n_plus_z_plus_y).groups)[groupname] != 0
+			&& self_connect_to_raillike)
+			|| n_plus_z_plus_y.getContent() == thiscontent)
+		is_rail_z_plus_y[1] = true;
+
+	bool is_rail_x_all[] = {false, false};
+	bool is_rail_z_all[] = {false, false};
+	is_rail_x_all[0]=is_rail_x[0] || is_rail_x_minus_y[0] || is_rail_x_plus_y[0];
+	is_rail_x_all[1]=is_rail_x[1] || is_rail_x_minus_y[1] || is_rail_x_plus_y[1];
+	is_rail_z_all[0]=is_rail_z[0] || is_rail_z_minus_y[0] || is_rail_z_plus_y[0];
+	is_rail_z_all[1]=is_rail_z[1] || is_rail_z_minus_y[1] || is_rail_z_plus_y[1];
+
+	// reasonable default, flat straight unrotated rail
+	bool is_straight = true;
+	int adjacencies = 0;
+	int angle = 0;
+	u8 tileindex = 0;
+
+	// check for sloped rail
+	if (is_rail_x_plus_y[0] || is_rail_x_plus_y[1] || is_rail_z_plus_y[0] || is_rail_z_plus_y[1])
+	{
+		adjacencies = 5; //5 means sloped
+		is_straight = true; // sloped is always straight
+	}
+	else
+	{
+		// is really straight, rails on both sides
+		is_straight = (is_rail_x_all[0] && is_rail_x_all[1]) || (is_rail_z_all[0] && is_rail_z_all[1]);
+		adjacencies = is_rail_x_all[0] + is_rail_x_all[1] + is_rail_z_all[0] + is_rail_z_all[1];
+	}
+
+	bool diagonalflip = false, force_end = false;
+
+	neighborRail self;
+	memcpy(self.is_rail_x_all,is_rail_x_all, sizeof(bool[2]));
+	memcpy(self.is_rail_z_all,is_rail_z_all, sizeof(bool[2]));
+	self.adjacencies = adjacencies;
+	self.is_straight = is_straight;
+	self.force_end = force_end;
+	if (recurse >= 2)
+		return self;
+
+	neighborRail neighbor_x_all[2], neighbor_z_all[2];
+	if(is_rail_x_all[0]) {
+		if(is_rail_x_plus_y[0]) {
+			neighbor_x_all[0] = recurseRail(v3s16(x-1, y+1, z), data, collector, recurse+1);
+		} else if (is_rail_x[0]) {
+			neighbor_x_all[0] = recurseRail(v3s16(x-1, y  , z), data, collector, recurse+1);
+		} else { //if (is_rail_x_minus_y[0]) {
+			neighbor_x_all[0] = recurseRail(v3s16(x-1, y-1, z), data, collector, recurse+1);
+		}
+	}
+	if(is_rail_x_all[1]) {
+		if(is_rail_x_plus_y[1]) {
+			neighbor_x_all[1] = recurseRail(v3s16(x+1, y+1, z), data, collector, recurse+1);
+		} else if (is_rail_x[1]) {
+			neighbor_x_all[1] = recurseRail(v3s16(x+1, y  , z), data, collector, recurse+1);
+		} else { //if (is_rail_x_minus_y[1]) {
+			neighbor_x_all[1] = recurseRail(v3s16(x+1, y-1, z), data, collector, recurse+1);
+		}
+	}
+	if(is_rail_z_all[0]) {
+		if(is_rail_z_plus_y[0]) {
+			neighbor_z_all[0] = recurseRail(v3s16(x, y+1, z-1), data, collector, recurse+1);
+		} else if (is_rail_z[0]) {
+			neighbor_z_all[0] = recurseRail(v3s16(x, y  , z-1), data, collector, recurse+1);
+		} else { //if (is_rail_z_minus_y[0]) {
+			neighbor_z_all[0] = recurseRail(v3s16(x, y-1, z-1), data, collector, recurse+1);
+		}
+	}
+	if(is_rail_z_all[1]) {
+		if(is_rail_z_plus_y[1]) {
+			neighbor_z_all[1] = recurseRail(v3s16(x, y+1, z+1), data, collector, recurse+1);
+		} else if (is_rail_z[1]) {
+			neighbor_z_all[1] = recurseRail(v3s16(x, y  , z+1), data, collector, recurse+1);
+		} else { //if (is_rail_z_minus_y[1]) {
+			neighbor_z_all[1] = recurseRail(v3s16(x, y-1, z+1), data, collector, recurse+1);
+		}
+	}
+
+	bool is_corner_x_all[2], is_corner_z_all[2];
+	is_corner_x_all[0] = is_rail_x_all[0] && neighbor_x_all[0].adjacencies == 2 && !neighbor_x_all[0].is_straight;
+	is_corner_x_all[1] = is_rail_x_all[1] && neighbor_x_all[1].adjacencies == 2 && !neighbor_x_all[1].is_straight;
+	is_corner_z_all[0] = is_rail_z_all[0] && neighbor_z_all[0].adjacencies == 2 && !neighbor_z_all[0].is_straight;
+	is_corner_z_all[1] = is_rail_z_all[1] && neighbor_z_all[1].adjacencies == 2 && !neighbor_z_all[1].is_straight;
+
+	switch (adjacencies) {
+	case 1: //straight
+		tileindex = 5; //diagonal rail end
+		       if(is_corner_z_all[0] && neighbor_z_all[0].force_end) {
+			//angle = 0;
+		    if(neighbor_z_all[0].is_rail_x_all[1]) {
+		    	angle -= 90;
+		    	diagonalflip = true;
+		    }
+		} else if(is_corner_x_all[0] && neighbor_x_all[0].force_end) {
+			angle = -90;
+			if(neighbor_x_all[0].is_rail_z_all[0]) {
+				angle -= 90;
+				diagonalflip = true;
+			}
+		} else if(is_corner_z_all[1] && neighbor_z_all[1].force_end) {
+			angle = -180;
+			if(neighbor_z_all[1].is_rail_x_all[0]) {
+				angle -= 90;
+				diagonalflip = true;
+			}
+		} else if(is_corner_x_all[1] && neighbor_x_all[1].force_end) {
+			angle = -270;
+			if(neighbor_x_all[1].is_rail_z_all[1]) {
+				angle -= 90;
+				diagonalflip = true;
+			}
+		} else {
+			tileindex = 0; //straight
+			if(is_rail_x_all[0] || is_rail_x_all[1])
+				angle = 90;
+		}
+		break;
+	case 2:
+		if(!is_straight) {
+			tileindex = 1; //curved
+			//attempt diagonal
+			if (
+					(is_rail_x_all[0] && (
+							(is_corner_z_all[0] && neighbor_z_all[0].is_rail_x_all[1]) ||
+							(is_corner_z_all[1] && neighbor_z_all[1].is_rail_x_all[1])
+					)) ||
+					(is_rail_x_all[1] && (
+							(is_corner_z_all[0] && neighbor_z_all[0].is_rail_x_all[0]) ||
+							(is_corner_z_all[1] && neighbor_z_all[1].is_rail_x_all[0])
+					)) ||
+					(is_rail_z_all[0] && (
+							(is_corner_x_all[0] && neighbor_x_all[0].is_rail_z_all[1]) ||
+							(is_corner_x_all[1] && neighbor_x_all[1].is_rail_z_all[1])
+					)) ||
+					(is_rail_z_all[1] && (
+							(is_corner_x_all[0] && neighbor_x_all[0].is_rail_z_all[0]) ||
+							(is_corner_x_all[1] && neighbor_x_all[1].is_rail_z_all[0])
+					))
+			) { //at least one adjacent corner, not a U-turn
+				tileindex = 4; //diagonal (middle)
+				if((is_corner_x_all[0] || is_corner_x_all[1]) && (is_corner_z_all[0] || is_corner_z_all[1])) {
+					//keep middle diagonal
+				} else { //diagonal end/start/force_end
+					if(
+							(is_rail_x_all[0] && neighbor_x_all[0].adjacencies == 1) ||
+							(is_rail_x_all[1] && neighbor_x_all[1].adjacencies == 1) ||
+							(is_rail_z_all[0] && neighbor_z_all[0].adjacencies == 1) ||
+							(is_rail_z_all[1] && neighbor_z_all[1].adjacencies == 1)
+					) {
+						//Rail end is the new end, keep middle diagonal.
+						force_end = true;
+					} else {
+						tileindex = 5; //diagonal end (or start)
+						if(
+								((is_rail_z_all[0] && !is_corner_z_all[0]) && (is_rail_x_all[1] && is_corner_x_all[1])) ||
+								((is_rail_x_all[0] && !is_corner_x_all[0]) && (is_rail_z_all[0] && is_corner_z_all[0])) ||
+								((is_rail_z_all[1] && !is_corner_z_all[1]) && (is_rail_x_all[0] && is_corner_x_all[0])) ||
+								((is_rail_x_all[1] && !is_corner_x_all[1]) && (is_rail_z_all[1] && is_corner_z_all[1]))
+						) {
+							diagonalflip = true; //diagonal start
+						}
+					}
+				}
+			}
+		}
+		if(is_rail_x_all[0] && is_rail_x_all[1])
+			angle = 90;
+		if(is_rail_z_all[0] && is_rail_z_all[1]){
+			if (is_rail_z_plus_y[0])
+				angle = 180;
+		}
+		else if(is_rail_x_all[0] && is_rail_z_all[0])
+			angle = 270;
+		else if(is_rail_x_all[0] && is_rail_z_all[1])
+			angle = 180;
+		else if(is_rail_x_all[1] && is_rail_z_all[1])
+			angle = 90;
+		break;
+	case 3:
+		// here is where the potential to 'switch' a junction is, but not implemented at present
+		tileindex = 2; // t-junction
+		if(!is_rail_x_all[1])
+			angle=180;
+		if(!is_rail_z_all[0])
+			angle=90;
+		if(!is_rail_z_all[1])
+			angle=270;
+		break;
+	case 4:
+		tileindex = 3; // crossing
+		break;
+	case 5: //sloped
+		if(is_rail_z_plus_y[0])
+			angle = 180;
+		if(is_rail_x_plus_y[0])
+			angle = 90;
+		if(is_rail_x_plus_y[1])
+			angle = -90;
+		break;
+	default:
+		break;
+	}
+
+	self.force_end = force_end;
+	if (recurse >= 1)
+		return self;
+
+	TileSpec tile = getNodeTileN(n, p, tileindex, data);
+	tile.material_flags &= ~MATERIAL_FLAG_BACKFACE_CULLING;
+	tile.material_flags |= MATERIAL_FLAG_CRACK_OVERLAY;
+
+	u16 l = getInteriorLight(n, 0, nodedef);
+	video::SColor c = MapBlock_LightColor(255, l, decode_light(f.light_source));
+
+	float d = (float)BS/64;
+	
+	char g=-1;
+	if (is_rail_x_plus_y[0] || is_rail_x_plus_y[1] || is_rail_z_plus_y[0] || is_rail_z_plus_y[1])
+		g=1; //Object is at a slope
+
+	video::S3DVertex vertices[4] =
+	{
+		video::S3DVertex(-BS/2,-BS/2+d,-BS/2, 0,0,0, c, 0,1),
+		video::S3DVertex(BS/2,-BS/2+d,-BS/2, 0,0,0, c, 1,1),
+		video::S3DVertex(BS/2,g*BS/2+d,BS/2, 0,0,0, c, 1,0),
+		video::S3DVertex(-BS/2,g*BS/2+d,BS/2, 0,0,0, c, 0,0),
+	};
+
+	for(s32 i=0; i<4; i++)
+	{
+		if(diagonalflip) {
+			//swap -x,-z with +x,+z
+			vertices[i].Pos.rotateXZBy(90);
+			vertices[i].Pos.Z = -vertices[i].Pos.Z;
+		}
+		if(angle != 0)
+			vertices[i].Pos.rotateXZBy(angle);
+		vertices[i].Pos += intToFloat(p, BS);
+	}
+
+	u16 indices[] = {0,1,2,2,3,0};
+
+	collector.append(tile, vertices, 4, indices, 6);
+
+	//required return, not used.
+	return self;
+}
+
 void mapblock_mesh_generate_special(MeshMakeData *data,
 		MeshCollector &collector)
 {
@@ -261,7 +621,7 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 
 				// Don't draw any faces if neighbor same is liquid and top is
 				// same liquid
-				if(neighbor_is_same_liquid && !top_is_same_liquid)
+				if(neighbor_is_same_liquid && top_is_same_liquid)
 					continue;
 
 				// Use backface culled material if neighbor doesn't have a
@@ -370,11 +730,13 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 			*/
 			TileSpec tile_liquid = f.special_tiles[0];
 			TileSpec tile_liquid_bfculled = f.special_tiles[1];
+			const TileSpec *current_tile = &tile_liquid;
 
 			bool top_is_same_liquid = false;
 			MapNode ntop = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y+1,z));
 			content_t c_flowing = nodedef->getId(f.liquid_alternative_flowing);
 			content_t c_source = nodedef->getId(f.liquid_alternative_source);
+			TileSpec tile_liquid_source = nodedef->get(c_source).special_tiles[0];
 			if(ntop.getContent() == c_flowing || ntop.getContent() == c_source)
 				top_is_same_liquid = true;
 			
@@ -394,8 +756,6 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 			else
 				l = getInteriorLight(n, 0, nodedef);
 			video::SColor c = MapBlock_LightColor(f.alpha, l, decode_light(f.light_source));
-			
-			u8 range = rangelim(nodedef->get(c_flowing).liquid_range, 1, 8);
 
 			// Neighbor liquid levels (key = relative position)
 			// Includes current node
@@ -429,12 +789,8 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 					if(n2.getContent() == c_source)
 						level = (-0.5+node_liquid_level) * BS;
 					else if(n2.getContent() == c_flowing){
-						u8 liquid_level = (n2.param2&LIQUID_LEVEL_MASK);
-						if (liquid_level <= LIQUID_LEVEL_MAX+1-range)
-							liquid_level = 0;
-						else
-							liquid_level -= (LIQUID_LEVEL_MAX+1-range);
-						level = (-0.5 + ((float)liquid_level+ 0.5) / (float)range * node_liquid_level) * BS;
+						level = (-0.5 + ((float)n2.getLevel(nodedef)
+							 + 0.5) / n2.getMaxLevel(nodedef) * node_liquid_level) * BS;
 					}
 
 					// Check node above neighbor.
@@ -498,7 +854,7 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 					}
 				}
 				if(air_count >= 2)
-					cornerlevel = -0.5*BS+0.2;
+					cornerlevel = -0.5*BS+(float)1/f.getMaxLevel();
 				else if(valid_count > 0)
 					cornerlevel /= valid_count;
 				corner_levels[i] = cornerlevel;
@@ -545,12 +901,12 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 				// Don't draw any faces if neighbor same is liquid and top is
 				// same liquid
 				if(neighbor_is_same_liquid == true
-						&& top_is_same_liquid == false)
+						&& top_is_same_liquid == true)
 					continue;
 
 				// Use backface culled material if neighbor doesn't have a
 				// solidness of 0
-				const TileSpec *current_tile = &tile_liquid;
+				current_tile = &tile_liquid;
 				if(n_feat.solidness != 0 || n_feat.visual_solidness != 0)
 					current_tile = &tile_liquid_bfculled;
 				
@@ -631,6 +987,7 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 			
 			if(top_is_same_liquid == false)
 			{
+				current_tile = &tile_liquid_source;
 				video::S3DVertex vertices[4] =
 				{
 					video::S3DVertex(-BS/2,0,BS/2, 0,0,0, c, 0,1),
@@ -650,6 +1007,9 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 					//vertices[i].Pos.Y += neighbor_levels[v3s16(0,0,0)];
 					s32 j = corner_resolve[i];
 					vertices[i].Pos.Y += corner_levels[j];
+					if (neighbor_levels[neighbor_dirs[0]] > corner_levels[j] + 0.25 ||
+					    neighbor_levels[neighbor_dirs[0]] < corner_levels[j] - 0.25)
+						current_tile = &tile_liquid;
 					vertices[i].Pos += intToFloat(p, BS);
 				}
 				
@@ -689,8 +1049,32 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 
 				u16 indices[] = {0,1,2,2,3,0};
 				// Add to mesh collector
-				collector.append(tile_liquid, vertices, 4, indices, 6);
+				collector.append(*current_tile, vertices, 4, indices, 6);
 			}
+
+			/*
+				Generate bottom side, if appropriate
+			*/
+			MapNode n_bottom = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y-1,z));
+			const ContentFeatures &f_bottom = nodedef->get(n_bottom);
+			if (!f_bottom.walkable && n_bottom.getContent() != c_flowing &&
+				n_bottom.getContent() != c_source) {
+				video::S3DVertex vertices[4] = {
+					video::S3DVertex(-BS/2,0,BS/2, 0,0,0, c, 0,1),
+					video::S3DVertex(BS/2,0,BS/2, 0,0,0, c, 1,1),
+					video::S3DVertex(BS/2,0,-BS/2, 0,0,0, c, 1,0),
+					video::S3DVertex(-BS/2,0,-BS/2, 0,0,0, c, 0,0),
+				};
+
+				v3f offset(p.X*BS, p.Y*BS + -0.5*BS, p.Z*BS);
+				for(s32 i=0; i<4; i++) {
+					vertices[i].Pos += offset;
+				}
+
+				u16 indices[] = {0,1,2,2,3,0};
+				// Add to mesh collector
+				collector.append(tile_liquid, vertices, 4, indices, 6);
+                        }
 		break;}
 		case NDT_GLASSLIKE:
 		{
@@ -1121,205 +1505,7 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 		break;}
 		case NDT_RAILLIKE:
 		{
-			bool is_rail_x [] = { false, false };  /* x-1, x+1 */
-			bool is_rail_z [] = { false, false };  /* z-1, z+1 */
-
-			bool is_rail_z_minus_y [] = { false, false };  /* z-1, z+1; y-1 */
-			bool is_rail_x_minus_y [] = { false, false };  /* x-1, z+1; y-1 */
-			bool is_rail_z_plus_y [] = { false, false };  /* z-1, z+1; y+1 */
-			bool is_rail_x_plus_y [] = { false, false };  /* x-1, x+1; y+1 */
-
-			MapNode n_minus_x = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x-1,y,z));
-			MapNode n_plus_x = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x+1,y,z));
-			MapNode n_minus_z = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y,z-1));
-			MapNode n_plus_z = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x,y,z+1));
-			MapNode n_plus_x_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x+1, y+1, z));
-			MapNode n_plus_x_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x+1, y-1, z));
-			MapNode n_minus_x_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x-1, y+1, z));
-			MapNode n_minus_x_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x-1, y-1, z));
-			MapNode n_plus_z_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y+1, z+1));
-			MapNode n_minus_z_plus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y+1, z-1));
-			MapNode n_plus_z_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y-1, z+1));
-			MapNode n_minus_z_minus_y = data->m_vmanip.getNodeNoEx(blockpos_nodes + v3s16(x, y-1, z-1));
-
-			content_t thiscontent = n.getContent();
-			std::string groupname = "connect_to_raillike"; // name of the group that enables connecting to raillike nodes of different kind
-			bool self_connect_to_raillike = ((ItemGroupList) nodedef->get(n).groups)[groupname] != 0;
-
-			if ((nodedef->get(n_minus_x).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_minus_x).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_minus_x.getContent() == thiscontent)
-				is_rail_x[0] = true;
-
-			if ((nodedef->get(n_minus_x_minus_y).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_minus_x_minus_y).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_minus_x_minus_y.getContent() == thiscontent)
-				is_rail_x_minus_y[0] = true;
-
-			if ((nodedef->get(n_minus_x_plus_y).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_minus_x_plus_y).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_minus_x_plus_y.getContent() == thiscontent)
-				is_rail_x_plus_y[0] = true;
-
-			if ((nodedef->get(n_plus_x).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_plus_x).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_plus_x.getContent() == thiscontent)
-				is_rail_x[1] = true;
-
-			if ((nodedef->get(n_plus_x_minus_y).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_plus_x_minus_y).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_plus_x_minus_y.getContent() == thiscontent)
-				is_rail_x_minus_y[1] = true;
-
-			if ((nodedef->get(n_plus_x_plus_y).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_plus_x_plus_y).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_plus_x_plus_y.getContent() == thiscontent)
-				is_rail_x_plus_y[1] = true;
-
-			if ((nodedef->get(n_minus_z).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_minus_z).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_minus_z.getContent() == thiscontent)
-				is_rail_z[0] = true;
-
-			if ((nodedef->get(n_minus_z_minus_y).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_minus_z_minus_y).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_minus_z_minus_y.getContent() == thiscontent)
-				is_rail_z_minus_y[0] = true;
-
-			if ((nodedef->get(n_minus_z_plus_y).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_minus_z_plus_y).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_minus_z_plus_y.getContent() == thiscontent)
-				is_rail_z_plus_y[0] = true;
-
-			if ((nodedef->get(n_plus_z).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_plus_z).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_plus_z.getContent() == thiscontent)
-				is_rail_z[1] = true;
-
-			if ((nodedef->get(n_plus_z_minus_y).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_plus_z_minus_y).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_plus_z_minus_y.getContent() == thiscontent)
-				is_rail_z_minus_y[1] = true;
-
-			if ((nodedef->get(n_plus_z_plus_y).drawtype == NDT_RAILLIKE
-					&& ((ItemGroupList) nodedef->get(n_plus_z_plus_y).groups)[groupname] != 0
-					&& self_connect_to_raillike)
-					|| n_plus_z_plus_y.getContent() == thiscontent)
-				is_rail_z_plus_y[1] = true;
-
-			bool is_rail_x_all[] = {false, false};
-			bool is_rail_z_all[] = {false, false};
-			is_rail_x_all[0]=is_rail_x[0] || is_rail_x_minus_y[0] || is_rail_x_plus_y[0];
-			is_rail_x_all[1]=is_rail_x[1] || is_rail_x_minus_y[1] || is_rail_x_plus_y[1];
-			is_rail_z_all[0]=is_rail_z[0] || is_rail_z_minus_y[0] || is_rail_z_plus_y[0];
-			is_rail_z_all[1]=is_rail_z[1] || is_rail_z_minus_y[1] || is_rail_z_plus_y[1];
-
-			// reasonable default, flat straight unrotated rail
-			bool is_straight = true;
-			int adjacencies = 0;
-			int angle = 0;
-			u8 tileindex = 0;
-
-			// check for sloped rail
-			if (is_rail_x_plus_y[0] || is_rail_x_plus_y[1] || is_rail_z_plus_y[0] || is_rail_z_plus_y[1])
-			{
-				adjacencies = 5; //5 means sloped
-				is_straight = true; // sloped is always straight
-			}
-			else
-			{
-				// is really straight, rails on both sides
-				is_straight = (is_rail_x_all[0] && is_rail_x_all[1]) || (is_rail_z_all[0] && is_rail_z_all[1]);
-				adjacencies = is_rail_x_all[0] + is_rail_x_all[1] + is_rail_z_all[0] + is_rail_z_all[1];
-			}
-
-			switch (adjacencies) {
-			case 1:
-				if(is_rail_x_all[0] || is_rail_x_all[1])
-					angle = 90;
-				break;
-			case 2:
-				if(!is_straight)
-					tileindex = 1; // curved
-				if(is_rail_x_all[0] && is_rail_x_all[1])
-					angle = 90;
-				if(is_rail_z_all[0] && is_rail_z_all[1]){
-					if (is_rail_z_plus_y[0])
-						angle = 180;
-				}
-				else if(is_rail_x_all[0] && is_rail_z_all[0])
-					angle = 270;
-				else if(is_rail_x_all[0] && is_rail_z_all[1])
-					angle = 180;
-				else if(is_rail_x_all[1] && is_rail_z_all[1])
-					angle = 90;
-				break;
-			case 3:
-				// here is where the potential to 'switch' a junction is, but not implemented at present
-				tileindex = 2; // t-junction
-				if(!is_rail_x_all[1])
-					angle=180;
-				if(!is_rail_z_all[0])
-					angle=90;
-				if(!is_rail_z_all[1])
-					angle=270;
-				break;
-			case 4:
-				tileindex = 3; // crossing
-				break;
-			case 5: //sloped
-				if(is_rail_z_plus_y[0])
-					angle = 180;
-				if(is_rail_x_plus_y[0])
-					angle = 90;
-				if(is_rail_x_plus_y[1])
-					angle = -90;
-				break;
-			default:
-				break;
-			}
-
-			TileSpec tile = getNodeTileN(n, p, tileindex, data);
-			tile.material_flags &= ~MATERIAL_FLAG_BACKFACE_CULLING;
-			tile.material_flags |= MATERIAL_FLAG_CRACK_OVERLAY;
-
-			u16 l = getInteriorLight(n, 0, nodedef);
-			video::SColor c = MapBlock_LightColor(255, l, decode_light(f.light_source));
-
-			float d = (float)BS/64;
-			
-			char g=-1;
-			if (is_rail_x_plus_y[0] || is_rail_x_plus_y[1] || is_rail_z_plus_y[0] || is_rail_z_plus_y[1])
-				g=1; //Object is at a slope
-
-			video::S3DVertex vertices[4] =
-			{
-					video::S3DVertex(-BS/2,-BS/2+d,-BS/2, 0,0,0, c, 0,1),
-					video::S3DVertex(BS/2,-BS/2+d,-BS/2, 0,0,0, c, 1,1),
-					video::S3DVertex(BS/2,g*BS/2+d,BS/2, 0,0,0, c, 1,0),
-					video::S3DVertex(-BS/2,g*BS/2+d,BS/2, 0,0,0, c, 0,0),
-			};
-
-			for(s32 i=0; i<4; i++)
-			{
-				if(angle != 0)
-					vertices[i].Pos.rotateXZBy(angle);
-				vertices[i].Pos += intToFloat(p, BS);
-			}
-
-			u16 indices[] = {0,1,2,2,3,0};
-			collector.append(tile, vertices, 4, indices, 6);
+			recurseRail(p, data, collector);
 		break;}
 		case NDT_NODEBOX:
 		{

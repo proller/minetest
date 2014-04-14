@@ -1,20 +1,23 @@
 /*
-Minetest
+clouds.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "clouds.h"
@@ -80,7 +83,9 @@ void Clouds::render()
 	//if(SceneManager->getSceneNodeRenderPass() != scene::ESNRP_SOLID)
 		return;
 
+/*
 	ScopeProfiler sp(g_profiler, "Rendering of clouds, avg", SPT_AVG);
+*/
 	
 	bool enable_3d = g_settings->getBool("enable_3d_clouds");
 	int num_faces_to_draw = enable_3d ? 6 : 1;
@@ -94,9 +99,10 @@ void Clouds::render()
 		Clouds move from X+ towards X-
 	*/
 
+	const float cloud_mul = m_cloud_y/BS/120;
 	const s16 cloud_radius_i = 12;
-	const float cloud_size = BS*64;
-	const v2f cloud_speed(0, -BS*2);
+	const float cloud_size = BS*64*cloud_mul;
+	const v2f cloud_speed(0, -BS*2*cloud_mul);
 	
 	const float cloud_full_radius = cloud_size * cloud_radius_i;
 	
@@ -230,7 +236,7 @@ void Clouds::render()
 		}*/
 
 		f32 rx = cloud_size/2;
-		f32 ry = 8*BS;
+		f32 ry = 8*BS*cloud_mul;
 		f32 rz = cloud_size/2;
 
 		for(int i=0; i<num_faces_to_draw; i++)

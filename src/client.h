@@ -1,20 +1,23 @@
 /*
-Minetest
+client.h
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef CLIENT_HEADER
@@ -35,6 +38,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "hud.h"
 #include "particles.h"
 
+#include <msgpack.hpp>
+
 struct MeshMakeData;
 class MapBlockMesh;
 class IWritableTextureSource;
@@ -52,6 +57,7 @@ struct QueuedMeshUpdate
 	v3s16 p;
 	MeshMakeData *data;
 	bool ack_block_to_server;
+	bool lazy;
 
 	QueuedMeshUpdate();
 	~QueuedMeshUpdate();
@@ -77,7 +83,7 @@ public:
 		peer_id=0 adds with nobody to send to
 	*/
 	void addBlock(v3s16 p, MeshMakeData *data,
-			bool ack_block_to_server, bool urgent);
+			bool ack_block_to_server, bool urgent, bool lazy = false);
 
 	// Returned pointer must be deleted
 	// Returns NULL if queue is empty
@@ -100,11 +106,13 @@ struct MeshUpdateResult
 	v3s16 p;
 	MapBlockMesh *mesh;
 	bool ack_block_to_server;
+	bool lazy;
 
 	MeshUpdateResult():
 		p(-1338,-1338,-1338),
 		mesh(NULL),
 		ack_block_to_server(false)
+		,lazy(false)
 	{
 	}
 };
@@ -279,6 +287,7 @@ public:
 				i = m_packets.begin();
 				i != m_packets.end(); ++i)
 		{
+			if (i->second)
 			o<<"cmd "<<i->first
 					<<" count "<<i->second
 					<<std::endl;
@@ -309,6 +318,7 @@ public:
 			ISoundManager *sound,
 			MtEventManager *event,
 			bool ipv6
+			,bool simple_singleplayer_mode
 	);
 	
 	~Client();
@@ -339,6 +349,7 @@ public:
 	bool AsyncProcessPacket();
 	bool AsyncProcessData();
 	void Send(u16 channelnum, SharedBuffer<u8> data, bool reliable);
+	void Send(u16 channelnum, const msgpack::sbuffer &data, bool reliable);
 
 	void interact(u8 action, const PointedThing& pointed);
 
@@ -347,9 +358,9 @@ public:
 	void sendInventoryFields(const std::string &formname,
 			const std::map<std::string, std::string> &fields);
 	void sendInventoryAction(InventoryAction *a);
-	void sendChatMessage(const std::wstring &message);
-	void sendChangePassword(const std::wstring &oldpassword,
-	                        const std::wstring &newpassword);
+	void sendChatMessage(const std::string &message);
+	void sendChangePassword(const std::string &oldpassword,
+							const std::string &newpassword);
 	void sendDamage(u8 damage);
 	void sendBreath(u16 breath);
 	void sendRespawn();
@@ -399,12 +410,12 @@ public:
 	bool checkPrivilege(const std::string &priv)
 	{ return (m_privileges.count(priv) != 0); }
 
-	bool getChatMessage(std::wstring &message);
+	bool getChatMessage(std::string &message);
 	void typeChatMessage(const std::wstring& message);
 
 	u64 getMapSeed(){ return m_map_seed; }
 
-	void addUpdateMeshTask(v3s16 blockpos, bool ack_to_server=false, bool urgent=false);
+	void addUpdateMeshTask(v3s16 blockpos, bool ack_to_server=false, bool urgent=false, bool lazy=false);
 	// Including blocks at appropriate edges
 	void addUpdateMeshTaskWithEdge(v3s16 blockpos, bool ack_to_server=false, bool urgent=false);
 	void addUpdateMeshTaskForNode(v3s16 nodepos, bool ack_to_server=false, bool urgent=false);
@@ -417,7 +428,7 @@ public:
 	bool accessDenied()
 	{ return m_access_denied; }
 
-	std::wstring accessDeniedReason()
+	std::string accessDeniedReason()
 	{ return m_access_denied_reason; }
 
 	bool itemdefReceived()
@@ -459,8 +470,8 @@ public:
 private:
 
 	// Virtual methods from con::PeerHandler
-	void peerAdded(con::Peer *peer);
-	void deletingPeer(con::Peer *peer, bool timeout);
+	void peerAdded(u16 peer_id);
+	void deletingPeer(u16 peer_id, bool timeout);
 	
 	void ReceiveAll();
 	void Receive();
@@ -485,7 +496,9 @@ private:
 
 	MeshUpdateThread m_mesh_update_thread;
 	ClientEnvironment m_env;
+public:
 	con::Connection m_con;
+private:
 	IrrlichtDevice *m_device;
 	// Server serialization version
 	u8 m_server_ser_ver;
@@ -502,12 +515,12 @@ private:
 	// 0 <= m_daynight_i < DAYNIGHT_CACHE_COUNT
 	//s32 m_daynight_i;
 	//u32 m_daynight_ratio;
-	Queue<std::wstring> m_chat_queue;
+	Queue<std::string> m_chat_queue;
 	// The seed returned by the server in TOCLIENT_INIT is stored here
 	u64 m_map_seed;
 	std::string m_password;
 	bool m_access_denied;
-	std::wstring m_access_denied_reason;
+	std::string m_access_denied_reason;
 	Queue<ClientEvent> m_client_event_queue;
 	bool m_itemdef_received;
 	bool m_nodedef_received;
@@ -536,6 +549,7 @@ private:
 	// Detached inventories
 	// key = name
 	std::map<std::string, Inventory*> m_detached_inventories;
+	double m_uptime;
 
 	// Storage for mesh data for creating multiple instances of the same mesh
 	std::map<std::string, std::string> m_mesh_data;

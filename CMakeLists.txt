@@ -5,7 +5,7 @@ if(${CMAKE_VERSION} STREQUAL "2.8.2")
 endif(${CMAKE_VERSION} STREQUAL "2.8.2")
 
 # This can be read from ${PROJECT_NAME} after project() is called
-project(minetest)
+project(freeminer)
 
 set(VERSION_EXTRA "" CACHE STRING "Stuff to append to version string")
 
@@ -13,13 +13,14 @@ set(VERSION_EXTRA "" CACHE STRING "Stuff to append to version string")
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 4)
 set(VERSION_PATCH 9)
+set(VERSION_PATCH "${VERSION_PATCH}.3")
 set(VERSION_PATCH_ORIG ${VERSION_PATCH})
 
 if(VERSION_EXTRA)
 	set(VERSION_PATCH ${VERSION_PATCH}-${VERSION_EXTRA})
 else()
 	# Comment the following line during release
-	set(VERSION_PATCH ${VERSION_PATCH}-dev)
+	set(VERSION_PATCH "${VERSION_PATCH}-free-dev")
 endif()
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
@@ -144,13 +145,12 @@ endif()
 
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/builtin" DESTINATION "${SHAREDIR}")
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/client" DESTINATION "${SHAREDIR}")
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/games/minimal" DESTINATION "${SHAREDIR}/games")
-set(MINETEST_GAME_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/games/minetest_game")
-if(EXISTS ${MINETEST_GAME_SOURCE} AND IS_DIRECTORY ${MINETEST_GAME_SOURCE})
-	install(FILES ${MINETEST_GAME_SOURCE}/game.conf DESTINATION "${SHAREDIR}/games/minetest_game/")
-	install(FILES ${MINETEST_GAME_SOURCE}/README.txt DESTINATION "${SHAREDIR}/games/minetest_game/")
-	install(DIRECTORY ${MINETEST_GAME_SOURCE}/mods DESTINATION "${SHAREDIR}/games/minetest_game")
-	install(DIRECTORY ${MINETEST_GAME_SOURCE}/menu DESTINATION "${SHAREDIR}/games/minetest_game")
+set(DEFAULT_GAME_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/games/default")
+if(EXISTS ${DEFAULT_GAME_SOURCE} AND IS_DIRECTORY ${DEFAULT_GAME_SOURCE} AND EXISTS ${DEFAULT_GAME_SOURCE}/game.conf)
+	install(FILES ${DEFAULT_GAME_SOURCE}/game.conf DESTINATION "${SHAREDIR}/games/default/")
+	install(FILES ${DEFAULT_GAME_SOURCE}/README.txt DESTINATION "${SHAREDIR}/games/default/")
+	install(DIRECTORY ${DEFAULT_GAME_SOURCE}/mods DESTINATION "${SHAREDIR}/games/default")
+	install(DIRECTORY ${DEFAULT_GAME_SOURCE}/menu DESTINATION "${SHAREDIR}/games/default")
 endif()
 if(BUILD_CLIENT)
 	#install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/sounds/base/pack" DESTINATION "${SHAREDIR}/sounds/base")
@@ -163,16 +163,16 @@ endif()
 
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/fonts" DESTINATION "${SHAREDIR}")
 
-install(FILES "README.txt" DESTINATION "${DOCDIR}")
+install(FILES "README.md" DESTINATION "${DOCDIR}")
 install(FILES "doc/lua_api.txt" DESTINATION "${DOCDIR}")
 install(FILES "doc/menu_lua_api.txt" DESTINATION "${DOCDIR}")
 install(FILES "doc/mapformat.txt" DESTINATION "${DOCDIR}")
-install(FILES "minetest.conf.example" DESTINATION "${EXAMPLE_CONF_DIR}")
+install(FILES "freeminer.conf.example" DESTINATION "${EXAMPLE_CONF_DIR}")
 
 if(UNIX)
-	install(FILES "doc/minetest.6" "doc/minetestserver.6" DESTINATION "${MANDIR}/man6")
-	install(FILES "misc/minetest.desktop" DESTINATION "${XDG_APPS_DIR}")
-	install(FILES "misc/minetest-icon.svg" DESTINATION "${ICONDIR}/hicolor/scalable/apps")
+	install(FILES "doc/freeminer.6" "doc/freeminerserver.6" DESTINATION "${MANDIR}/man6")
+	install(FILES "misc/freeminer.desktop" DESTINATION "${XDG_APPS_DIR}")
+	install(FILES "misc/freeminer.svg" DESTINATION "${ICONDIR}/hicolor/scalable/apps")
 endif()
 
 #
@@ -195,18 +195,27 @@ if(WIN32)
 	# For some reason these aren't copied otherwise
 	# NOTE: For some reason now it seems to work without these
 	#if(BUILD_CLIENT)
-	#	install(FILES bin/minetest.exe DESTINATION bin)
+	#	install(FILES bin/freeminer.exe DESTINATION bin)
 	#endif()
 	#if(BUILD_SERVER)
-	#	install(FILES bin/minetestserver.exe DESTINATION bin)
+	#	install(FILES bin/freeminerserver.exe DESTINATION bin)
 	#endif()
 
-	set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${VERSION_STRING}-win32")
+	execute_process(COMMAND git describe --always --tag --dirty
+		WORKING_DIRECTORY "${GENERATE_VERSION_SOURCE_DIR}"
+		OUTPUT_VARIABLE VERSION_GITHASH OUTPUT_STRIP_TRAILING_WHITESPACE
+		ERROR_QUIET)
+
+	if(VERSION_GITHASH)
+		set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${VERSION_GITHASH}-win32")
+	else()
+		set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${VERSION_STRING}-win32")
+	endif()
 
 	set(CPACK_GENERATOR ZIP)
 
 	# This might be needed for some installer
-	#set(CPACK_PACKAGE_EXECUTABLES bin/minetest.exe "Minetest" bin/minetestserver.exe "Minetest Server")
+	#set(CPACK_PACKAGE_EXECUTABLES bin/freeminer.exe "Freeminer" bin/freeminerserver.exe "Freeminer Server")
 elseif(APPLE)
 	# TODO
 	# see http://cmake.org/Wiki/CMake:CPackPackageGenerators#Bundle_.28OSX_only.29

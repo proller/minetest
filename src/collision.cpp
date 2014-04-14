@@ -1,20 +1,23 @@
 /*
-Minetest
+collision.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "collision.h"
@@ -31,9 +34,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "main.h" // g_profiler
 #include "profiler.h"
 
-// float error is 10 - 9.96875 = 0.03125
-//#define COLL_ZERO 0.032 // broken unit tests
-#define COLL_ZERO 0
+// float error is 10 - 9.96875 = 0.03125 // default with bug = 0
+#define COLL_ZERO 0.032 // broken unit tests
+#define COLL_ZEROY 0.032 //0.032 // Y only
 
 // Helper function:
 // Checks for collision of a moving aabbox with a static aabbox
@@ -45,9 +48,9 @@ int axisAlignedCollision(
 {
 	//TimeTaker tt("axisAlignedCollision");
 
-	f32 xsize = (staticbox.MaxEdge.X - staticbox.MinEdge.X) - COLL_ZERO;     // reduce box size for solve collision stuck (flying sand)
+	f32 xsize = (staticbox.MaxEdge.X - staticbox.MinEdge.X); // - COLL_ZEROY;     // reduce box size for solve collision stuck (flying sand)
 	f32 ysize = (staticbox.MaxEdge.Y - staticbox.MinEdge.Y); // - COLL_ZERO; // Y - no sense for falling, but maybe try later
-	f32 zsize = (staticbox.MaxEdge.Z - staticbox.MinEdge.Z) - COLL_ZERO;
+	f32 zsize = (staticbox.MaxEdge.Z - staticbox.MinEdge.Z); // - COLL_ZEROY;
 
 	aabb3f relbox(
 			movingbox.MinEdge.X - staticbox.MinEdge.X,
@@ -115,9 +118,9 @@ int axisAlignedCollision(
 		{
 			dtime = (ysize - relbox.MinEdge.Y) / speed.Y;
 			if((relbox.MinEdge.X + speed.X * dtime < xsize) &&
-					(relbox.MaxEdge.X + speed.X * dtime > COLL_ZERO) &&
+					(relbox.MaxEdge.X + speed.X * dtime > COLL_ZEROY) &&
 					(relbox.MinEdge.Z + speed.Z * dtime < zsize) &&
-					(relbox.MaxEdge.Z + speed.Z * dtime > COLL_ZERO))
+					(relbox.MaxEdge.Z + speed.Z * dtime > COLL_ZEROY))
 				return 1;
 		}
 		else if(relbox.MaxEdge.Y < 0)
@@ -202,16 +205,18 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 {
 	Map *map = &env->getMap();
 	//TimeTaker tt("collisionMoveSimple");
-    ScopeProfiler sp(g_profiler, "collisionMoveSimple avg", SPT_AVG);
+    //ScopeProfiler sp(g_profiler, "collisionMoveSimple avg", SPT_AVG);
 
 	collisionMoveResult result;
 
 	/*
 		Calculate new velocity
 	*/
-	if( dtime > 0.5 ) {
+	if( dtime > 1 ) {
+/*
 		infostream<<"collisionMoveSimple: WARNING: maximum step interval exceeded, lost movement details!"<<std::endl;
-		dtime = 0.5;
+*/
+		dtime = 1;
 	}
 	speed_f += accel_f * dtime;
 
@@ -235,7 +240,7 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 	std::vector<v3s16> node_positions;
 	{
 	//TimeTaker tt2("collisionMoveSimple collect boxes");
-    ScopeProfiler sp(g_profiler, "collisionMoveSimple collect boxes avg", SPT_AVG);
+    //ScopeProfiler sp(g_profiler, "collisionMoveSimple collect boxes avg", SPT_AVG);
 
 	v3s16 oldpos_i = floatToInt(pos_f, BS);
 	v3s16 newpos_i = floatToInt(pos_f + speed_f * dtime, BS);
@@ -291,7 +296,7 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 
 	if(collideWithObjects)
 	{
-		ScopeProfiler sp(g_profiler, "collisionMoveSimple objects avg", SPT_AVG);
+		//ScopeProfiler sp(g_profiler, "collisionMoveSimple objects avg", SPT_AVG);
 		//TimeTaker tt3("collisionMoveSimple collect object boxes");
 
 		/* add object boxes to cboxes */
@@ -377,7 +382,7 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 	while(dtime > BS*1e-10)
 	{
 		//TimeTaker tt3("collisionMoveSimple dtime loop");
-        ScopeProfiler sp(g_profiler, "collisionMoveSimple dtime loop avg", SPT_AVG);
+        //ScopeProfiler sp(g_profiler, "collisionMoveSimple dtime loop avg", SPT_AVG);
 
 		// Avoid infinite loop
 		loopcount++;

@@ -665,6 +665,8 @@ Special groups
 - soil: saplings will grow on nodes in this group
 - connect_to_raillike: makes nodes of raillike drawtype connect to
                        other group members with same drawtype
+- slippery: Players and items will slide on the node. 
+   values 0-100: 0 = not slide, 90 = good for ice, 100 = not stop, >100 = acceleration
 
 Known damage and digging time defining groups
 ----------------------------------------------
@@ -682,6 +684,18 @@ Known damage and digging time defining groups
    like {[1]=3.50,[2]=2.00,[3]=0.70} and this does not override the
    speed of a tool if the tool can dig at a faster speed than this
    suggests for the hand.
+
+Freezing and melting groups
+---------------------------
+All values - temperature in celsius, do not forget define freezemelt.
+Do not use value=0, groups with =0 ignored
+Not recomended hot>melt and cold<freeze - it will cause chain reactions
+- freeze: for liquids, transform to something defined in freezemelt
+          if temperature lower than value
+- melt: for non-liquids, transform to liquid defined in freezemelt
+        if temperature higher than value
+- hot: melt nodes around, if their melt lower than value
+- cold: freeze liquid nodes around, if their freeze higher than value
 
 Examples of custom groups
 --------------------------
@@ -1353,15 +1367,22 @@ Chat:
 minetest.chat_send_all(text)
 minetest.chat_send_player(name, text)
 
+freeminer.colorize(color, text)
+^ color is a six characters string, this will reset color to white after the text
+freeminer.color(color)
+^ will output color escape sequence
+
 Environment access:
 
-minetest.set_node(pos, node)
+minetest.set_node(pos, node, fast)
 minetest.add_node(pos, node): alias set_node(pos, node)
-^ Set node at position (node = {name="foo", param1=0, param2=0})
+^ Set node at position (node = {name="foo", param1=0, param2=0}, fast)
 minetest.swap_node(pos, node)
 ^ Set node at position, but don't remove metadata
-minetest.remove_node(pos)
+  if fast=1 - skip events sending androllback, if fast=2 - as fast=1 + get light from old node
+minetest.remove_node(pos, fast)
 ^ Equivalent to set_node(pos, "air")
+  if fast=1 - skip events sending androllback
 minetest.get_node(pos)
 ^ Returns {name="ignore", ...} for unloaded area
 minetest.get_node_or_nil(pos)
@@ -1430,7 +1451,12 @@ minetest.find_path(pos1,pos2,searchdistance,max_jump,max_drop,algorithm)
 ^ searchdistance: number of blocks to search in each direction
 ^ max_jump: maximum height difference to consider walkable
 ^ max_drop: maximum height difference to consider droppable
-^ algorithm: A*_noprefetch(default), A*, Dijkstra
+^ Algorithm: A*
+minetest.get_surface(basepos,yoffset,walkable_only=false)
+^ returns y-value of first surface starting at bottom or nil if no surface found
+^ basepos position to start search
+^ yoffset maximum number of nodes starting at basepos.y to search up for surface
+^ walkable_only consider each node below a non walkable node as surface 
 minetest.spawn_tree (pos, {treedef})
 ^ spawns L-System tree at given pos with definition in treedef table
 minetest.transforming_liquid_add(pos)
@@ -2186,6 +2212,10 @@ Entity definition (register_entity)
     get_staticdata = function(self),
     ^ Called sometimes; the string returned is passed to on_activate when
       the entity is re-activated from static state
+    force_load = false, -- if set to true, and option force_load_off is false,
+                           the object will load the world around it as a player.
+                           Do not use it unless absolutely required, and if you
+                           use it, please add a config in the mod to disable it.
     
     # Also you can define arbitrary member variables here
     myvariable = whatever,
@@ -2196,10 +2226,12 @@ ABM (ActiveBlockModifier) definition (register_abm)
     -- In the following two fields, also group:groupname will work.
     nodenames = {"default:lava_source"},
     neighbors = {"default:water_source", "default:water_flowing"}, -- (any of these)
-     ^ If left out or empty, any neighbor will do
+    ^ If left out or empty, any neighbor will do
+    neighbors_range = 1,
+    ^ find neighbors in max range from node, do not set big values (>3) - it can eat cpu
     interval = 1.0, -- (operation interval)
     chance = 1, -- (chance of trigger is 1.0/this)
-    action = func(pos, node, active_object_count, active_object_count_wider),
+    action = func(pos, node, active_object_count, active_object_count_wider, neighbor, activate),
 }
 
 Item definition (register_node, register_craftitem, register_tool)
@@ -2214,6 +2246,9 @@ Item definition (register_node, register_craftitem, register_tool)
     inventory_image = "default_tool_steelaxe.png",
     wield_image = "",
     wield_scale = {x=1,y=1,z=1},
+    wield_light = 0,
+    ^ Amount of light emitted by item when wielded (requires shaders).
+    ^ This value should be the same as light_source for nodes.
     stack_max = 99,
     range = 4.0,
     liquids_pointable = false,
@@ -2307,9 +2342,14 @@ Node definition (register_node)
     liquid_alternative_source = "", -- Source version of flowing liquid
     liquid_viscosity = 0, -- Higher viscosity = slower flow (max. 7)
     liquid_renewable = true, -- Can new liquid source be created by placing two or more sources nearby?
-    freezemelt = "", -- water for snow/ice, ice/snow for water
-    leveled = 0, -- Block contain level in param2. value - default level, used for snow. Dont forget use "leveled" type nodebox
-    liquid_range = 8, -- number of flowing nodes arround source (max. 8)
+    freeze = "", -- ice/snow for water
+    melt = "", -- water for snow/ice
+    leveled = 0, -- Block contain level in param2. value - default level, used for snow.
+    ^ Dont forget use "leveled" type nodebox.
+    ^ Special sense for liquids with paramtype2="leveled" and source :
+    ^ defines maximum number of liquid levels in node (default=8)
+    ^ Less levels -> faster flooding, more levels -> larger flood area, smoother and more cpu use for flow.
+    ^ possible values for liquids 2..63;  1 - special value for sand or gravel
     drowning = 0, -- Player will take this amount of damage if no bubbles are left
     light_source = 0, -- Amount of light emitted by node
     damage_per_second = 0, -- If player is inside node, this damage is caused
@@ -2349,6 +2389,38 @@ Node definition (register_node)
     can_dig = function(pos,player)
     ^ returns true if node can be dug, or false if not
     ^ default: nil
+	
+	circuit_states = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	^ Each element of circuit MUST have this table
+	^ Each circuit element should be defined by a table of values on input and output.
+	^ Index of element - value on input, and value at index - value on output.
+	^ Each bit of value represents one face of the block (Looking towards Z+).
+	^ 1. Bottom face (LSB).
+	^ 2. Back face.
+	^ 3. Left face.
+	^ 4. Top face.
+	^ 5. Front face.
+	^ 6. Right face.
+	^ For example if there is 4 at index 2, then if all faces except back
+	^ face are deactivated, then there will be output signal on the left face.
+	^ Each definition table must have exactly 64 integer elements (0 <= a[i] <= 63).
+	
+	is_wire = true,
+	^ Note: if 2 blocks of wire have different ids, then signal between them WILL NOT be transmitted.
+
+	is_connector = true,
+	^ The same as is_wire, but can connect wire blocks with different ids.
+
+	wire_connections = {8, 16, 32, 1, 2, 4},
+	^ This array must contain 6 elements. Each element describes faces to which face with id equal
+	^ to the id of this element is connected (numeration is the same as described above).
+	^ Now only two-way wire is supported (if face A connected to face B, than B connected to A).
+
+	circuit_element_delay = 2,
+	^ Delay of circuit element in ticks. It must be a positive integer number less than 101.
     
     on_punch = func(pos, node, puncher, pointed_thing),
     ^ default: minetest.node_punch
@@ -2400,6 +2472,12 @@ Node definition (register_node)
     ^ intensity: 1.0 = mid range of regular TNT
     ^ If defined, called when an explosion touches the node, instead of
       removing the node
+	on_activate = func(pos),
+	^ If defined, node becomes element of circuit
+	^ Called when block changes it's input state from zero to non zero
+	on_deactivate = func(pos),
+	^ If defined, node becomes element of circuit
+	^ Called when block changes it's input state from non zero to zero
 }
 
 Recipe for register_craft: (shaped)

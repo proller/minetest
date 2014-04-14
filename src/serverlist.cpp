@@ -1,20 +1,23 @@
 /*
-Minetest
+serverlist.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <iostream>
@@ -40,8 +43,7 @@ std::string getFilePath()
 	std::string serverlist_file = g_settings->get("serverlist_file");
 
 	std::string dir_path = std::string("client") + DIR_DELIM
-		+ "serverlist" + DIR_DELIM;
-	fs::CreateDir(porting::path_user + DIR_DELIM + "client");
+		;
 	fs::CreateDir(porting::path_user + DIR_DELIM + dir_path);
 	std::string rel_path = dir_path + serverlist_file;
 	std::string path = porting::path_user + DIR_DELIM + rel_path;
@@ -133,47 +135,31 @@ bool insert (ServerListSpec server)
 	return false;
 }
 
-std::vector<ServerListSpec> deSerialize(std::string liststring)
+std::vector<ServerListSpec> deSerialize(const std::string &liststring)
 {
 	std::vector<ServerListSpec> serverlist;
+	Json::Value root;
+	Json::Reader reader;
 	std::istringstream stream(liststring);
-	std::string line, tmp;
-	while (std::getline(stream, line))
+	if (!liststring.size()) {
+		return serverlist;
+	}
+	if (!reader.parse( stream, root ) )
 	{
-		std::transform(line.begin(), line.end(),line.begin(), ::toupper);
-		if (line == "[SERVER]")
-		{
-			ServerListSpec thisserver;
-			std::getline(stream, tmp);
-			thisserver["name"] = tmp;
-			std::getline(stream, tmp);
-			thisserver["address"] = tmp;
-			std::getline(stream, tmp);
-			thisserver["port"] = tmp;
-			std::getline(stream, tmp);
-			thisserver["description"] = tmp;
-			serverlist.push_back(thisserver);
+		errorstream  << "Failed to parse server list " << reader.getFormattedErrorMessages();
+		return serverlist;
+	}
+	if (root["list"].isArray())
+	    for (unsigned int i = 0; i < root["list"].size(); i++)
+	{
+		if (root["list"][i].isObject()) {
+			serverlist.push_back(root["list"][i]);
 		}
 	}
 	return serverlist;
 }
 
-std::string serialize(std::vector<ServerListSpec> serverlist)
-{
-	std::string liststring;
-	for(std::vector<ServerListSpec>::iterator i = serverlist.begin(); i != serverlist.end(); i++)
-	{
-		liststring += "[server]\n";
-		liststring += (*i)["name"].asString() + "\n";
-		liststring += (*i)["address"].asString() + "\n";
-		liststring += (*i)["port"].asString() + "\n";
-		liststring += (*i)["description"].asString() + "\n";
-		liststring += "\n";
-	}
-	return liststring;
-}
-
-std::string serializeJson(std::vector<ServerListSpec> serverlist)
+std::string serialize(std::vector<ServerListSpec> &serverlist)
 {
 	Json::Value root;
 	Json::Value list(Json::arrayValue);

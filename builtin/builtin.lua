@@ -5,6 +5,8 @@
 -- before loading and running any mods.
 --
 
+freeminer = minetest
+
 -- Initialize some very basic things
 print = minetest.debug
 math.randomseed(os.time())
@@ -23,6 +25,7 @@ dofile(modpath.."/misc_helpers.lua")
 dofile(modpath.."/item.lua")
 dofile(modpath.."/misc_register.lua")
 dofile(modpath.."/item_entity.lua")
+dofile(modpath.."/key_value_storage.lua")
 dofile(modpath.."/deprecated.lua")
 dofile(modpath.."/misc.lua")
 dofile(modpath.."/privileges.lua")
@@ -34,4 +37,5 @@ dofile(modpath.."/falling.lua")
 dofile(modpath.."/features.lua")
 dofile(modpath.."/voxelarea.lua")
 dofile(modpath.."/vector.lua")
+dofile(modpath.."/profiler.lua")
 dofile(modpath.."/forceloading.lua")

@@ -1,20 +1,23 @@
 /*
-Minetest
+client.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "client.h"
@@ -52,6 +55,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "util/pointedthing.h"
 #include "version.h"
 
+#include <msgpack.hpp>
+
 /*
 	QueuedMeshUpdate
 */
@@ -60,6 +65,7 @@ QueuedMeshUpdate::QueuedMeshUpdate():
 	p(-1337,-1337,-1337),
 	data(NULL),
 	ack_block_to_server(false)
+	,lazy(false)
 {
 }
 
@@ -93,7 +99,7 @@ MeshUpdateQueue::~MeshUpdateQueue()
 /*
 	peer_id=0 adds with nobody to send to
 */
-void MeshUpdateQueue::addBlock(v3s16 p, MeshMakeData *data, bool ack_block_to_server, bool urgent)
+void MeshUpdateQueue::addBlock(v3s16 p, MeshMakeData *data, bool ack_block_to_server, bool urgent, bool lazy)
 {
 	DSTACK(__FUNCTION_NAME);
 
@@ -120,6 +126,8 @@ void MeshUpdateQueue::addBlock(v3s16 p, MeshMakeData *data, bool ack_block_to_se
 			q->data = data;
 			if(ack_block_to_server)
 				q->ack_block_to_server = true;
+			if(!lazy)
+				q->lazy = false;
 			return;
 		}
 	}
@@ -131,6 +139,7 @@ void MeshUpdateQueue::addBlock(v3s16 p, MeshMakeData *data, bool ack_block_to_se
 	q->p = p;
 	q->data = data;
 	q->ack_block_to_server = ack_block_to_server;
+	q->lazy = lazy;
 	m_queue.push_back(q);
 }
 
@@ -193,6 +202,7 @@ void * MeshUpdateThread::Thread()
 		r.p = q->p;
 		r.mesh = mesh_new;
 		r.ack_block_to_server = q->ack_block_to_server;
+		r.lazy = q->lazy;
 
 		m_queue_out.push_back(r);
 
@@ -220,6 +230,7 @@ Client::Client(
 		ISoundManager *sound,
 		MtEventManager *event,
 		bool ipv6
+		, bool simple_singleplayer_mode
 ):
 	m_tsrc(tsrc),
 	m_shsrc(shsrc),
@@ -235,7 +246,7 @@ Client::Client(
 		device->getSceneManager(),
 		tsrc, this, device
 	),
-	m_con(PROTOCOL_ID, 512, CONNECTION_TIMEOUT, ipv6, this),
+	m_con(PROTOCOL_ID, simple_singleplayer_mode ? MAX_PACKET_SIZE_SINGLEPLAYER : MAX_PACKET_SIZE, CONNECTION_TIMEOUT, ipv6, this),
 	m_device(device),
 	m_server_ser_ver(SER_FMT_VER_INVALID),
 	m_playeritem(0),
@@ -325,7 +336,6 @@ Client::~Client()
 void Client::connect(Address address)
 {
 	DSTACK(__FUNCTION_NAME);
-	m_con.SetTimeoutMs(0);
 	m_con.Connect(address);
 }
 
@@ -333,6 +343,7 @@ void Client::step(float dtime)
 {
 	DSTACK(__FUNCTION_NAME);
 	
+	m_uptime += dtime;
 	// Limit a bit
 	if(dtime > 2.0)
 		dtime = 2.0;
@@ -477,24 +488,15 @@ void Client::step(float dtime)
 			// [23] u8[28] password (new in some version)
 			// [51] u16 minimum supported network protocol version (added sometime)
 			// [53] u16 maximum supported network protocol version (added later than the previous one)
-			SharedBuffer<u8> data(2+1+PLAYERNAME_SIZE+PASSWORD_SIZE+2+2);
-			writeU16(&data[0], TOSERVER_INIT);
-			writeU8(&data[2], SER_FMT_VER_HIGHEST_READ);
-
-			memset((char*)&data[3], 0, PLAYERNAME_SIZE);
-			snprintf((char*)&data[3], PLAYERNAME_SIZE, "%s", myplayer->getName());
-
-			/*infostream<<"Client: sending initial password hash: \""<<m_password<<"\""
-					<<std::endl;*/
-
-			memset((char*)&data[23], 0, PASSWORD_SIZE);
-			snprintf((char*)&data[23], PASSWORD_SIZE, "%s", m_password.c_str());
-			
-			writeU16(&data[51], CLIENT_PROTOCOL_VERSION_MIN);
-			writeU16(&data[53], CLIENT_PROTOCOL_VERSION_MAX);
+			MSGPACK_PACKET_INIT(TOSERVER_INIT, 5);
+			PACK(TOSERVER_INIT_FMT, SER_FMT_VER_HIGHEST_READ);
+			PACK(TOSERVER_INIT_NAME, myplayer->getName());
+			PACK(TOSERVER_INIT_PASSWORD, m_password);
+			PACK(TOSERVER_INIT_PROTOCOL_VERSION_MIN, CLIENT_PROTOCOL_VERSION_MIN);
+			PACK(TOSERVER_INIT_PROTOCOL_VERSION_MAX, CLIENT_PROTOCOL_VERSION_MAX);
 
 			// Send as unreliable
-			Send(1, data, false);
+			Send(1, buffer, false);
 		}
 
 		// Not connected, return
@@ -505,17 +507,21 @@ void Client::step(float dtime)
 		Do stuff if connected
 	*/
 	
+	int max_cycle_ms = 500/g_settings->getFloat("wanted_fps");
 	/*
 		Run Map's timers and unload unused data
 	*/
-	const float map_timer_and_unload_dtime = 5.25;
+	const float map_timer_and_unload_dtime = 10.25;
 	if(m_map_timer_and_unload_interval.step(dtime, map_timer_and_unload_dtime))
 	{
 		ScopeProfiler sp(g_profiler, "Client: map timer and unload");
 		std::list<v3s16> deleted_blocks;
-		m_env.getMap().timerUpdate(map_timer_and_unload_dtime,
+		
+		if(m_env.getMap().timerUpdate(m_uptime,
 				g_settings->getFloat("client_unload_unused_data_timeout"),
-				&deleted_blocks);
+				max_cycle_ms,
+				&deleted_blocks))
+				m_map_timer_and_unload_interval.run_next(map_timer_and_unload_dtime);
 				
 		/*if(deleted_blocks.size() > 0)
 			infostream<<"Client: Unloaded "<<deleted_blocks.size()
@@ -534,26 +540,11 @@ void Client::step(float dtime)
 			{
 				if(sendlist.size() == 0)
 					break;
-				/*
-					[0] u16 command
-					[2] u8 count
-					[3] v3s16 pos_0
-					[3+6] v3s16 pos_1
-					...
-				*/
-				u32 replysize = 2+1+6*sendlist.size();
-				SharedBuffer<u8> reply(replysize);
-				writeU16(&reply[0], TOSERVER_DELETEDBLOCKS);
-				reply[2] = sendlist.size();
-				u32 k = 0;
-				for(std::list<v3s16>::iterator
-						j = sendlist.begin();
-						j != sendlist.end(); ++j)
-				{
-					writeV3S16(&reply[2+1+6*k], *j);
-					k++;
-				}
-				m_con.Send(PEER_ID_SERVER, 2, reply, true);
+
+				MSGPACK_PACKET_INIT(TOSERVER_DELETEDBLOCKS, 1);
+				PACK(TOSERVER_DELETEDBLOCKS_DATA, sendlist);
+
+				m_con.Send(PEER_ID_SERVER, 2, buffer, true);
 
 				if(i == deleted_blocks.end())
 					break;
@@ -573,10 +564,10 @@ void Client::step(float dtime)
 		// Control local player (0ms)
 		LocalPlayer *player = m_env.getLocalPlayer();
 		assert(player != NULL);
-		player->applyControl(dtime);
+		player->applyControl(dtime, &m_env);
 
 		// Step environment
-		m_env.step(dtime);
+		m_env.step(dtime, 0, max_cycle_ms);
 		
 		/*
 			Get events
@@ -645,6 +636,7 @@ void Client::step(float dtime)
 	*/
 	{
 		int num_processed_meshes = 0;
+		std::set<v3s16> got_blocks;
 		while(!m_mesh_update_thread.m_queue_out.empty())
 		{
 			num_processed_meshes++;
@@ -652,39 +644,26 @@ void Client::step(float dtime)
 			MapBlock *block = m_env.getMap().getBlockNoCreateNoEx(r.p);
 			if(block)
 			{
-				// Delete the old mesh
-				if(block->mesh != NULL)
-				{
-					// TODO: Remove hardware buffers of meshbuffers of block->mesh
-					delete block->mesh;
-					block->mesh = NULL;
-				}
-
-				// Replace with the new mesh
-				block->mesh = r.mesh;
+				if (!r.lazy)
+					block->delMesh();
+				if (r.mesh)
+					block->setMesh(r.mesh);
 			} else {
 				delete r.mesh;
 			}
 			if(r.ack_block_to_server)
 			{
-				/*
-					Acknowledge block
-				*/
-				/*
-					[0] u16 command
-					[2] u8 count
-					[3] v3s16 pos_0
-					[3+6] v3s16 pos_1
-					...
-				*/
-				u32 replysize = 2+1+6;
-				SharedBuffer<u8> reply(replysize);
-				writeU16(&reply[0], TOSERVER_GOTBLOCKS);
-				reply[2] = 1;
-				writeV3S16(&reply[3], r.p);
-				// Send as reliable
-				m_con.Send(PEER_ID_SERVER, 2, reply, true);
+				got_blocks.insert(r.p);
+				if (got_blocks.size() >= 255)
+					break;
 			}
+		}
+		u32 got_blocks_size = got_blocks.size();
+		if (got_blocks_size) {
+			MSGPACK_PACKET_INIT(TOSERVER_GOTBLOCKS, 2);
+			PACK(TOSERVER_GOTBLOCKS_BLOCKS, got_blocks);
+			PACK(TOSERVER_GOTBLOCKS_RANGE, (int)m_env.getClientMap().getControl().wanted_range);
+			m_con.Send(PEER_ID_SERVER, 2, buffer, true);
 		}
 		if(num_processed_meshes > 0)
 			g_profiler->graphAdd("num_processed_meshes", num_processed_meshes);
@@ -770,18 +749,10 @@ void Client::step(float dtime)
 		// Sync to server
 		if(removed_server_ids.size() != 0)
 		{
-			std::ostringstream os(std::ios_base::binary);
-			writeU16(os, TOSERVER_REMOVED_SOUNDS);
-			size_t server_ids = removed_server_ids.size();
-			assert(server_ids <= 0xFFFF);
-			writeU16(os, (u16) (server_ids & 0xFFFF));
-			for(std::set<s32>::iterator i = removed_server_ids.begin();
-					i != removed_server_ids.end(); i++)
-				writeS32(os, *i);
-			std::string s = os.str();
-			SharedBuffer<u8> data((u8*)s.c_str(), s.size());
+			MSGPACK_PACKET_INIT(TOSERVER_REMOVED_SOUNDS, 1);
+			PACK(TOSERVER_REMOVED_SOUNDS_IDS, removed_server_ids);
 			// Send as reliable
-			Send(1, data, true);
+			Send(1, buffer, true);
 		}
 	}
 }
@@ -863,12 +834,12 @@ bool Client::loadMedia(const std::string &data, const std::string &filename)
 }
 
 // Virtual methods from con::PeerHandler
-void Client::peerAdded(con::Peer *peer)
+void Client::peerAdded(u16 peer_id)
 {
 	infostream<<"Client::peerAdded(): peer->id="
-			<<peer->id<<std::endl;
+			<<peer_id<<std::endl;
 }
-void Client::deletingPeer(con::Peer *peer, bool timeout)
+void Client::deletingPeer(u16 peer_id, bool timeout)
 {
 	infostream<<"Client::deletingPeer(): "
 			"Server Peer is getting deleted "
@@ -885,22 +856,11 @@ void Client::deletingPeer(con::Peer *peer, bool timeout)
 */
 void Client::request_media(const std::list<std::string> &file_requests)
 {
-	std::ostringstream os(std::ios_base::binary);
-	writeU16(os, TOSERVER_REQUEST_MEDIA);
-	size_t file_requests_size = file_requests.size();
-	assert(file_requests_size <= 0xFFFF);
-	writeU16(os, (u16) (file_requests_size & 0xFFFF));
+	MSGPACK_PACKET_INIT(TOSERVER_REQUEST_MEDIA, 1);
+	PACK(TOSERVER_REQUEST_MEDIA_FILES, file_requests);
 
-	for(std::list<std::string>::const_iterator i = file_requests.begin();
-			i != file_requests.end(); ++i) {
-		os<<serializeString(*i);
-	}
-
-	// Make data buffer
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8*)s.c_str(), s.size());
 	// Send as reliable
-	Send(1, data, true);
+	Send(1, buffer, true);
 	infostream<<"Client: Sending media request list to server ("
 			<<file_requests.size()<<" files)"<<std::endl;
 }
@@ -908,12 +868,9 @@ void Client::request_media(const std::list<std::string> &file_requests)
 void Client::received_media()
 {
 	// notify server we received everything
-	std::ostringstream os(std::ios_base::binary);
-	writeU16(os, TOSERVER_RECEIVED_MEDIA);
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8*)s.c_str(), s.size());
+	MSGPACK_PACKET_INIT(TOSERVER_RECEIVED_MEDIA, 0);
 	// Send as reliable
-	Send(1, data, true);
+	Send(1, buffer, true);
 	infostream<<"Client: Notifying server that we received all media"
 			<<std::endl;
 }
@@ -954,6 +911,9 @@ void Client::Receive()
 	u32 datasize = m_con.Receive(sender_peer_id, data);
 	ProcessData(*data, datasize, sender_peer_id);
 }
+
+#include "client_process.h"
+#if 0
 
 /*
 	sender_peer_id given to this shall be quaranteed to be a valid peer
@@ -1946,9 +1906,15 @@ void Client::ProcessData(u8 *data, u32 datasize, u16 sender_peer_id)
 	}
 }
 
+#endif
+
 void Client::Send(u16 channelnum, SharedBuffer<u8> data, bool reliable)
 {
 	//JMutexAutoLock lock(m_con_mutex); //bulk comment-out
+	m_con.Send(PEER_ID_SERVER, channelnum, data, reliable);
+}
+
+void Client::Send(u16 channelnum, const msgpack::sbuffer &data, bool reliable) {
 	m_con.Send(PEER_ID_SERVER, channelnum, data, reliable);
 }
 
@@ -1993,27 +1959,12 @@ void Client::interact(u8 action, const PointedThing& pointed)
 void Client::sendNodemetaFields(v3s16 p, const std::string &formname,
 		const std::map<std::string, std::string> &fields)
 {
-	std::ostringstream os(std::ios_base::binary);
-
-	writeU16(os, TOSERVER_NODEMETA_FIELDS);
-	writeV3S16(os, p);
-	os<<serializeString(formname);
-	size_t fields_size = fields.size();
-	assert(fields_size <= 0xFFFF);
-	writeU16(os, (u16) (fields_size & 0xFFFF));
-	for(std::map<std::string, std::string>::const_iterator
-			i = fields.begin(); i != fields.end(); i++){
-		const std::string &name = i->first;
-		const std::string &value = i->second;
-		os<<serializeString(name);
-		os<<serializeLongString(value);
-	}
-
-	// Make data buffer
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8*)s.c_str(), s.size());
+	MSGPACK_PACKET_INIT(TOSERVER_NODEMETA_FIELDS, 3);
+	PACK(TOSERVER_NODEMETA_FIELDS_POS, p);
+	PACK(TOSERVER_NODEMETA_FIELDS_FORMNAME, formname);
+	PACK(TOSERVER_NODEMETA_FIELDS_DATA, fields);
 	// Send as reliable
-	Send(0, data, true);
+	Send(0, buffer, true);
 }
 	
 void Client::sendInventoryFields(const std::string &formname,
@@ -2028,7 +1979,7 @@ void Client::sendInventoryFields(const std::string &formname,
 	writeU16(os, (u16) (fields_size & 0xFFFF));
 	for(std::map<std::string, std::string>::const_iterator
 			i = fields.begin(); i != fields.end(); i++){
-		const std::string &name  = i->first;
+		const std::string &name = i->first;
 		const std::string &value = i->second;
 		os<<serializeString(name);
 		os<<serializeLongString(value);
@@ -2059,38 +2010,17 @@ void Client::sendInventoryAction(InventoryAction *a)
 	Send(0, data, true);
 }
 
-void Client::sendChatMessage(const std::wstring &message)
+void Client::sendChatMessage(const std::string &message)
 {
-	std::ostringstream os(std::ios_base::binary);
-	u8 buf[12];
-	
-	// Write command
-	writeU16(buf, TOSERVER_CHAT_MESSAGE);
-	os.write((char*)buf, 2);
-	
-	// Write length
-	size_t messagesize = message.size();
-	assert(messagesize <= 0xFFFF);
-	writeU16(buf, (u16) (messagesize & 0xFF));
-	os.write((char*)buf, 2);
-	
-	// Write string
-	for(unsigned int i=0; i<message.size(); i++)
-	{
-		u16 w = message[i];
-		writeU16(buf, w);
-		os.write((char*)buf, 2);
-	}
-	
-	// Make data buffer
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8*)s.c_str(), s.size());
+	MSGPACK_PACKET_INIT(TOSERVER_CHAT_MESSAGE, 1);
+	PACK(TOSERVER_CHAT_MESSAGE_DATA, message);
+
 	// Send as reliable
-	Send(0, data, true);
+	Send(0, buffer, true);
 }
 
-void Client::sendChangePassword(const std::wstring &oldpassword,
-                                const std::wstring &newpassword)
+void Client::sendChangePassword(const std::string &oldpassword,
+								const std::string &newpassword)
 {
 	Player *player = m_env.getLocalPlayer();
 	if(player == NULL)
@@ -2100,73 +2030,42 @@ void Client::sendChangePassword(const std::wstring &oldpassword,
 	std::string oldpwd = translatePassword(playername, oldpassword);
 	std::string newpwd = translatePassword(playername, newpassword);
 
-	std::ostringstream os(std::ios_base::binary);
-	u8 buf[2+PASSWORD_SIZE*2];
-	/*
-		[0] u16 TOSERVER_PASSWORD
-		[2] u8[28] old password
-		[30] u8[28] new password
-	*/
+	MSGPACK_PACKET_INIT(TOSERVER_CHANGE_PASSWORD, 2);
+	PACK(TOSERVER_CHANGE_PASSWORD_OLD, oldpwd);
+	PACK(TOSERVER_CHANGE_PASSWORD_NEW, newpwd);
 
-	writeU16(buf, TOSERVER_PASSWORD);
-	for(unsigned int i=0;i<PASSWORD_SIZE-1;i++)
-	{
-		buf[2+i] = i<oldpwd.length()?oldpwd[i]:0;
-		buf[30+i] = i<newpwd.length()?newpwd[i]:0;
-	}
-	buf[2+PASSWORD_SIZE-1] = 0;
-	buf[30+PASSWORD_SIZE-1] = 0;
-	os.write((char*)buf, 2+PASSWORD_SIZE*2);
-
-	// Make data buffer
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8*)s.c_str(), s.size());
 	// Send as reliable
-	Send(0, data, true);
+	Send(0, buffer, true);
 }
 
 
 void Client::sendDamage(u8 damage)
 {
 	DSTACK(__FUNCTION_NAME);
-	std::ostringstream os(std::ios_base::binary);
+	MSGPACK_PACKET_INIT(TOSERVER_DAMAGE, 1);
+	PACK(TOSERVER_DAMAGE_VALUE, damage);
 
-	writeU16(os, TOSERVER_DAMAGE);
-	writeU8(os, damage);
-
-	// Make data buffer
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8*)s.c_str(), s.size());
 	// Send as reliable
-	Send(0, data, true);
+	Send(0, buffer, true);
 }
 
 void Client::sendBreath(u16 breath)
 {
 	DSTACK(__FUNCTION_NAME);
-	std::ostringstream os(std::ios_base::binary);
 
-	writeU16(os, TOSERVER_BREATH);
-	writeU16(os, breath);
-	// Make data buffer
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8*)s.c_str(), s.size());
+	MSGPACK_PACKET_INIT(TOSERVER_BREATH, 1);
+	PACK(TOSERVER_BREATH_VALUE, breath);
 	// Send as reliable
-	Send(0, data, true);
+	Send(0, buffer, true);
 }
 
 void Client::sendRespawn()
 {
 	DSTACK(__FUNCTION_NAME);
-	std::ostringstream os(std::ios_base::binary);
 
-	writeU16(os, TOSERVER_RESPAWN);
-
-	// Make data buffer
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8*)s.c_str(), s.size());
+	MSGPACK_PACKET_INIT(TOSERVER_RESPAWN, 0);
 	// Send as reliable
-	Send(0, data, true);
+	Send(0, buffer, true);
 }
 
 void Client::sendReady()
@@ -2197,17 +2096,17 @@ void Client::sendPlayerPos()
 		return;
 
 	// Save bandwidth by only updating position when something changed
-	if(myplayer->last_position        == myplayer->getPosition() &&
-			myplayer->last_speed      == myplayer->getSpeed()    &&
-			myplayer->last_pitch      == myplayer->getPitch()    &&
-			myplayer->last_yaw        == myplayer->getYaw()      &&
+	if(myplayer->last_position == myplayer->getPosition() &&
+			myplayer->last_speed == myplayer->getSpeed() &&
+			myplayer->last_pitch == myplayer->getPitch() &&
+			myplayer->last_yaw == myplayer->getYaw() &&
 			myplayer->last_keyPressed == myplayer->keyPressed)
 		return;
 
-	myplayer->last_position   = myplayer->getPosition();
-	myplayer->last_speed      = myplayer->getSpeed();
-	myplayer->last_pitch      = myplayer->getPitch();
-	myplayer->last_yaw        = myplayer->getYaw();
+	myplayer->last_position = myplayer->getPosition();
+	myplayer->last_speed = myplayer->getSpeed();
+	myplayer->last_pitch = myplayer->getPitch();
+	myplayer->last_yaw = myplayer->getYaw();
 	myplayer->last_keyPressed = myplayer->keyPressed;
 
 	u16 our_peer_id;
@@ -2215,39 +2114,21 @@ void Client::sendPlayerPos()
 		//JMutexAutoLock lock(m_con_mutex); //bulk comment-out
 		our_peer_id = m_con.GetPeerID();
 	}
-	
+
 	// Set peer id if not set already
 	if(myplayer->peer_id == PEER_ID_INEXISTENT)
 		myplayer->peer_id = our_peer_id;
 	// Check that an existing peer_id is the same as the connection's
 	assert(myplayer->peer_id == our_peer_id);
-	
-	v3f pf         = myplayer->getPosition();
-	v3f sf         = myplayer->getSpeed();
-	s32 pitch      = myplayer->getPitch() * 100;
-	s32 yaw        = myplayer->getYaw() * 100;
-	u32 keyPressed = myplayer->keyPressed;
 
-	v3s32 position(pf.X*100, pf.Y*100, pf.Z*100);
-	v3s32 speed(sf.X*100, sf.Y*100, sf.Z*100);
-	/*
-		Format:
-		[0] u16 command
-		[2] v3s32 position*100
-		[2+12] v3s32 speed*100
-		[2+12+12] s32 pitch*100
-		[2+12+12+4] s32 yaw*100
-		[2+12+12+4+4] u32 keyPressed
-	*/
-	SharedBuffer<u8> data(2+12+12+4+4+4);
-	writeU16(&data[0], TOSERVER_PLAYERPOS);
-	writeV3S32(&data[2], position);
-	writeV3S32(&data[2+12], speed);
-	writeS32(&data[2+12+12], pitch);
-	writeS32(&data[2+12+12+4], yaw);
-	writeU32(&data[2+12+12+4+4], keyPressed);
+	MSGPACK_PACKET_INIT(TOSERVER_PLAYERPOS, 5);
+	PACK(TOSERVER_PLAYERPOS_POSITION, myplayer->getPosition());
+	PACK(TOSERVER_PLAYERPOS_SPEED, myplayer->getSpeed());
+	PACK(TOSERVER_PLAYERPOS_PITCH, myplayer->getPitch());
+	PACK(TOSERVER_PLAYERPOS_YAW, myplayer->getYaw());
+	PACK(TOSERVER_PLAYERPOS_KEY_PRESSED, myplayer->keyPressed);
 	// Send as unreliable
-	Send(0, data, false);
+	Send(0, buffer, false);
 }
 
 void Client::sendPlayerItem(u16 item)
@@ -2264,12 +2145,11 @@ void Client::sendPlayerItem(u16 item)
 	// Check that an existing peer_id is the same as the connection's
 	assert(myplayer->peer_id == our_peer_id);
 
-	SharedBuffer<u8> data(2+2);
-	writeU16(&data[0], TOSERVER_PLAYERITEM);
-	writeU16(&data[2], item);
+	MSGPACK_PACKET_INIT(TOSERVER_PLAYERITEM, 1);
+	PACK(TOSERVER_PLAYERITEM_VALUE, item);
 
 	// Send as reliable
-	Send(0, data, true);
+	Send(0, buffer, true);
 }
 
 void Client::removeNode(v3s16 p)
@@ -2420,7 +2300,7 @@ ClientActiveObject * Client::getSelectedActiveObject(
 	// After this, the closest object is the first in the array.
 	std::sort(objects.begin(), objects.end());
 
-	for(unsigned int i=0; i<objects.size(); i++)
+	for(u32 i=0; i<objects.size(); i++)
 	{
 		ClientActiveObject *obj = objects[i].obj;
 		
@@ -2493,7 +2373,7 @@ u16 Client::getBreath()
 	return player->getBreath();
 }
 
-bool Client::getChatMessage(std::wstring &message)
+bool Client::getChatMessage(std::string &message)
 {
 	if(m_chat_queue.size() == 0)
 		return false;
@@ -2504,29 +2384,18 @@ bool Client::getChatMessage(std::wstring &message)
 void Client::typeChatMessage(const std::wstring &message)
 {
 	// Discard empty line
-	if(message == L"")
+	if(message.empty())
 		return;
 
 	// Send to others
-	sendChatMessage(message);
+	sendChatMessage(wide_to_utf8(message));
 
 	// Show locally
-	if (message[0] == L'/')
-	{
-		m_chat_queue.push_back(
-				(std::wstring)L"issued command: "+message);
-	}
-	else
-	{
-		LocalPlayer *player = m_env.getLocalPlayer();
-		assert(player != NULL);
-		std::wstring name = narrow_to_wide(player->getName());
-		m_chat_queue.push_back(
-				(std::wstring)L"<"+name+L"> "+message);
-	}
+	if (message[0] == '/')
+		m_chat_queue.push_back("issued command: "+wide_to_utf8(message));
 }
 
-void Client::addUpdateMeshTask(v3s16 p, bool ack_to_server, bool urgent)
+void Client::addUpdateMeshTask(v3s16 p, bool ack_to_server, bool urgent, bool lazy)
 {
 	MapBlock *b = m_env.getMap().getBlockNoCreateNoEx(p);
 	if(b == NULL)
@@ -2536,7 +2405,7 @@ void Client::addUpdateMeshTask(v3s16 p, bool ack_to_server, bool urgent)
 		Create a task to update the mesh of the block
 	*/
 	
-	MeshMakeData *data = new MeshMakeData(this);
+	MeshMakeData *data = new MeshMakeData(this, m_env.getClientMap().getControl());
 	
 	{
 		//TimeTaker timer("data fill");
@@ -2545,10 +2414,11 @@ void Client::addUpdateMeshTask(v3s16 p, bool ack_to_server, bool urgent)
 		data->fill(b);
 		data->setCrack(m_crack_level, m_crack_pos);
 		data->setSmoothLighting(g_settings->getBool("smooth_lighting"));
+		data->step = getFarmeshStep(data->draw_control, getNodeBlockPos(floatToInt(m_env.getLocalPlayer()->getPosition(), BS)).getDistanceFrom(p));
 	}
 	
 	// Add task to queue
-	m_mesh_update_thread.m_queue_in.addBlock(p, data, ack_to_server, urgent);
+	m_mesh_update_thread.m_queue_in.addBlock(p, data, ack_to_server, urgent, lazy);
 }
 
 void Client::addUpdateMeshTaskWithEdge(v3s16 blockpos, bool ack_to_server, bool urgent)
@@ -2580,7 +2450,7 @@ void Client::addUpdateMeshTaskForNode(v3s16 nodepos, bool ack_to_server, bool ur
 				<<std::endl;
 	}
 
-	v3s16 blockpos          = getNodeBlockPos(nodepos);
+	v3s16 blockpos = getNodeBlockPos(nodepos);
 	v3s16 blockpos_relative = blockpos * MAP_BLOCKSIZE;
 
 	try{
@@ -2645,13 +2515,18 @@ void Client::afterContentReceived(IrrlichtDevice *device, gui::IGUIFont* font)
 	assert(m_nodedef_received);
 	assert(mediaReceived());
 	
+
+	bool no_output = device->getVideoDriver()->getDriverType() == video::EDT_NULL;
+
 	// Rebuild inherited images and recreate textures
 	infostream<<"- Rebuilding images and textures"<<std::endl;
-	m_tsrc->rebuildImagesAndTextures();
+	if (!no_output)
+		m_tsrc->rebuildImagesAndTextures();
 
 	// Rebuild shaders
 	infostream<<"- Rebuilding shaders"<<std::endl;
-	m_shsrc->rebuildShaders();
+	if (!no_output)
+		m_shsrc->rebuildShaders();
 
 	// Update node aliases
 	infostream<<"- Updating node aliases"<<std::endl;
@@ -2659,10 +2534,11 @@ void Client::afterContentReceived(IrrlichtDevice *device, gui::IGUIFont* font)
 
 	// Update node textures
 	infostream<<"- Updating node textures"<<std::endl;
-	m_nodedef->updateTextures(m_tsrc);
+	if (!no_output)
+		m_nodedef->updateTextures(m_tsrc);
 
 	// Preload item textures and meshes if configured to
-	if(g_settings->getBool("preload_item_visuals"))
+	if(!no_output && g_settings->getBool("preload_item_visuals"))
 	{
 		verbosestream<<"Updating item textures and meshes"<<std::endl;
 		wchar_t* text = wgettext("Item textures...");
@@ -2686,7 +2562,8 @@ void Client::afterContentReceived(IrrlichtDevice *device, gui::IGUIFont* font)
 
 	// Start mesh update thread after setting up content definitions
 	infostream<<"- Starting mesh update thread"<<std::endl;
-	m_mesh_update_thread.Start();
+	if (!no_output)
+		m_mesh_update_thread.Start();
 	
 	m_state = LC_Ready;
 	sendReady();
@@ -2746,14 +2623,14 @@ scene::IAnimatedMesh* Client::getMesh(const std::string &filename)
 				<<std::endl;
 		return NULL;
 	}
-	const std::string &data    = i->second;
+	const std::string &data = i->second;
 	scene::ISceneManager *smgr = m_device->getSceneManager();
 
 	// Create the mesh, remove it from cache and return it
 	// This allows unique vertex colors and other properties for each instance
 	Buffer<char> data_rw(data.c_str(), data.size()); // Const-incorrect Irrlicht
 	io::IFileSystem *irrfs = m_device->getFileSystem();
-	io::IReadFile *rfile   = irrfs->createMemoryReadFile(
+	io::IReadFile *rfile = irrfs->createMemoryReadFile(
 			*data_rw, data_rw.getSize(), filename.c_str());
 	assert(rfile);
 

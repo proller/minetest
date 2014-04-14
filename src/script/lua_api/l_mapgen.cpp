@@ -1,20 +1,23 @@
 /*
-Minetest
+script/lua_api/l_mapgen.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "lua_api/l_mapgen.h"
@@ -289,6 +292,8 @@ int ModApiMapgen::l_register_biome(lua_State *L)
 												"mapgen_dirt");
 	b->nname_water  = getstringfield_default(L, index, "node_water",
 												"mapgen_water_source");
+	b->nname_ice  = getstringfield_default(L, index, "node_ice",
+												"mapgen_ice");
 	b->nname_dust   = getstringfield_default(L, index, "node_dust",
 												"air");
 	b->nname_dust_water = getstringfield_default(L, index, "node_dust_water",
@@ -305,6 +310,7 @@ int ModApiMapgen::l_register_biome(lua_State *L)
 	b->c_top        = CONTENT_IGNORE;
 	b->c_filler     = CONTENT_IGNORE;
 	b->c_water      = CONTENT_IGNORE;
+	b->c_ice        = CONTENT_IGNORE;
 	b->c_dust       = CONTENT_IGNORE;
 	b->c_dust_water = CONTENT_IGNORE;
 

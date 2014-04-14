@@ -1,23 +1,26 @@
 /*
- Minetest
- Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
- Copyright (C) 2013 Ciaran Gultnieks <ciaran@ciarang.com>
- Copyright (C) 2013 teddydestodes <derkomtur@schattengang.net>
+guiKeyChangeMenu.cpp
+Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+Copyright (C) 2013 Ciaran Gultnieks <ciaran@ciarang.com>
+Copyright (C) 2013 teddydestodes <derkomtur@schattengang.net>
+*/
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation; either version 2.1 of the License, or
- (at your option) any later version.
+/*
+This file is part of Freeminer.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
- You should have received a copy of the GNU Lesser General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
+Freeminer  is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "guiKeyChangeMenu.h"
 #include "debug.h"
@@ -55,6 +58,7 @@ enum
 	GUI_ID_KEY_INVENTORY_BUTTON,
 	GUI_ID_KEY_DUMP_BUTTON,
 	GUI_ID_KEY_RANGE_BUTTON,
+	GUI_ID_KEY_ZOOM_BUTTON,
 	// other
 	GUI_ID_CB_AUX1_DESCENDS,
 	GUI_ID_CB_DOUBLETAP_JUMP,
@@ -394,6 +398,7 @@ void GUIKeyChangeMenu::init_keys()
 	this->add_key(GUI_ID_KEY_JUMP_BUTTON,      wgettext("Jump"),          "keymap_jump");
 	this->add_key(GUI_ID_KEY_SNEAK_BUTTON,     wgettext("Sneak"),         "keymap_sneak");
 	this->add_key(GUI_ID_KEY_DROP_BUTTON,      wgettext("Drop"),          "keymap_drop");
+	this->add_key(GUI_ID_KEY_ZOOM_BUTTON,      wgettext("Zoom"),          "keymap_zoom");
 	this->add_key(GUI_ID_KEY_INVENTORY_BUTTON, wgettext("Inventory"),     "keymap_inventory");
 	this->add_key(GUI_ID_KEY_CHAT_BUTTON,      wgettext("Chat"),          "keymap_chat");
 	this->add_key(GUI_ID_KEY_CMD_BUTTON,       wgettext("Command"),       "keymap_cmd");

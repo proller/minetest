@@ -4,6 +4,24 @@
 -- Falling stuff
 --
 
+function node_drop(np, remove_fast)
+				local n2 = minetest.get_node(np)
+				local drops = minetest.get_node_drops(n2.name, "")
+				minetest.remove_node(np, remove_fast)
+				-- Add dropped items
+				local _, dropped_item
+				for _, dropped_item in ipairs(drops) do
+					minetest.add_item(np, dropped_item)
+				end
+				-- Run script hook
+				local _, callback
+				for _, callback in ipairs(minetest.registered_on_dignodes) do
+					callback(np, n2, nil)
+				end
+end
+
+local remove_fast = 0
+
 minetest.register_entity("__builtin:falling_node", {
 	initial_properties = {
 		physical = true,
@@ -48,6 +66,7 @@ minetest.register_entity("__builtin:falling_node", {
 	end,
 
 	on_step = function(self, dtime)
+		if dtime > 0.2 then remove_fast = 2 else remove_fast = 0 end
 		-- Set gravity
 		self.object:setacceleration({x=0, y=-10, z=0})
 		-- Turn to actual sand when collides to ground or just move
@@ -60,7 +79,7 @@ minetest.register_entity("__builtin:falling_node", {
 				(bcd.walkable or
 				(minetest.get_node_group(self.node.name, "float") ~= 0 and
 				bcd.liquidtype ~= "none")) then
-			if bcd and bcd.leveled and
+			if bcd and bcd.leveled and bcd.leveled > 0 and
 					bcn.name == self.node.name then
 				local addlevel = self.node.level
 				if addlevel == nil or addlevel <= 0 then
@@ -73,7 +92,7 @@ minetest.register_entity("__builtin:falling_node", {
 			elseif bcd and bcd.buildable_to and
 					(minetest.get_node_group(self.node.name, "float") == 0 or
 					bcd.liquidtype == "none") then
-				minetest.remove_node(bcp)
+				minetest.remove_node(bcp, remove_fast)
 				return
 			end
 			local np = {x=bcp.x, y=bcp.y+1, z=bcp.z}
@@ -83,8 +102,10 @@ minetest.register_entity("__builtin:falling_node", {
 			-- it's drops
 			if n2.name ~= "air" and (not minetest.registered_nodes[n2.name] or
 					minetest.registered_nodes[n2.name].liquidtype == "none") then
+				node_drop(np, remove_fast)
+--[[
 				local drops = minetest.get_node_drops(n2.name, "")
-				minetest.remove_node(np)
+				minetest.remove_node(np, remove_fast)
 				-- Add dropped items
 				local _, dropped_item
 				for _, dropped_item in ipairs(drops) do
@@ -95,6 +116,7 @@ minetest.register_entity("__builtin:falling_node", {
 				for _, callback in ipairs(minetest.registered_on_dignodes) do
 					callback(np, n2, nil)
 				end
+]]--
 			end
 			-- Create node and remove entity
 			minetest.add_node(np, self.node)
@@ -113,7 +135,7 @@ end
 
 function drop_attached_node(p)
 	local nn = minetest.get_node(p).name
-	minetest.remove_node(p)
+	minetest.remove_node(p, remove_fast)
 	for _,item in ipairs(minetest.get_node_drops(nn, "")) do
 		local pos = {
 			x = p.x + math.random()/2 - 0.25,
@@ -165,14 +187,14 @@ function nodeupdate_single(p, delay)
 		-- Note: walkable is in the node definition, not in item groups
 		if minetest.registered_nodes[n_bottom.name] and
 				(minetest.get_node_group(n.name, "float") == 0 or minetest.registered_nodes[n_bottom.name].liquidtype == "none") and
-				(n.name ~= n_bottom.name or (minetest.registered_nodes[n_bottom.name].leveled and minetest.env:get_node_level(p_bottom) < minetest.env:get_node_max_level(p_bottom))) and
+				(n.name ~= n_bottom.name or (minetest.registered_nodes[n_bottom.name].leveled and minetest.get_node_level(p_bottom) < minetest.get_node_max_level(p_bottom))) and
 				(not minetest.registered_nodes[n_bottom.name].walkable or 
 					minetest.registered_nodes[n_bottom.name].buildable_to) then
 			if delay then
 				minetest.after(0.1, nodeupdate_single, {x=p.x, y=p.y, z=p.z}, false)
 			else
-				n.level = minetest.env:get_node_level(p)
-				minetest.remove_node(p)
+				n.level = minetest.get_node_level(p)
+				minetest.remove_node(p, remove_fast)
 				spawn_falling_node(p, n)
 				nodeupdate(p)
 			end

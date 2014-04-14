@@ -709,6 +709,105 @@ end
 
 --
 
+minetest.register_node("default:logic_gate", {
+	description = "Gate",
+	circuit_states = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	tiles = {"default_logic_gate.png", "default_logic_gate_side.png"},
+	groups = {snappy=2,choppy=3,oddly_breakable_by_hand=2,dig_immediate=3},
+	paramtype2 = "facedir",
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("default:logic_source", {
+	description = "Source",
+	circuit_states = {63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63,
+	                  63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63,
+	                  63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63,
+	                  63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63},
+	tiles = {"default_logic_source.png", "default_logic_source_side.png"},
+	groups = {snappy=2,choppy=3,oddly_breakable_by_hand=2,dig_immediate=3},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("default:wire", {
+	description = "Wire",
+	is_wire = true,
+	tiles = {"default_wire.png", "default_wire_side.png"},
+	groups = {snappy=2,choppy=3,oddly_breakable_by_hand=2,dig_immediate=3},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+
+minetest.register_node("default:wire_connector", {
+	description = "Wire connector",
+	is_wire = true,
+	is_connector = true,
+	wire_connections = {8, 16, 32, 1, 2, 4},
+	tiles = {"default_wire2.png", "default_wire2_side.png"},
+	groups = {snappy=2,choppy=3,oddly_breakable_by_hand=2,dig_immediate=3},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+
+minetest.register_node("default:lever", {
+	description = "Lever",
+	circuit_states = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	on_rightclick = function(pos)
+		node = minetest.get_node(pos)
+		minetest.swap_node(pos, {name = "default:active_lever",
+		                   param1 = node.param1, param2 = node.param2})
+	end,
+	tiles = {"default_lever.png", "default_lever_side.png"},
+	groups = {snappy=2,choppy=3,oddly_breakable_by_hand=2,dig_immediate=3},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("default:active_lever", {
+	description = "Active lever",
+	circuit_states = {63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63,
+	                  63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63,
+	                  63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63,
+	                  63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63},
+	on_rightclick = function(pos)
+		node = minetest.get_node(pos)
+		minetest.swap_node(pos, {name = "default:lever",
+		                   param1 = node.param1, param2 = node.param2})
+	end,
+	tiles = {"default_active_lever.png", "default_active_lever_side.png"},
+	groups = {snappy=2,choppy=3,oddly_breakable_by_hand=2,dig_immediate=3},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("default:lamp", {
+	description = "Lamp",
+	on_activate = function(pos)
+		node = minetest.get_node(pos)
+		node.name = "default:active_lamp"
+		minetest.swap_node(pos, node)
+	end,
+	tiles = {"default_lamp.png"},
+	groups = {snappy=2,choppy=3,oddly_breakable_by_hand=2,dig_immediate=3},
+	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("default:active_lamp", {
+	description = "Active lamp",
+	on_deactivate = function(pos)
+		node = minetest.get_node(pos)
+		minetest.swap_node(pos, {name = "default:lamp",
+		                   param1 = node.param1, param2 = node.param2})
+	end,
+	tiles = {"default_active_lamp.png"},
+	groups = {snappy=2,choppy=3,oddly_breakable_by_hand=2,dig_immediate=3},
+	sounds = default.node_sound_stone_defaults(),
+})
+
 minetest.register_node("default:stone", {
 	description = "Stone",
 	tiles ={"default_stone.png"},
@@ -741,6 +840,17 @@ minetest.register_node("default:dirt_with_grass", {
 	drop = 'default:dirt',
 	sounds = default.node_sound_dirt_defaults({
 		footstep = {name="default_grass_footstep", gain=0.4},
+	}),
+})
+
+minetest.register_node("default:dirt_with_snow", {
+	description = "Dirt with Snow",
+	tiles = {"default_snow.png", "default_dirt.png", "default_dirt.png^default_snow_side.png"},
+	is_ground_content = true,
+	groups = {crumbly=3, slippery=70},
+	drop = 'default:dirt',
+	sounds = default.node_sound_dirt_defaults({
+		footstep = {name="default_snow_footstep", gain=0.25},
 	}),
 })
 
@@ -975,6 +1085,7 @@ minetest.register_node("default:water_flowing", {
 	},
 	alpha = WATER_ALPHA,
 	paramtype = "light",
+	paramtype2 = "flowingliquid",
 	walkable = false,
 	pointable = false,
 	diggable = false,
@@ -1030,6 +1141,7 @@ minetest.register_node("default:lava_flowing", {
 		},
 	},
 	paramtype = "light",
+	paramtype2 = "flowingliquid",
 	light_source = LIGHT_MAX - 1,
 	walkable = false,
 	pointable = false,
@@ -1497,6 +1609,16 @@ minetest.register_node("default:apple", {
 	sounds = default.node_sound_defaults(),
 })
 
+minetest.register_node("default:ice", {
+	description = "Ice",
+	tiles = {"default_ice.png"},
+	is_ground_content = true,
+	paramtype = "light",
+	melt = "default:water_source",
+	groups = {cracky=3, melt=3, slippery=90},
+	sounds = default.node_sound_glass_defaults(),
+})
+
 
 local c_air = minetest.get_content_id("air")
 local c_ignore = minetest.get_content_id("ignore")
@@ -1692,10 +1814,12 @@ minetest.register_alias("mapgen_lava_source", "default:lava_source")
 minetest.register_alias("mapgen_cobble", "default:cobble")
 minetest.register_alias("mapgen_mossycobble", "default:mossycobble")
 minetest.register_alias("mapgen_dirt_with_grass", "default:dirt_with_grass")
+minetest.register_alias("mapgen_dirt_with_snow", "default:dirt_with_snow")
 minetest.register_alias("mapgen_junglegrass", "default:junglegrass")
 minetest.register_alias("mapgen_stone_with_coal", "default:stone_with_coal")
 minetest.register_alias("mapgen_stone_with_iron", "default:stone_with_iron")
 minetest.register_alias("mapgen_mese", "default:mese")
+minetest.register_alias("mapgen_ice", "default:ice")
 
 -- Support old code
 function default.spawn_falling_node(p, nodename)

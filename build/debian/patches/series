@@ -1,0 +1,7 @@
+powerpc.patch
+kfreebsd-gettext.patch
+i18n.patch
+# jthread-changed.patch
+useless-depends.patch
+dynamic-link.patch
+mapper.patch

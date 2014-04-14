@@ -1,26 +1,30 @@
 /*
-Minetest
+game.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "game.h"
 #include "irrlichttypes_extrabloated.h"
 #include <IGUICheckBox.h>
 #include <IGUIEditBox.h>
+#include <IGUIListBox.h>
 #include <IGUIButton.h>
 #include <IGUIStaticText.h>
 #include <IGUIFont.h>
@@ -69,6 +73,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <list>
 #include "util/directiontables.h"
 #include "util/pointedthing.h"
+#include "FMStaticText.h"
+#include "guiTable.h"
+#include "util/string.h"
 
 /*
 	Text input system
@@ -84,12 +91,7 @@ struct TextDestNodeMetadata : public TextDest
 	// This is deprecated I guess? -celeron55
 	void gotText(std::wstring text)
 	{
-		std::string ntext = wide_to_narrow(text);
-		infostream<<"Submitting 'text' field of node at ("<<m_p.X<<","
-				<<m_p.Y<<","<<m_p.Z<<"): "<<ntext<<std::endl;
-		std::map<std::string, std::string> fields;
-		fields["text"] = ntext;
-		m_client->sendNodemetaFields(m_p, "", fields);
+		assert(0);
 	}
 	void gotText(std::map<std::string, std::string> fields)
 	{
@@ -487,7 +489,7 @@ void update_profiler_gui(gui::IGUIStaticText *guitext_profiler,
 
 		std::ostringstream os(std::ios_base::binary);
 		g_profiler->printPage(os, show_profiler, show_profiler_max);
-		std::wstring text = narrow_to_wide(os.str());
+		std::wstring text = utf8_to_wide(os.str());
 		guitext_profiler->setText(text.c_str());
 		guitext_profiler->setVisible(true);
 
@@ -610,16 +612,16 @@ public:
 			s32 texth = 15;
 			char buf[10];
 			snprintf(buf, 10, "%.3g", show_max);
-			font->draw(narrow_to_wide(buf).c_str(),
+			font->draw(utf8_to_wide(buf).c_str(),
 					core::rect<s32>(textx, y - graphh,
 					textx2, y - graphh + texth),
 					meta.color);
 			snprintf(buf, 10, "%.3g", show_min);
-			font->draw(narrow_to_wide(buf).c_str(),
+			font->draw(utf8_to_wide(buf).c_str(),
 					core::rect<s32>(textx, y - texth,
 					textx2, y),
 					meta.color);
-			font->draw(narrow_to_wide(id).c_str(),
+			font->draw(utf8_to_wide(id).c_str(),
 					core::rect<s32>(textx, y - graphh/2 - texth/2,
 					textx2, y - graphh/2 + texth/2),
 					meta.color);
@@ -814,14 +816,16 @@ class GameGlobalShaderConstantSetter : public IShaderConstantSetter
 	bool *m_force_fog_off;
 	f32 *m_fog_range;
 	Client *m_client;
+	Inventory *m_local_inventory;
 
 public:
 	GameGlobalShaderConstantSetter(Sky *sky, bool *force_fog_off,
-			f32 *fog_range, Client *client):
+			f32 *fog_range, Client *client, Inventory *local_inventory):
 		m_sky(sky),
 		m_force_fog_off(force_fog_off),
 		m_fog_range(fog_range),
-		m_client(client)
+		m_client(client),
+		m_local_inventory(local_inventory)
 	{}
 	~GameGlobalShaderConstantSetter() {}
 
@@ -877,6 +881,18 @@ public:
 		services->setPixelShaderConstant("normalTexture" , (irr::s32*)&layer1, 1);
 		services->setPixelShaderConstant("useNormalmap" , (irr::s32*)&layer2, 1);
 #endif
+		ItemStack playeritem;
+		{
+			InventoryList *mlist = m_local_inventory->getList("main");
+			if(mlist != NULL)
+			{
+				playeritem = mlist->getItem(m_client->getPlayerItem());
+			}
+		}
+		irr::f32 wieldLight = 0;
+		if (g_settings->getBool("disable_wieldlight") == false)
+			wieldLight = (irr::f32)((ItemGroupList)m_client->idef()->get(playeritem.name).groups)["wield_light"];
+		services->setPixelShaderConstant("wieldLight", &wieldLight, 1);
 	}
 };
 
@@ -1024,26 +1040,28 @@ static void show_pause_menu(FormspecFormSource* current_formspec,
 	float ypos = singleplayermode ? 1.0 : 0.5;
 	std::ostringstream os;
 
-	os << "size[11,5.5,true]"
-			<< "button_exit[4," << (ypos++) << ";3,0.5;btn_continue;"
+	os << "size[5,5.5,true]"
+			<< "button_exit[1," << (ypos++) << ";3,0.5;btn_continue;"
 					<< wide_to_narrow(wstrgettext("Continue"))     << "]";
 
 	if (!singleplayermode) {
-		os << "button_exit[4," << (ypos++) << ";3,0.5;btn_change_password;"
+		os << "button_exit[1," << (ypos++) << ";3,0.5;btn_change_password;"
 					<< wide_to_narrow(wstrgettext("Change Password")) << "]";
 		}
 
-	os 		<< "button_exit[4," << (ypos++) << ";3,0.5;btn_sound;"
+	os 		<< "button_exit[1," << (ypos++) << ";3,0.5;btn_sound;"
 					<< wide_to_narrow(wstrgettext("Sound Volume")) << "]";
-	os		<< "button_exit[4," << (ypos++) << ";3,0.5;btn_exit_menu;"
+	os		<< "button_exit[1," << (ypos++) << ";3,0.5;btn_exit_menu;"
 					<< wide_to_narrow(wstrgettext("Exit to Menu")) << "]";
-	os		<< "button_exit[4," << (ypos++) << ";3,0.5;btn_exit_os;"
-					<< wide_to_narrow(wstrgettext("Exit to OS"))   << "]"
+	os		<< "button_exit[1," << (ypos++) << ";3,0.5;btn_exit_os;"
+					<< wide_to_narrow(wstrgettext("Exit to OS"))   << "]";
+/*
 			<< "textarea[7.5,0.25;3.75,6;;" << control_text << ";]"
 			<< "textarea[0.4,0.25;3.5,6;;" << "Minetest\n"
 			<< minetest_build_info << "\n"
 			<< "path_user = " << wrap_rows(porting::path_user, 20)
 			<< "\n;]";
+*/
 
 	/* Create menu */
 	/* Note: FormspecFormSource and LocalFormspecHandler  *
@@ -1059,11 +1077,11 @@ static void show_pause_menu(FormspecFormSource* current_formspec,
 }
 
 /******************************************************************************/
-void the_game(bool &kill, bool random_input, InputHandler *input,
+bool the_game(bool &kill, bool random_input, InputHandler *input,
 	IrrlichtDevice *device, gui::IGUIFont* font, std::string map_dir,
 	std::string playername, std::string password,
 	std::string address /* If "", local server is used */,
-	u16 port, std::wstring &error_message, ChatBackend &chat_backend,
+	u16 port, std::string &error_message, ChatBackend &chat_backend,
 	const SubgameSpec &gamespec /* Used for local game */,
 	bool simple_singleplayer_mode)
 {
@@ -1086,6 +1104,8 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		wchar_t* text = wgettext("Loading...");
 		draw_load_screen(text, device, font,0,0);
 		delete[] text;
+		core::stringw str = L"Freeminer [Connecting]";
+		device->setWindowCaption(str.c_str());
 	}
 	
 	// Create texture source
@@ -1123,6 +1143,9 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 	}
 
 	Server *server = NULL;
+
+	bool reconnect = 0;
+	bool connect_ok = 0;
 
 	try{
 	// Event manager
@@ -1164,12 +1187,12 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		}
 
 		if(bind_addr.isIPv6() && !g_settings->getBool("enable_ipv6")) {
-			error_message = L"Unable to listen on " +
-				narrow_to_wide(bind_addr.serializeString()) +
-				L" because IPv6 is disabled";
-			errorstream<<wide_to_narrow(error_message)<<std::endl;
+			error_message = "Unable to listen on " +
+				bind_addr.serializeString() +
+				" because IPv6 is disabled";
+			errorstream<<error_message<<std::endl;
 			// Break out of client scope
-			return;
+			return 0;
 		}
 
 		server = new Server(map_dir, gamespec,
@@ -1204,26 +1227,25 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		connect_address.Resolve(address.c_str());
 		if (connect_address.isZero()) { // i.e. INADDR_ANY, IN6ADDR_ANY
 			//connect_address.Resolve("localhost");
-			if (connect_address.isIPv6()) {
-				IPv6AddressBytes addr_bytes;
-				addr_bytes.bytes[15] = 1;
-				connect_address.setAddress(&addr_bytes);
+			if (connect_address.isIPv6() || g_settings->getBool("ipv6_server")) {
+				connect_address.setAddress(in6addr_loopback);
 			} else {
 				connect_address.setAddress(127,0,0,1);
 			}
 		}
 	}
-	catch(ResolveError &e) {
-		error_message = L"Couldn't resolve address: " + narrow_to_wide(e.what());
-		errorstream<<wide_to_narrow(error_message)<<std::endl;
+	catch(ResolveError &e)
+	{
+		error_message = std::string("Couldn't resolve address: ") + e.what();
+		errorstream<<error_message<<std::endl;
 		// Break out of client scope
 		break;
 	}
 	if(connect_address.isIPv6() && !g_settings->getBool("enable_ipv6")) {
-		error_message = L"Unable to connect to " +
-			narrow_to_wide(connect_address.serializeString()) +
-			L" because IPv6 is disabled";
-		errorstream<<wide_to_narrow(error_message)<<std::endl;
+		error_message = "Unable to connect to " +
+			connect_address.serializeString() +
+			" because IPv6 is disabled";
+		errorstream<<error_message<<std::endl;
 		// Break out of client scope
 		break;
 	}
@@ -1233,7 +1255,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 	*/
 	Client client(device, playername.c_str(), password, draw_control,
 		tsrc, shsrc, itemdef, nodedef, sound, &eventmgr,
-		connect_address.isIPv6());
+		connect_address.isIPv6(), simple_singleplayer_mode);
 	
 	// Client acts as our GameDef
 	IGameDef *gamedef = &client;
@@ -1255,7 +1277,8 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 	try{
 		float time_counter = 0.0;
 		input->clear();
-		float fps_max = g_settings->getFloat("fps_max");
+		float fps_max = g_settings->getFloat("pause_fps_max");
+
 		bool cloud_menu_background = g_settings->getBool("menu_clouds");
 		u32 lasttime = device->getTimer()->getTime();
 		while(device->run())
@@ -1281,9 +1304,9 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 			}
 			// Break conditions
 			if(client.accessDenied()){
-				error_message = L"Access denied. Reason: "
+				error_message = "Access denied. Reason: "
 						+client.accessDeniedReason();
-				errorstream<<wide_to_narrow(error_message)<<std::endl;
+				errorstream<<error_message<<std::endl;
 				break;
 			}
 			if(input->wasKeyDown(EscapeKey)){
@@ -1324,6 +1347,10 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 				sleep_ms(25);
 			}
 			time_counter += dtime;
+			if (time_counter > CONNECTION_TIMEOUT) {
+				reconnect = 1;
+				break;
+			}
 		}
 	}
 	catch(con::PeerNotFoundException &e)
@@ -1333,9 +1360,9 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		Handle failure to connect
 	*/
 	if(!could_connect){
-		if(error_message == L"" && !connect_aborted){
-			error_message = L"Connection failed";
-			errorstream<<wide_to_narrow(error_message)<<std::endl;
+		if(error_message == "" && !connect_aborted){
+			error_message = "Connection failed";
+			errorstream<<error_message<<std::endl;
 		}
 		// Break out of client scope
 		break;
@@ -1377,14 +1404,14 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 			}
 			// Break conditions
 			if(client.accessDenied()){
-				error_message = L"Access denied. Reason: "
+				error_message = "Access denied. Reason: "
 						+client.accessDeniedReason();
-				errorstream<<wide_to_narrow(error_message)<<std::endl;
+				errorstream<<error_message<<std::endl;
 				break;
 			}
 			if(client.getState() < LC_Init){
-				error_message = L"Client disconnected";
-				errorstream<<wide_to_narrow(error_message)<<std::endl;
+				error_message = "Client disconnected";
+				errorstream<<error_message<<std::endl;
 				break;
 			}
 			if(input->wasKeyDown(EscapeKey)){
@@ -1442,13 +1469,17 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 				sleep_ms(25);
 			}
 			time_counter += dtime;
+			if (time_counter > CONNECTION_TIMEOUT) {
+				reconnect = 1;
+				break;
+			}
 		}
 	}
 
 	if(!got_content){
-		if(error_message == L"" && !content_aborted){
-			error_message = L"Something failed";
-			errorstream<<wide_to_narrow(error_message)<<std::endl;
+		if(error_message.empty() && !content_aborted){
+			error_message = "Something failed";
+			errorstream<<error_message<<std::endl;
 		}
 		// Break out of client scope
 		break;
@@ -1465,7 +1496,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 	*/
 	Camera camera(smgr, draw_control, gamedef);
 	if (!camera.successfullyCreated(error_message))
-		return;
+		return 0;
 
 	f32 camera_yaw = 0; // "right/left"
 	f32 camera_pitch = 0; // "up/down"
@@ -1503,6 +1534,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 	{
 		video::ITexture *t = tsrc->getTexture("crack_anylength.png");
 		v2u32 size = t->getOriginalSize();
+		if (size.X)
 		crack_animation_length = size.Y / size.X;
 	}
 
@@ -1512,7 +1544,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 
 	// First line of debug text
 	gui::IGUIStaticText *guitext = guienv->addStaticText(
-			L"Minetest",
+			L"Freeminer",
 			core::rect<s32>(5, 5, 795, 5+text_height),
 			false, false);
 	// Second line of debug text
@@ -1538,11 +1570,11 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 	float statustext_time = 0;
 	
 	// Chat text
-	gui::IGUIStaticText *guitext_chat = guienv->addStaticText(
-			L"",
-			core::rect<s32>(0,0,0,0),
-			//false, false); // Disable word wrap as of now
-			false, true);
+	gui::IGUIStaticText *guitext_chat;
+	guitext_chat = new gui::FMStaticText(L"", false, guienv, guienv->getRootGUIElement(), -1, core::rect<s32>(0, 0, 0, 0), false);
+	guitext_chat->setWordWrap(true);
+	guitext_chat->drop();
+
 	// Remove stale "recent" chat messages from previous connections
 	chat_backend.clearRecentChat();
 	// Chat backend and console
@@ -1603,19 +1635,30 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 	bool disable_camera_update = false;
 	bool show_debug = g_settings->getBool("show_debug");
 	bool show_profiler_graph = false;
+	bool show_block_boundaries = false;
 	u32 show_profiler = 0;
-	u32 show_profiler_max = 3;  // Number of pages
+	u32 show_profiler_max = 2;  // Number of pages
 
 	float time_of_day = 0;
 	float time_of_day_smooth = 0;
 
 	float repeat_rightclick_timer = 0;
 
+	GUITable *playerlist = NULL;
+
+	video::SColor console_bg;
+	bool console_color_set = !g_settings->get("console_color").empty();
+	if(console_color_set)
+	{
+		v3f console_color = g_settings->getV3F("console_color");
+		console_bg = video::SColor(g_settings->getU16("console_alpha"), console_color.X, console_color.Y, console_color.Z);
+	}
+
 	/*
 		Shader constants
 	*/
 	shsrc->addGlobalConstantSetter(new GameGlobalShaderConstantSetter(
-			sky, &force_fog_off, &fog_range, &client));
+			sky, &force_fog_off, &fog_range, &client, &local_inventory));
 
 	/*
 		Main loop
@@ -1643,11 +1686,16 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 			gamedef, player, &local_inventory);
 
 	bool use_weather = g_settings->getBool("weather");
+	bool no_output = device->getVideoDriver()->getDriverType() == video::EDT_NULL;
+	int errors = 0;
+	f32 dedicated_server_step = g_settings->getFloat("dedicated_server_step");
 
-	core::stringw str = L"Minetest [";
+	{
+	core::stringw str = L"Freeminer [";
 	str += driver->getName();
 	str += "]";
 	device->setWindowCaption(str.c_str());
+	}
 
 	// Info text
 	std::wstring infotext;
@@ -1781,9 +1829,9 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		
 		if(client.accessDenied())
 		{
-			error_message = L"Access denied. Reason: "
+			error_message = "Access denied. Reason: "
 					+client.accessDeniedReason();
-			errorstream<<wide_to_narrow(error_message)<<std::endl;
+			errorstream<<error_message<<std::endl;
 			break;
 		}
 
@@ -1808,6 +1856,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		}
 
 		/* Process TextureSource's queue */
+		if (!no_output)
 		tsrc->processQueue();
 
 		/* Process ItemDefManager's queue */
@@ -1816,6 +1865,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		/*
 			Process ShaderSource's queue
 		*/
+		if (!no_output)
 		shsrc->processQueue();
 
 		/*
@@ -1847,7 +1897,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 			print_to_log = false;
 			profiler_print_interval = 5;
 		}
-		if(m_profiler_interval.step(dtime, profiler_print_interval))
+		if(m_profiler_interval.step(dtime, profiler_print_interval) && !(simple_singleplayer_mode && g_menumgr.pausesGame()))
 		{
 			if(print_to_log){
 				infostream<<"Profiler:"<<std::endl;
@@ -2058,6 +2108,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 				statustext = L"Fog enabled";
 			statustext_time = 0;
 		}
+/*
 		else if(input->wasKeyDown(getKeySetting("keymap_toggle_update_camera")))
 		{
 			disable_camera_update = !disable_camera_update;
@@ -2067,6 +2118,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 				statustext = L"Camera update enabled";
 			statustext_time = 0;
 		}
+*/
 		else if(input->wasKeyDown(getKeySetting("keymap_toggle_debug")))
 		{
 			// Initial / 3x toggle: Chat only
@@ -2115,12 +2167,21 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 				statustext_time = 0;
 			}
 		}
+		else if(input->wasKeyDown(getKeySetting("keymap_toggle_block_boundaries")))
+		{
+			show_block_boundaries = !show_block_boundaries;
+			if(show_block_boundaries)
+				statustext = L"Block boundaries shown";
+			else
+				statustext = L"Block boundaries hidden";
+			statustext_time = 0;
+		}
 		else if(input->wasKeyDown(getKeySetting("keymap_increase_viewing_range_min")))
 		{
 			s16 range = g_settings->getS16("viewing_range_nodes_min");
 			s16 range_new = range + 10;
 			g_settings->set("viewing_range_nodes_min", itos(range_new));
-			statustext = narrow_to_wide(
+			statustext = utf8_to_wide(
 					"Minimum viewing range changed to "
 					+ itos(range_new));
 			statustext_time = 0;
@@ -2133,17 +2194,82 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 				range_new = range;
 			g_settings->set("viewing_range_nodes_min",
 					itos(range_new));
-			statustext = narrow_to_wide(
+			statustext = utf8_to_wide(
 					"Minimum viewing range changed to "
 					+ itos(range_new));
 			statustext_time = 0;
 		}
-		
+
+
+		if (input->isKeyDown(getKeySetting("keymap_zoom"))) {
+			player->zoom=true;
+		} else {
+			player->zoom=false;
+		}
+
 		// Reset jump_timer
 		if(!input->isKeyDown(getKeySetting("keymap_jump")) && reset_jump_timer)
 		{
 			reset_jump_timer = false;
 			jump_timer = 0.0;
+		}
+
+		if (playerlist)
+			playerlist->setSelected(-1);
+		if(!input->isKeyDown(getKeySetting("keymap_playerlist")) && playerlist != NULL)
+		{
+			playerlist->remove();
+			playerlist = NULL;
+		}
+		if(input->wasKeyDown(getKeySetting("keymap_playerlist")) && playerlist == NULL)
+		{
+			std::list<std::string> players_list = client.getEnv().getPlayerNames();
+			std::vector<std::string> players;
+			players.reserve(players_list.size());
+			std::copy(players_list.begin(), players_list.end(), std::back_inserter(players));
+			std::sort(players.begin(), players.end(), string_icompare);
+
+			u32 max_height = screensize.Y * 0.7;
+
+			u32 row_height = font->getDimension(L"A").Height + 4;
+			u32 rows = max_height / row_height;
+			u32 columns = players.size() / rows;
+			if (players.size() % rows > 0)
+				++columns;
+			u32 actual_height = row_height * rows;
+			if (rows > players.size())
+				actual_height = row_height * players.size();
+			u32 max_width = 0;
+			for (size_t i = 0; i < players.size(); ++i)
+				max_width = std::max(max_width, font->getDimension(utf8_to_wide(players[i]).c_str()).Width);
+			max_width += 15;
+			u32 actual_width = columns * max_width;
+
+			if (columns != 0) {
+				u32 x = (screensize.X - actual_width) / 2;
+				u32 y = (screensize.Y - actual_height) / 2;
+				playerlist = new GUITable(guienv, guienv->getRootGUIElement(), -1, core::rect<s32>(x, y, x + actual_width, y + actual_height), tsrc);
+				playerlist->drop();
+				playerlist->setScrollBarEnabled(false);
+				GUITable::TableOptions table_options;
+				GUITable::TableColumns table_columns;
+				for (size_t i = 0; i < columns; ++i) {
+					GUITable::TableColumn col;
+					col.type = "text";
+					table_columns.push_back(col);
+				}
+				std::vector<std::string> players_ordered;
+				players_ordered.reserve(columns * rows);
+				for (size_t i = 0; i < rows; ++i)
+					for (size_t j = 0; j < columns; ++j) {
+						size_t index = j * rows + i;
+						if (index >= players.size())
+							players_ordered.push_back("");
+						else
+							players_ordered.push_back(players[index]);
+					}
+				playerlist->setTable(table_options, table_columns, players_ordered);
+			}
 		}
 
 		// Handle QuicktuneShortcutter
@@ -2158,7 +2284,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		{
 			std::string msg = quicktune.getMessage();
 			if(msg != ""){
-				statustext = narrow_to_wide(msg);
+				statustext = utf8_to_wide(msg);
 				statustext_time = 0;
 			}
 		}
@@ -2346,7 +2472,12 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 			if(server != NULL)
 			{
 				//TimeTaker timer("server->step(dtime)");
+				try {
 				server->step(dtime);
+				} catch(std::exception &e) {
+					if (!errors++ || !(errors % (int)(60/dedicated_server_step)))
+						errorstream << "Fatal error n=" << errors << " : " << e.what() << std::endl;
+				}
 			}
 			{
 				//TimeTaker timer("client.step(dtime)");
@@ -2395,6 +2526,10 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 					camera_point_target.X = event.deathscreen.camera_point_target_x;
 					camera_point_target.Y = event.deathscreen.camera_point_target_y;
 					camera_point_target.Z = event.deathscreen.camera_point_target_z;*/
+
+					if (g_settings->getBool("respawn_auto")) { 
+						client.sendRespawn(); 
+					} else {
 					MainRespawnInitiator *respawner =
 							new MainRespawnInitiator(
 									&respawn_menu_active, &client);
@@ -2402,8 +2537,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 							new GUIDeathScreen(guienv, guiroot, -1,
 								&g_menumgr, respawner);
 					menu->drop();
-					
-					chat_backend.addMessage(L"", L"You died.");
+					}
 
 					/* Handle visualization */
 
@@ -2751,6 +2885,13 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		{
 			infostream<<"Pointing at "<<pointed.dump()<<std::endl;
 			//dstream<<"Pointing at "<<pointed.dump()<<std::endl;
+/* node debug 
+			MapNode nu = client.getEnv().getClientMap().getNodeNoEx(pointed.node_undersurface);
+			MapNode na = client.getEnv().getClientMap().getNodeNoEx(pointed.node_abovesurface);
+			infostream	<< "|| nu0="<<(int)nu.param0<<" nu1"<<(int)nu.param1<<" nu2"<<(int)nu.param1<<"; nam="<<nodedef->get(nu.getContent()).name
+						<< "|| na0="<<(int)na.param0<<" na1"<<(int)na.param1<<" na2"<<(int)na.param1<<"; nam="<<nodedef->get(na.getContent()).name
+						<<std::endl;
+*/
 		}
 
 		/*
@@ -2819,12 +2960,12 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 			ClientMap &map = client.getEnv().getClientMap();
 			NodeMetadata *meta = map.getNodeMetadata(nodepos);
 			if(meta){
-				infotext = narrow_to_wide(meta->getString("infotext"));
+				infotext = utf8_to_wide(meta->getString("infotext"));
 			} else {
 				MapNode n = map.getNode(nodepos);
 				if(nodedef->get(n).tiledef[0].name == "unknown_node.png"){
 					infotext = L"Unknown node: ";
-					infotext += narrow_to_wide(nodedef->get(n).name);
+					infotext += utf8_to_wide(nodedef->get(n).name);
 				}
 			}
 			
@@ -2968,26 +3109,8 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 				repeat_rightclick_timer = 0;
 				infostream<<"Ground right-clicked"<<std::endl;
 				
-				// Sign special case, at least until formspec is properly implemented.
-				// Deprecated?
-				if(meta && meta->getString("formspec") == "hack:sign_text_input"
-						&& !random_input
-						&& !input->isKeyDown(getKeySetting("keymap_sneak")))
-				{
-					infostream<<"Launching metadata text input"<<std::endl;
-					
-					// Get a new text for it
-
-					TextDest *dest = new TextDestNodeMetadata(nodepos, &client);
-
-					std::wstring wtext = narrow_to_wide(meta->getString("text"));
-
-					(new GUITextInputMenu(guienv, guiroot, -1,
-							&g_menumgr, dest,
-							wtext))->drop();
-				}
 				// If metadata provides an inventory view, activate it
-				else if(meta && meta->getString("formspec") != "" && !random_input
+				if(meta && meta->getString("formspec") != "" && !random_input
 						&& !input->isKeyDown(getKeySetting("keymap_sneak")))
 				{
 					infostream<<"Launching custom inventory view"<<std::endl;
@@ -3039,10 +3162,10 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		}
 		else if(pointed.type == POINTEDTHING_OBJECT)
 		{
-			infotext = narrow_to_wide(selected_object->infoText());
+			infotext = utf8_to_wide(selected_object->infoText());
 
 			if(infotext == L"" && show_debug){
-				infotext = narrow_to_wide(selected_object->debugInfoText());
+				infotext = utf8_to_wide(selected_object->debugInfoText());
 			}
 
 			//if(input->getLeftClicked())
@@ -3112,7 +3235,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		else {
 			fog_range = draw_control.wanted_range*BS + 0.0*MAP_BLOCKSIZE*BS;
 			if(use_weather)
-				fog_range *= (1.5 - 1.4*(float)client.getEnv().getClientMap().getHumidity(pos_i)/100);
+				fog_range *= (1.55 - 1.4*(float)client.getEnv().getClientMap().getHumidity(pos_i, 1)/100);
 			fog_range = MYMIN(fog_range, (draw_control.farthest_drawn+20)*BS);
 			fog_range *= 0.9;
 		}
@@ -3174,8 +3297,10 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 			Update particles
 		*/
 
+		if (!no_output) {
 		allparticles_step(dtime);
 		allparticlespawners_step(dtime, client.getEnv());
+		}
 		
 		/*
 			Fog
@@ -3212,10 +3337,16 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 
 		//TimeTaker guiupdatetimer("Gui updating");
 		
+		draw_control.drawtime_avg = draw_control.drawtime_avg * 0.95 + (float)drawtime*0.05;
+		draw_control.fps_avg = 1000/draw_control.drawtime_avg;
+		draw_control.fps = (1.0/dtime_avg1);
+
 		if(show_debug)
 		{
+/*
 			static float drawtime_avg = 0;
 			drawtime_avg = drawtime_avg * 0.95 + (float)drawtime*0.05;
+*/
 			/*static float beginscenetime_avg = 0;
 			beginscenetime_avg = beginscenetime_avg * 0.95 + (float)beginscenetime*0.05;
 			static float scenetime_avg = 0;
@@ -3223,30 +3354,32 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 			static float endscenetime_avg = 0;
 			endscenetime_avg = endscenetime_avg * 0.95 + (float)endscenetime*0.05;*/
 
-			u16 fps = (1.0/dtime_avg1);
 
 			std::ostringstream os(std::ios_base::binary);
 			os<<std::fixed
-				<<"Minetest "<<minetest_version_hash
-				<<" FPS = "<<fps
-				<<" (R: range_all="<<draw_control.range_all<<")"
+				<<"Freeminer "<<minetest_version_hash
 				<<std::setprecision(0)
-				<<" drawtime = "<<drawtime_avg
+				<<" FPS = "<<draw_control.fps
+/*
+				<<" (R: range_all="<<draw_control.range_all<<")"
+*/
+				<<" drawtime = "<<draw_control.drawtime_avg
+/*
 				<<std::setprecision(1)
 				<<", dtime_jitter = "
 				<<(dtime_jitter1_max_fraction * 100.0)<<" %"
+*/
 				<<std::setprecision(1)
 				<<", v_range = "<<draw_control.wanted_range
-				<<std::setprecision(3)
-				<<", RTT = "<<client.getRTT();
-			guitext->setText(narrow_to_wide(os.str()).c_str());
+				<<", farmesh = "<<draw_control.farmesh<<":"<<draw_control.farmesh_step;
+			guitext->setText(utf8_to_wide(os.str()).c_str());
 			guitext->setVisible(true);
 		}
 		else if(show_hud || show_chat)
 		{
 			std::ostringstream os(std::ios_base::binary);
-			os<<"Minetest "<<minetest_version_hash;
-			guitext->setText(narrow_to_wide(os.str()).c_str());
+			os<<"Freeminer "<<minetest_version_hash;
+			guitext->setText(utf8_to_wide(os.str()).c_str());
 			guitext->setVisible(true);
 		}
 		else
@@ -3261,12 +3394,13 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 				<<"(" <<(player_position.X/BS)
 				<<", "<<(player_position.Y/BS)
 				<<", "<<(player_position.Z/BS)
+				<<") (spd="<< (int)player->getSpeed().getLength()/BS
 				<<") (yaw="<<(wrapDegrees_0_360(camera_yaw))
-				<<") (t="<<client.getEnv().getClientMap().getHeat(pos_i)
-				<<"C, h="<<client.getEnv().getClientMap().getHumidity(pos_i)
+				<<") (t="<<client.getEnv().getClientMap().getHeat(pos_i, 1)
+				<<"C, h="<<client.getEnv().getClientMap().getHumidity(pos_i, 1)
 				<<"%) (seed = "<<((u64)client.getMapSeed())
 				<<")";
-			guitext2->setText(narrow_to_wide(os.str()).c_str());
+			guitext2->setText(utf8_to_wide(os.str()).c_str());
 			guitext2->setVisible(true);
 		}
 		else
@@ -3327,14 +3461,14 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 			// Get new messages from error log buffer
 			while(!chat_log_error_buf.empty())
 			{
-				chat_backend.addMessage(L"", narrow_to_wide(
+				chat_backend.addMessage(L"", utf8_to_wide(
 						chat_log_error_buf.get()));
 			}
 			// Get new messages from client
-			std::wstring message;
+			std::string message;
 			while(client.getChatMessage(message))
 			{
-				chat_backend.addUnparsedMessage(message);
+				chat_backend.addUnparsedMessage(utf8_to_wide(message));
 			}
 			// Remove old messages
 			chat_backend.step(dtime);
@@ -3396,7 +3530,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 				update_draw_list_last_cam_dir.getDistanceFrom(camera_direction) > 0.2 ||
 				camera_offset_changed){
 			update_draw_list_timer = 0;
-			client.getEnv().getClientMap().updateDrawList(driver);
+			client.getEnv().getClientMap().updateDrawList(driver, dtime);
 			update_draw_list_last_cam_dir = camera_direction;
 		}
 
@@ -3406,7 +3540,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 
 		TimeTaker tt_draw("mainloop: draw");
 		
-		{
+		if (!no_output) {
 			TimeTaker timer("beginScene");
 			//driver->beginScene(false, true, bgcolor);
 			//driver->beginScene(true, true, bgcolor);
@@ -3417,7 +3551,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		//timer3.stop();
 	
 		//infostream<<"smgr->drawAll()"<<std::endl;
-		{
+		if (!no_output) {
 			TimeTaker timer("smgr");
 			smgr->drawAll();
 			
@@ -3509,6 +3643,14 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		
 		//timer9.stop();
 		//TimeTaker //timer10("//timer10");
+		/*
+			Block boundary visualization
+		*/
+		if (show_block_boundaries) { // DEV only borders of any blocks
+			//client.getEnv().getClientMap().renderBlockBoundaries(server->m_modified_blocks);
+			//client.getEnv().getClientMap().renderBlockBoundaries(client.getEnv().getClientMap().m_drawlist);
+		}
+
 		
 		video::SMaterial m;
 		//m.Thickness = 10;
@@ -3536,7 +3678,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		/*
 			Post effects
 		*/
-		{
+		if (!no_output) {
 			client.getEnv().getClientMap().renderPostFx();
 		}
 
@@ -3598,16 +3740,42 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		if (show_hud)
 			hud.drawLuaElements();
 
+
+		/*
+			Draw background for player list
+		*/
+		if (playerlist != NULL)
+		{
+			driver->draw2DRectangle(console_bg, playerlist->getAbsolutePosition());
+			driver->draw2DRectangleOutline(playerlist->getAbsolutePosition(), video::SColor(255,128,128,128));
+		}
+
+		/*
+			Movement FOV (for superspeed and flying)
+		*/
+
+		float max_fov = 0;
+		if(player->free_move)
+			max_fov += 5;
+		if(player->superspeed)
+			max_fov += 8;
+
+		if((player->free_move || player->superspeed) && player->movement_fov < max_fov)
+			player->movement_fov += dtime*50;
+		if(player->movement_fov > max_fov)
+			player->movement_fov -= dtime*50;
+
 		/*
 			Draw gui
 		*/
 		// 0-1ms
+		if (!no_output)
 		guienv->drawAll();
 
 		/*
 			End scene
 		*/
-		{
+		if (!no_output) {
 			TimeTaker timer("endScene");
 			driver->endScene();
 			endscenetime = timer.stop(true);
@@ -3626,6 +3794,13 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 		Profiler::GraphValues values;
 		g_profiler->graphGet(values);
 		graph.put(values);
+
+		if (client.m_con.Connected()) {
+			connect_ok = 1;
+		} else if (connect_ok) {
+			reconnect = 1;
+			break;
+		}
 	}
 
 	/*
@@ -3672,18 +3847,18 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 	} // try-catch
 	catch(SerializationError &e)
 	{
-		error_message = L"A serialization error occurred:\n"
-				+ narrow_to_wide(e.what()) + L"\n\nThe server is probably "
-				L" running a different version of Minetest.";
-		errorstream<<wide_to_narrow(error_message)<<std::endl;
+		error_message = std::string("A serialization error occurred:\n")
+				+ e.what() + "\n\nThe server is probably "
+				" running a different version of Freeminer.";
+		errorstream<<error_message<<std::endl;
 	}
 	catch(ServerError &e) {
-		error_message = narrow_to_wide(e.what());
+		error_message = e.what();
 		errorstream << "ServerError: " << e.what() << std::endl;
 	}
 	catch(ModError &e) {
 		errorstream << "ModError: " << e.what() << std::endl;
-		error_message = narrow_to_wide(e.what()) + wgettext("\nCheck debug.txt for details.");
+		error_message = e.what() + wide_to_utf8(wgettext("\nCheck debug.txt for details."));
 	}
 
 
@@ -3714,6 +3889,7 @@ void the_game(bool &kill, bool random_input, InputHandler *input,
 	infostream << "\tRemaining materials: "
 		<< driver-> getMaterialRendererCount ()
 		<< " (note: irrlicht doesn't support removing renderers)"<< std::endl;
+	return reconnect;
 }
 
 

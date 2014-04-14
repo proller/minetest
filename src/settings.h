@@ -1,20 +1,23 @@
 /*
-Minetest
+settings.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef SETTINGS_HEADER
@@ -32,6 +35,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "debug.h"
 #include "log.h"
 #include "util/string.h"
+#include "porting.h"
+#include "json/json.h" // for json config values
 #include "util/serialize.h"
 #include <list>
 #include <map>
@@ -420,14 +425,14 @@ public:
 		return true;
 	}
 
-	void set(std::string name, std::string value)
+	void set(std::string name, const std::string &value)
 	{
 		JMutexAutoLock lock(m_mutex);
 
 		m_settings[name] = value;
 	}
 
-	void set(std::string name, const char *value)
+	void set(const std::string &name, const char *value)
 	{
 		JMutexAutoLock lock(m_mutex);
 
@@ -781,6 +786,23 @@ public:
 		set(name, os.str());
 	}
 
+	Json::Value getJson(const std::string & name)
+	{
+		Json::Value root;
+		std::string value = get(name);
+		if (value.empty())
+			return root;
+		if (!json_reader.parse( value, root ) ) {
+			errorstream  << "Failed to parse json conf var [" << name << "]='" << value <<"' : " << json_reader.getFormattedErrorMessages();
+		}
+		return root;
+	}
+
+	void setJson(const std::string & name, const Json::Value & value)
+	{
+		set(name, value.empty() ? "{}" : json_writer.write( value ));
+	}
+
 	void clear()
 	{
 		JMutexAutoLock lock(m_mutex);
@@ -852,6 +874,8 @@ private:
 	std::map<std::string, std::string> m_defaults;
 	// All methods that access m_settings/m_defaults directly should lock this.
 	JMutex m_mutex;
+	Json::Reader json_reader;
+	Json::FastWriter json_writer;
 };
 
 #endif

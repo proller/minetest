@@ -1,20 +1,23 @@
 /*
-Minetest
+clientmap.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "clientmap.h"
@@ -34,6 +37,25 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <algorithm>
 
 #define PP(x) "("<<(x).X<<","<<(x).Y<<","<<(x).Z<<")"
+
+MapDrawControl::MapDrawControl():
+		range_all(false),
+		wanted_range(500),
+		wanted_max_blocks(0),
+		wanted_min_range(0),
+		blocks_drawn(0),
+		blocks_would_have_drawn(0),
+		farthest_drawn(0)
+		,farmesh(0)
+		,farmesh_step(1)
+		,fps(30)
+		,fps_avg(30)
+		,fps_wanted(30)
+		,drawtime_avg(30)
+	{
+		farmesh = g_settings->getS32("farmesh");
+		farmesh_step = g_settings->getS32("farmesh_step");
+	}
 
 ClientMap::ClientMap(
 		Client *client,
@@ -156,10 +178,10 @@ static bool isOccluded(Map *map, v3s16 p0, v3s16 p1, float step, float stepfac,
 	return false;
 }
 
-void ClientMap::updateDrawList(video::IVideoDriver* driver)
+void ClientMap::updateDrawList(video::IVideoDriver* driver, float dtime)
 {
-	ScopeProfiler sp(g_profiler, "CM::updateDrawList()", SPT_AVG);
-	g_profiler->add("CM::updateDrawList() count", 1);
+	//ScopeProfiler sp(g_profiler, "CM::updateDrawList()", SPT_AVG);
+	//g_profiler->add("CM::updateDrawList() count", 1);
 
 	INodeDefManager *nodemgr = m_gamedef->ndef();
 
@@ -247,13 +269,14 @@ void ClientMap::updateDrawList(video::IVideoDriver* driver)
 		{
 			MapBlock *block = *i;
 
+			int mesh_step = getFarmeshStep(m_control, getNodeBlockPos(cam_pos_nodes).getDistanceFrom(block->getPos()));
 			/*
 				Compare block position to camera position, skip
 				if not seen on display
 			*/
 			
-			if (block->mesh != NULL)
-				block->mesh->updateCameraOffset(m_camera_offset);
+			if (block->getMesh(mesh_step) != NULL)
+				block->getMesh(mesh_step)->updateCameraOffset(m_camera_offset);
 			
 			float range = 100000 * BS;
 			if(m_control.range_all == false)
@@ -280,7 +303,7 @@ void ClientMap::updateDrawList(video::IVideoDriver* driver)
 			{
 				//JMutexAutoLock lock(block->mesh_mutex);
 
-				if(block->mesh == NULL){
+				if(block->getMesh(mesh_step) == NULL){
 					blocks_in_range_without_mesh++;
 					continue;
 				}
@@ -302,6 +325,7 @@ void ClientMap::updateDrawList(video::IVideoDriver* driver)
 
 			v3s16 cpn = block->getPos() * MAP_BLOCKSIZE;
 			cpn += v3s16(MAP_BLOCKSIZE/2, MAP_BLOCKSIZE/2, MAP_BLOCKSIZE/2);
+
 			float step = BS*1;
 			float stepfac = 1.1;
 			float startoff = BS*1;
@@ -344,6 +368,12 @@ void ClientMap::updateDrawList(video::IVideoDriver* driver)
 					&& m_control.range_all == false
 					&& d > m_control.wanted_min_range * BS)
 				continue;
+
+			if (m_control.farmesh && mesh_step != block->getMesh(mesh_step)->step) { //&& !block->mesh->transparent
+				m_client->addUpdateMeshTask(block->getPos(), false, mesh_step == 1);
+			}
+
+			block->getMesh(mesh_step)->incrementUsageTimer(dtime);
 
 			// Add to set
 			block->refGrab();
@@ -492,7 +522,7 @@ void ClientMap::renderMap(video::IVideoDriver* driver, s32 pass)
 	*/
 
 	{
-	ScopeProfiler sp(g_profiler, prefix+"drawing blocks", SPT_AVG);
+	//ScopeProfiler sp(g_profiler, prefix+"drawing blocks", SPT_AVG);
 
 	MeshBufListList drawbufs;
 
@@ -502,8 +532,9 @@ void ClientMap::renderMap(video::IVideoDriver* driver, s32 pass)
 	{
 		MapBlock *block = i->second;
 
+		int mesh_step = getFarmeshStep(m_control, getNodeBlockPos(cam_pos_nodes).getDistanceFrom(block->getPos()));
 		// If the mesh of the block happened to get deleted, ignore it
-		if(block->mesh == NULL)
+		if(block->getMesh(mesh_step) == NULL)
 			continue;
 		
 		float d = 0.0;
@@ -517,8 +548,11 @@ void ClientMap::renderMap(video::IVideoDriver* driver, s32 pass)
 		// Mesh animation
 		{
 			//JMutexAutoLock lock(block->mesh_mutex);
-			MapBlockMesh *mapBlockMesh = block->mesh;
+			MapBlockMesh *mapBlockMesh = block->getMesh(mesh_step);
 			assert(mapBlockMesh);
+
+			mapBlockMesh->updateCameraOffset(m_camera_offset);
+
 			// Pretty random but this should work somewhat nicely
 			bool faraway = d >= BS*50;
 			//bool faraway = d >= m_control.wanted_range * BS;
@@ -548,7 +582,7 @@ void ClientMap::renderMap(video::IVideoDriver* driver, s32 pass)
 		{
 			//JMutexAutoLock lock(block->mesh_mutex);
 
-			MapBlockMesh *mapBlockMesh = block->mesh;
+			MapBlockMesh *mapBlockMesh = block->getMesh(mesh_step);
 			assert(mapBlockMesh);
 
 			scene::SMesh *mesh = mapBlockMesh->getMesh();
@@ -889,6 +923,57 @@ void ClientMap::renderPostFx()
 		driver->draw2DRectangle(post_effect_color, rect);
 	}
 }
+
+void ClientMap::renderBlockBoundaries(std::map<v3s16, MapBlock*> blocks)
+{
+	video::IVideoDriver* driver = SceneManager->getVideoDriver();
+	video::SMaterial mat;
+	mat.Lighting = false;
+	mat.ZWriteEnable = false;
+
+	core::aabbox3d<f32> bound;
+//	std::map<v3s16, MapBlock*>& blocks = m_drawlist;
+//		const_cast<std::map<v3s16, bool>&>(nextBlocksToRequest());
+	const v3f inset(BS/2);
+	const v3f blocksize(MAP_BLOCKSIZE);
+
+	for (int pass = 0; pass < 2; ++pass) {
+		video::SColor color_offset(0, 0, 0, 0);
+		if (pass == 0) {
+			mat.Thickness = 1;
+			mat.ZBuffer = video::ECFN_ALWAYS;
+			color_offset.setGreen(64);
+		} else {
+			mat.Thickness = 3;
+			mat.ZBuffer = video::ECFN_LESSEQUAL;
+		}
+		driver->setMaterial(mat);
+
+		for(std::map<v3s16, MapBlock*>::iterator i = blocks.begin(); i != blocks.end(); ++i) {
+			video::SColor color(255, 0, 0, 0);
+			if (i->second) {
+				color.setBlue(255);
+			} else {
+				color.setRed(255);
+				color.setGreen(128);
+			}
+
+			v3s16 bpos = i->first;
+			bound.MinEdge = intToFloat(i->first, BS)*blocksize
+				+ inset
+				- v3f(BS)*0.5
+				- intToFloat(m_camera_offset, BS);
+			bound.MaxEdge = bound.MinEdge
+				+ blocksize*BS
+				- inset
+				- inset;
+			color = color + color_offset;
+
+			driver->draw3DBox(bound, color);
+		}
+	}
+}
+
 
 void ClientMap::PrintInfo(std::ostream &out)
 {

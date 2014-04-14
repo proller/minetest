@@ -1,23 +1,25 @@
 /*
-Minetest
+emerge.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 Copyright (C) 2010-2013 kwolekr, Ryan Kwolek <kwolekr@minetest.net>
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Freeminer  is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "emerge.h"
 #include "server.h"
@@ -45,6 +47,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "mapgen_indev.h"
 #include "mapgen_singlenode.h"
 #include "mapgen_math.h"
+#include "circuit.h"
 
 
 class EmergeThread : public JThread
@@ -52,6 +55,7 @@ class EmergeThread : public JThread
 public:
 	Server *m_server;
 	ServerMap *map;
+	Circuit* m_circuit;
 	EmergeManager *emerge;
 	Mapgen *mapgen;
 	bool enable_mapgen_debug_info;
@@ -103,15 +107,26 @@ EmergeManager::EmergeManager(IGameDef *gamedef) {
 	// some other misc thread
 	int nthreads = 0;
 	if (!g_settings->getS16NoEx("num_emerge_threads", nthreads))
+	{}
+	if (nthreads < 1)
 		nthreads = porting::getNumberOfProcessors() - 2;
 	if (nthreads < 1)
 		nthreads = 1;
 
 	qlimit_total = g_settings->getU16("emergequeue_limit_total");
+	if (qlimit_total < 1)
+		qlimit_total = nthreads*128;
 	if (!g_settings->getU16NoEx("emergequeue_limit_diskonly", qlimit_diskonly))
-		qlimit_diskonly = nthreads * 5 + 1;
+		{}
+	if (qlimit_diskonly < 1) {
+		qlimit_diskonly = nthreads * 10;
+	}
 	if (!g_settings->getU16NoEx("emergequeue_limit_generate", qlimit_generate))
-		qlimit_generate = nthreads + 1;
+		{}
+	if (qlimit_generate < 1) {
+		qlimit_generate = nthreads * 7;
+	}
+	//errorstream<<"==> qlimit_generate="<<qlimit_generate<<"  qlimit_diskonly="<<qlimit_diskonly<<" qlimit_total="<<qlimit_total<<std::endl;
 
 	// don't trust user input for something very important like this
 	if (qlimit_total < 1)
@@ -432,14 +447,21 @@ bool EmergeThread::getBlockOrStartGen(v3s16 p, MapBlock **b,
 	JMutexAutoLock envlock(m_server->m_env_mutex);
 
 	// Load sector if it isn't loaded
+/*
 	if (map->getSectorNoGenerateNoEx(p2d) == NULL)
 		map->loadSectorMeta(p2d);
+*/
 
 	// Attempt to load block
 	MapBlock *block = map->getBlockNoCreateNoEx(p);
 	if (!block || block->isDummy() || !block->isGenerated()) {
-		EMERGE_DBG_OUT("not in memory, attempting to load from disk");
+		EMERGE_DBG_OUT("not in memory, attempting to load from disk ag="<<allow_gen);
 		block = map->loadBlock(p);
+		if(block)
+		{
+// 			block->pushElementsToCircuit(m_circuit);
+// 			m_circuit->processElementsQueue(*map, map->getNodeDefManager());
+		}
 		if (block && block->isGenerated())
 			map->prepareBlock(block);
 	}
@@ -447,7 +469,7 @@ bool EmergeThread::getBlockOrStartGen(v3s16 p, MapBlock **b,
 	// If could not load and allowed to generate,
 	// start generation inside this same envlock
 	if (allow_gen && (block == NULL || !block->isGenerated())) {
-		EMERGE_DBG_OUT("generating");
+		EMERGE_DBG_OUT("generating b="<<block);
 		*b = block;
 		return map->initBlockMake(data, p);
 	}
@@ -467,12 +489,13 @@ void *EmergeThread::Thread() {
 	v3s16 p;
 	u8 flags;
 
-	map    = (ServerMap *)&(m_server->m_env->getMap());
-	emerge = m_server->m_emerge;
-	mapgen = emerge->mapgen[id];
+	map       = (ServerMap *)&(m_server->m_env->getMap());
+	m_circuit = m_server->m_circuit;
+	emerge    = m_server->m_emerge;
+	mapgen    = emerge->mapgen[id];
 	enable_mapgen_debug_info = emerge->mapgen_debug_info;
 
-	porting::setThreadName("EmergeThread");
+	porting::setThreadName(("EmergeThread" + itos(id)).c_str());
 
 	while (!StopRequested())
 	try {
@@ -549,9 +572,15 @@ void *EmergeThread::Thread() {
 		// Add the originally fetched block to the modified list
 		if (block)
 			modified_blocks[p] = block;
+		else
+		infostream<<"nothing generated at "<<PP(p)<<std::endl;
 
 		if (modified_blocks.size() > 0) {
 			m_server->SetBlocksNotSent(modified_blocks);
+		}
+		if (mapgen->heat_cache.size() > 1000) {
+			mapgen->heat_cache.clear();
+			mapgen->humidity_cache.clear();
 		}
 	}
 	catch (VersionMismatchException &e) {

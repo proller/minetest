@@ -1,20 +1,23 @@
 /*
-Minetest
+cavegen.cpp
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "util/numeric.h"
@@ -23,6 +26,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "mapgen_v6.h"
 #include "mapgen_v7.h"
 #include "cavegen.h"
+#include "emerge.h"
+#include "environment.h"
 
 NoiseParams nparams_caveliquids(0, 1, v3f(150.0, 150.0, 150.0), 776, 3, 0.6);
 
@@ -40,6 +45,7 @@ CaveV6::CaveV6(MapgenV6 *mg, PseudoRandom *ps, PseudoRandom *ps2, bool is_large_
 	this->ps2 = ps2;
 	this->c_water_source = mg->c_water_source;
 	this->c_lava_source  = mg->c_lava_source;
+	this->c_ice          = mg->c_ice;
 
 	min_tunnel_diameter = 2;
 	max_tunnel_diameter = ps->range(2, 6);
@@ -212,6 +218,7 @@ void CaveV6::carveRoute(v3f vec, float f, bool randomize_xz) {
 	MapNode airnode(CONTENT_AIR);
 	MapNode waternode(c_water_source);
 	MapNode lavanode(c_lava_source);
+	MapNode n_ice(c_ice);
 	
 	v3s16 startp(orp.X, orp.Y, orp.Z);
 	startp += of;
@@ -251,14 +258,16 @@ void CaveV6::carveRoute(v3f vec, float f, bool randomize_xz) {
 				if (!ndef->get(c).is_ground_content)
 					continue;
 
+				s16 heat = mg->emerge->env->m_use_weather ? mg->emerge->env->getServerMap().updateBlockHeat(mg->emerge->env, p, NULL, &mg->heat_cache) : 0;
+				MapNode n_water_or_ice = (heat < 0 && (p.Y > water_level + heat/4 || p.Y > startp.Y - 2 + heat/4)) ? n_ice : waternode;
 				if (large_cave) {
 					int full_ymin = node_min.Y - MAP_BLOCKSIZE;
 					int full_ymax = node_max.Y + MAP_BLOCKSIZE;
 
 					if (flooded && full_ymin < water_level && full_ymax > water_level) {
-						vm->m_data[i] = (p.Y <= water_level) ? waternode : airnode;
+						vm->m_data[i] = (p.Y <= water_level) ? n_water_or_ice : airnode;
 					} else if (flooded && full_ymax < water_level) {
-						vm->m_data[i] = (p.Y < startp.Y - 2) ? lavanode : airnode;
+						vm->m_data[i] = (p.Y < startp.Y - 2) ? (flooded_water ? n_water_or_ice : lavanode) : airnode;
 					} else {
 						vm->m_data[i] = airnode;
 					}

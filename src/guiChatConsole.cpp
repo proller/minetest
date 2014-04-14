@@ -1,20 +1,23 @@
 /*
-Minetest
+guiChatConsole.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "guiChatConsole.h"
@@ -32,9 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "gettext.h"
 
-#if USE_FREETYPE
 #include "xCGUITTFont.h"
-#endif
 
 inline u32 clamp_u8(s32 value)
 {
@@ -67,7 +68,8 @@ GUIChatConsole::GUIChatConsole(
 	m_background(NULL),
 	m_background_color(255, 0, 0, 0),
 	m_font(NULL),
-	m_fontsize(0, 0)
+	m_fontsize(0, 0),
+	m_freetype_font(NULL)
 {
 	m_animate_time_old = getTimeMs();
 
@@ -95,17 +97,9 @@ GUIChatConsole::GUIChatConsole(
 	// load the font
 	// FIXME should a custom texture_path be searched too?
 	std::string font_name = g_settings->get("mono_font_path");
-	#if USE_FREETYPE
-	m_use_freetype = g_settings->getBool("freetype");
-	if (m_use_freetype) {
-		u16 font_size = g_settings->getU16("mono_font_size");
-		m_font = gui::CGUITTFont::createTTFont(env, font_name.c_str(), font_size);
-	} else {
-		m_font = env->getFont(font_name.c_str());
-	}
-	#else
-	m_font = env->getFont(font_name.c_str());
-	#endif
+	u16 font_size = g_settings->getU16("mono_font_size");
+	m_freetype_font = gui::CGUITTFont::createTTFont(env, font_name.c_str(), font_size);
+	m_font = m_freetype_font;
 	if (m_font == NULL)
 	{
 		dstream << "Unable to load font: " << font_name << std::endl;
@@ -125,10 +119,7 @@ GUIChatConsole::GUIChatConsole(
 
 GUIChatConsole::~GUIChatConsole()
 {
-#if USE_FREETYPE
-	if (m_use_freetype)
-		m_font->drop();
-#endif
+	m_font->drop();
 }
 
 void GUIChatConsole::openConsole(f32 height)
@@ -334,10 +325,10 @@ void GUIChatConsole::drawText()
 			s32 x = (fragment.column + 1) * m_fontsize.X;
 			core::rect<s32> destrect(
 				x, y, x + m_fontsize.X * fragment.text.size(), y + m_fontsize.Y);
-			m_font->draw(
+			m_freetype_font->draw(
 				fragment.text.c_str(),
 				destrect,
-				video::SColor(255, 255, 255, 255),
+				fragment.text.getColors(),
 				false,
 				false,
 				&AbsoluteClippingRect);
@@ -555,7 +546,7 @@ bool GUIChatConsole::OnEvent(const SEvent& event)
 		}
 		else if(event.KeyInput.Char != 0 && !event.KeyInput.Control)
 		{
-			#if (defined(linux) || defined(__linux))
+			#if (defined(linux) || defined(__linux) || defined(__FreeBSD__))
 				wchar_t wc = L'_';
 				mbtowc( &wc, (char *) &event.KeyInput.Char, sizeof(event.KeyInput.Char) );
 				m_chat_backend->getPrompt().input(wc);

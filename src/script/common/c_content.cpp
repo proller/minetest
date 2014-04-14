@@ -1,20 +1,23 @@
 /*
-Minetest
+script/common/c_content.cpp
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "common/c_content.h"
 #include "common/c_converter.h"
@@ -63,7 +66,7 @@ ItemDefinition read_item_definition(lua_State* L,int index,
 		def.wield_scale = check_v3f(L, -1);
 	}
 	lua_pop(L, 1);
-
+	
 	def.stack_max = getintfield_default(L, index, "stack_max", def.stack_max);
 	if(def.stack_max == 0)
 		def.stack_max = 1;
@@ -262,6 +265,20 @@ ContentFeatures read_content_features(lua_State *L, int index)
 	lua_getfield(L, index, "after_destruct");
 	if(!lua_isnil(L, -1)) f.has_after_destruct = true;
 	lua_pop(L, 1);
+	lua_getfield(L, index, "on_activate");
+	if(!lua_isnil(L, -1))
+	{
+		f.has_on_activate = true;
+		f.is_circuit_element = true;
+	}
+	lua_pop(L, 1);
+	lua_getfield(L, index, "on_deactivate");
+	if(!lua_isnil(L, -1))
+	{
+		f.has_on_deactivate = true;
+		f.is_circuit_element = true;
+	}
+	lua_pop(L, 1);
 
 	lua_getfield(L, index, "on_rightclick");
 	f.rightclickable = lua_isfunction(L, -1);
@@ -315,6 +332,73 @@ ContentFeatures read_content_features(lua_State *L, int index)
 		}
 	}
 	lua_pop(L, 1);
+	
+	/* Circuit options */
+	lua_getfield(L, index, "is_wire");
+	if(!lua_isnil(L, -1)) {
+		f.is_wire = true;
+	}
+	lua_pop(L, 1);
+	
+	lua_getfield(L, index, "is_connector");
+	if(!lua_isnil(L, -1)) {
+		f.is_connector = true;
+	}
+	lua_pop(L, 1);
+	
+	lua_getfield(L, index, "wire_connections");
+	if(!lua_isnil(L, -1) && lua_istable(L, -1)) {
+		f.is_wire = true;
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		int i;
+		unsigned char current_shift = 1;
+		for(i = 0; (i < 6) && (lua_next(L, table) != 0); ++i) {
+			f.wire_connections[i] = lua_tonumber(L, -1);
+			f.wire_connections[i] |= current_shift;
+			current_shift <<= 1;
+			lua_pop(L, 1);
+		}
+		if(i < 6) {
+			luaL_error(L, "Wire connectins array must have exactly 6 integer numbers.");
+		}
+
+		// Convert to two-way wire (one-way may cause undefined behavior)
+		for(i = 0; i < 6; ++i) {
+			for(int j = 0; j < 6; ++j) {
+				f.wire_connections[i] |= f.wire_connections[j] & (1 << i);
+				f.wire_connections[j] |= f.wire_connections[i] & (1 << j);
+			}
+		}
+		
+	} else if(f.is_wire) {
+		// Assuming that it's a standart wire
+		for(int i = 0; i < 6; ++i) {
+			f.wire_connections[i] = 0x3F;
+		}
+	}
+	lua_pop(L, 1);
+	
+	lua_getfield(L, index, "circuit_states");
+	if(!lua_isnil(L, -1) && lua_istable(L, -1)) {
+		f.is_circuit_element = true;
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		int i;
+		for(i = 0; (i < 64) && (lua_next(L, table) != 0); ++i) {
+			f.circuit_element_states[i] = lua_tonumber(L, -1);
+			lua_pop(L, 1);
+		}
+		if(i < 64) {
+			luaL_error(L, "Circuit states table must have exactly 64 integer numbers.");
+		}
+	}
+	lua_pop(L, 1);
+
+	f.circuit_element_delay = getintfield_default(L, index, "circuit_element_delay", f.circuit_element_delay + 1) - 1;
+	if(f.circuit_element_delay > 100) {
+		luaL_error(L, "\"circuit_element_delay\" must be a positive integer number less than 101");
+	}
 
 	// special_tiles = {}
 	lua_getfield(L, index, "special_tiles");
@@ -405,12 +489,12 @@ ContentFeatures read_content_features(lua_State *L, int index)
 	// the slowest possible
 	f.liquid_viscosity = getintfield_default(L, index,
 			"liquid_viscosity", f.liquid_viscosity);
-	f.liquid_range = getintfield_default(L, index,
-			"liquid_range", f.liquid_range);
+
 	f.leveled = getintfield_default(L, index, "leveled", f.leveled);
 
 	getboolfield(L, index, "liquid_renewable", f.liquid_renewable);
-	getstringfield(L, index, "freezemelt", f.freezemelt);
+	getstringfield(L, index, "freeze", f.freeze);
+	getstringfield(L, index, "melt", f.melt);
 	f.drowning = getintfield_default(L, index,
 			"drowning", f.drowning);
 	// Amount of light the node emits

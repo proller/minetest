@@ -1,11 +1,10 @@
 [Desktop Entry]
-Name=Minetest
-GenericName=Minetest
+Name=Freeminer
+GenericName=Freeminer
 Comment=Multiplayer infinite-world block sandbox
-Exec=minetest
-Icon=minetest-icon
+Exec=freeminer
+Icon=freeminer
 Terminal=false
 Type=Application
 Categories=Game;
 StartupNotify=false
-

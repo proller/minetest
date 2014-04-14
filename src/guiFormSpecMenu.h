@@ -1,20 +1,23 @@
 /*
-Minetest
+guiFormSpecMenu.h
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -149,7 +152,7 @@ class GUIFormSpecMenu : public GUIModalMenu
 		FieldSpec()
 		{
 		}
-		FieldSpec(const std::wstring &name, const std::wstring &label,
+		FieldSpec(const std::string &name, const std::wstring &label,
 		          const std::wstring &fdeflt, int id) :
 			fname(name),
 			flabel(label),
@@ -161,7 +164,7 @@ class GUIFormSpecMenu : public GUIModalMenu
 			is_exit = false;
 			tooltip="";
 		}
-		std::wstring fname;
+		std::string fname;
 		std::wstring flabel;
 		std::wstring fdefault;
 		int fid;
@@ -245,7 +248,7 @@ public:
 	bool doPause;
 	bool pausesGame() { return doPause; }
 
-	GUITable* getTable(std::wstring tablename);
+	GUITable* getTable(const std::string &tablename);
 
 	static bool parseColor(const std::string &value,
 			video::SColor &color, bool quiet);
@@ -312,11 +315,11 @@ private:
 		v2s32 basepos;
 		int bp_set;
 		v2u32 screensize;
-		std::wstring focused_fieldname;
+		std::string focused_fieldname;
 		GUITable::TableOptions table_options;
 		GUITable::TableColumns table_columns;
 		// used to restore table selection/scroll/treeview state
-		std::map<std::wstring,GUITable::DynamicData> table_dyndata;
+		std::map<std::string, GUITable::DynamicData> table_dyndata;
 	} parserData;
 
 	typedef struct {

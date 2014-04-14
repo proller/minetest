@@ -1,20 +1,23 @@
 /*
-Minetest
+porting.h
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
@@ -53,6 +56,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 	#include <windows.h>
 	
 	#define sleep_ms(x) Sleep(x)
+
+	#define MAX_PACKET_SIZE_SINGLEPLAYER 1400
 #else
 	#include <unistd.h>
 	#include <stdint.h> //for uintptr_t
@@ -83,6 +88,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 	#define THREAD_PRIORITY_NORMAL       2
 	#define THREAD_PRIORITY_ABOVE_NORMAL 3
 	#define THREAD_PRIORITY_HIGHEST      4
+
+	#define MAX_PACKET_SIZE_SINGLEPLAYER 8192
 #endif
 
 #ifdef _MSC_VER
@@ -283,7 +290,9 @@ inline void setThreadName(const char* name) {
  * to add this feature please create a pull request.
  * "setproctitle" doesn't work for threadnames.
  */
-inline void setThreadName(const char* name) {}
+inline void setThreadName(const char* name) {
+	pthread_set_name_np(pthread_self(), name);
+}
 #elif defined(_WIN32)
 // threadnames are not supported on windows
 inline void setThreadName(const char* name) {}

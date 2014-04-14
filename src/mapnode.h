@@ -1,20 +1,23 @@
 /*
-Minetest
+mapnode.h
 Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef MAPNODE_HEADER
@@ -26,6 +29,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "light.h"
 #include <string>
 #include <vector>
+#include <list>
+#include <msgpack.hpp>
 
 class INodeDefManager;
 
@@ -36,6 +41,8 @@ class INodeDefManager;
 	- Tile = TileSpec at some side of a node of some content type
 */
 typedef u16 content_t;
+
+#define CONTENT_ID_CAPACITY (1 << (8 * sizeof(content_t)))
 
 /*
 	The maximum node ID that can be registered by mods. This must
@@ -93,7 +100,7 @@ enum Rotation {
 	Masks for MapNode.param2 of flowing liquids
  */
 #define LIQUID_LEVEL_MASK 0x07
-#define LIQUID_FLOW_DOWN_MASK 0x08
+#define LIQUID_FLOW_DOWN_MASK 0x40 //0b01000000 // only for _flowing liquid
 
 //#define LIQUID_LEVEL_MASK 0x3f // better finite water
 //#define LIQUID_FLOW_DOWN_MASK 0x40 // not used when finite water
@@ -102,7 +109,7 @@ enum Rotation {
 #define LIQUID_LEVEL_MAX LIQUID_LEVEL_MASK
 #define LIQUID_LEVEL_SOURCE (LIQUID_LEVEL_MAX+1)
 
-#define LIQUID_INFINITY_MASK 0x80 //0b10000000
+#define LIQUID_INFINITY_MASK 0x80 //0b10000000 // only for _source liquid
 
 // mask for param2, now as for liquid
 #define LEVELED_MASK 0x3F
@@ -228,11 +235,11 @@ struct MapNode
 	std::vector<aabb3f> getSelectionBoxes(INodeDefManager *nodemgr) const;
 
 	/* Liquid helpers */
-	u8 getMaxLevel(INodeDefManager *nodemgr) const;
+	u8 getMaxLevel(INodeDefManager *nodemgr, bool compress = 0) const;
 	u8 getLevel(INodeDefManager *nodemgr) const;
-	u8 setLevel(INodeDefManager *nodemgr, s8 level = 1);
-	u8 addLevel(INodeDefManager *nodemgr, s8 add = 1);
-	void freezeMelt(INodeDefManager *nodemgr);
+	u8 setLevel(INodeDefManager *nodemgr, s8 level = 1, bool compress = 0);
+	u8 addLevel(INodeDefManager *nodemgr, s8 add = 1, bool compress = 0);
+	void freezeMelt(INodeDefManager *nodemgr, int direction = 0);
 
 	/*
 		Serialization functions
@@ -255,6 +262,9 @@ struct MapNode
 	static void deSerializeBulk(std::istream &is, int version,
 			MapNode *nodes, u32 nodecount,
 			u8 content_width, u8 params_width, bool compressed);
+
+	void msgpack_pack(msgpack::packer<msgpack::sbuffer> &pk) const;
+	void msgpack_unpack(msgpack::object o);
 
 private:
 	// Deprecated serialization methods

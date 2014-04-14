@@ -1,20 +1,23 @@
 /*
-Minetest
+mapgen_v7.cpp
 Copyright (C) 2010-2013 kwolekr, Ryan Kwolek <kwolekr@minetest.net>
+*/
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or
+/*
+This file is part of Freeminer.
+
+Freeminer is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
+Freeminer  is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+You should have received a copy of the GNU General Public License
+along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -36,6 +39,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "treegen.h"
 #include "biome.h"
 #include "mapgen_v7.h"
+#include "environment.h"
 
 
 FlagDesc flagdesc_mapgen_v7[] = {
@@ -214,7 +218,7 @@ void MapgenV7::makeChunk(BlockMakeData *data) {
 	c_sand            = ndef->getId("mapgen_sand");
 	c_water_source    = ndef->getId("mapgen_water_source");
 	c_lava_source     = ndef->getId("mapgen_lava_source");
-	c_ice             = ndef->getId("default:ice");
+	c_ice             = ndef->getId("mapgen_ice");
 	if (c_ice == CONTENT_IGNORE)
 		c_ice = CONTENT_AIR;
 	
@@ -422,6 +426,7 @@ int MapgenV7::generateBaseTerrain() {
 	MapNode n_air(CONTENT_AIR);
 	MapNode n_stone(c_stone);
 	MapNode n_water(c_water_source);
+	MapNode n_ice(c_ice);
 	
 	int stone_surface_max_y = -MAP_GENERATION_LIMIT;
 	v3s16 em = vm->m_area.getExtent();
@@ -444,7 +449,10 @@ int MapgenV7::generateBaseTerrain() {
 				if (y <= surface_y)
 					vm->m_data[i] = n_stone;
 				else if (y <= water_level)
-					vm->m_data[i] = n_water;
+				{
+					s16 heat = emerge->env->m_use_weather ? emerge->env->getServerMap().updateBlockHeat(emerge->env, v3s16(x,y,z), NULL, &heat_cache) : 0;
+					vm->m_data[i] = (heat < 0 && y > heat/3) ? n_ice : n_water;
+				}
 				else
 					vm->m_data[i] = n_air;
 			}
@@ -481,6 +489,7 @@ void MapgenV7::generateMountainTerrain() {
 
 void MapgenV7::generateRidgeTerrain() {
 	MapNode n_water(c_water_source);
+	MapNode n_ice(c_ice);
 	MapNode n_air(CONTENT_AIR);
 	u32 index = 0;
 	
@@ -514,7 +523,10 @@ void MapgenV7::generateRidgeTerrain() {
 			if (y < ridge_heightmap[j])
 				ridge_heightmap[j] = y - 1; 
 
-			vm->m_data[vi] = (y > water_level) ? n_air : n_water;
+			s16 heat = emerge->env->m_use_weather ? emerge->env->getServerMap().updateBlockHeat(emerge->env, v3s16(x,y,z), NULL, &heat_cache) : 0;
+			MapNode n_water_or_ice = (heat < 0 && y > water_level + heat/4) ? n_ice : n_water;
+
+			vm->m_data[vi] = (y > water_level) ? n_air : n_water_or_ice;
 		}
 	}
 }
@@ -581,7 +593,8 @@ void MapgenV7::generateBiomes() {
 			} else if (c == c_water_source) {
 				have_air = true;
 				nplaced = 0;
-				vm->m_data[i] = MapNode(biome->c_water);
+				s16 heat = emerge->env->m_use_weather ? emerge->env->getServerMap().updateBlockHeat(emerge->env, v3s16(x,y,z), NULL, &heat_cache) : 0;
+				vm->m_data[i] = MapNode((heat < 0 && y > water_level + heat/4) ? biome->c_ice : biome->c_water);
 			} else if (c == CONTENT_AIR) {
 				have_air = true;
 				nplaced = 0;
