@@ -297,9 +297,9 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("enable_ipv6", "true");
 	settings->setDefault("ipv6_server", "false");
 
-	settings->setDefault("main_menu_script","");
-	settings->setDefault("main_menu_mod_mgr","1");
-	settings->setDefault("main_menu_game_mgr","0");
+	settings->setDefault("main_menu_path", "");
+	settings->setDefault("main_menu_mod_mgr", "1");
+	settings->setDefault("main_menu_game_mgr", "0");
 	settings->setDefault("modstore_download_url", "https://forum.minetest.net/media/");
 	settings->setDefault("modstore_listmods_url", "https://forum.minetest.net/mmdb/mods/");
 	settings->setDefault("modstore_details_url", "https://forum.minetest.net/mmdb/mod/*/");
@@ -342,7 +342,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("enable_any_name", "0"); //WARNING!!! SECURITY RISK WITH SOME MODULES
 	settings->setDefault("password_save", "1");
 
-#if !defined(_WIN32) && !CMAKE_USE_IPV4_DEFAULT
+#if !defined(_WIN32) && !CMAKE_USE_IPV4_DEFAULT && ENET_IPV6
 	settings->setDefault("ipv6_server", "true"); // problems on all windows versions (unable to play in local game)
 #endif
 }

@@ -35,6 +35,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "util/numeric.h"
 #include "util/mathconstants.h"
 
+#include "profiler.h"
 #include "main.h"                      // for g_settings
 
 void RemoteClient::GetNextBlocks(
@@ -136,7 +137,8 @@ void RemoteClient::GetNextBlocks(
 	/*
 		Number of blocks sending + number of blocks selected for sending
 	*/
-	u32 num_blocks_selected = m_blocks_sending.size();
+	u32 num_blocks_selected = 0;
+	u32 num_blocks_sending = m_blocks_sending.size();
 
 	/*
 		next time d will be continued from the d from which the nearest
@@ -244,7 +246,7 @@ void RemoteClient::GetNextBlocks(
 				max_simul_dynamic = max_simul_sends_setting;
 
 			// Don't select too many blocks for sending
-			if(num_blocks_selected >= max_simul_dynamic)
+			if(num_blocks_selected+num_blocks_sending >= max_simul_dynamic)
 			{
 				queue_is_full = true;
 				goto queue_full_break;
@@ -273,9 +275,11 @@ void RemoteClient::GetNextBlocks(
 				if(abs(p.Y - center.Y) > d_max_gen - d_max_gen / 3)
 					generate = false;*/
 
+				/* maybe good idea (if not use block culling) but brokes far (25+) area generate by flooding emergequeue with no generate blocks
 				// Limit the send area vertically to 1/2
 				if(can_skip && abs(p.Y - center.Y) > full_d_max / 2)
 					generate = false;
+				*/
 			}
 
 
@@ -296,7 +300,7 @@ void RemoteClient::GetNextBlocks(
 				Don't send already sent blocks
 			*/
 			{
-				if(m_blocks_sent.find(p) != m_blocks_sent.end() && m_blocks_sent[p] > 0 && m_blocks_sent[p] + (d <= 2 ? 1 : d*d) > m_uptime) {
+				if(m_blocks_sent.find(p) != m_blocks_sent.end() && m_blocks_sent[p] > 0 && m_blocks_sent[p] + (d <= 2 ? 1 : d*d*d) > m_uptime) {
 					continue;
 				}
 			}
@@ -394,7 +398,8 @@ void RemoteClient::GetNextBlocks(
 	}
 queue_full_break:
 
-	//infostream<<"Stopped at "<<d<<" d_start="<<d_start<< " d_max="<<d_max<<" nearest_emerged_d="<<nearest_emerged_d<<" nearest_emergefull_d="<<nearest_emergefull_d<< " new_nearest_unsent_d="<<new_nearest_unsent_d<< " sel="<<num_blocks_selected<<std::endl;
+	//infostream<<"Stopped at "<<d<<" d_start="<<d_start<< " d_max="<<d_max<<" nearest_emerged_d="<<nearest_emerged_d<<" nearest_emergefull_d="<<nearest_emergefull_d<< " new_nearest_unsent_d="<<new_nearest_unsent_d<< " sel="<<num_blocks_selected<< "+"<<num_blocks_sending <<std::endl;
+	num_blocks_selected += num_blocks_sending;
 	if(!num_blocks_selected && d_start == d) {
 		//new_nearest_unsent_d = 0;
 		m_nothing_to_send_pause_timer = 1.0;
@@ -446,9 +451,6 @@ void RemoteClient::SentBlock(v3s16 p)
 void RemoteClient::SetBlockNotSent(v3s16 p)
 {
 	++m_nearest_unsent_nearest;
-
-	if(m_blocks_sending.find(p) != m_blocks_sending.end())
-		m_blocks_sending.erase(p);
 }
 
 void RemoteClient::SetBlocksNotSent(std::map<v3s16, MapBlock*> &blocks)
@@ -650,6 +652,7 @@ std::vector<std::string> ClientInterface::getPlayerNames()
 
 void ClientInterface::step(float dtime)
 {
+	g_profiler->add("Server: Clients:", m_clients.size());
 	m_print_info_timer += dtime;
 	if(m_print_info_timer >= 30.0)
 	{
@@ -667,7 +670,7 @@ void ClientInterface::UpdatePlayerList()
 
 
 		if(clients.size() != 0)
-			infostream<<"Players:"<<std::endl;
+			infostream<<"Players ["<<clients.size()<<"]:"<<std::endl;
 		for(std::list<u16>::iterator
 			i = clients.begin();
 			i != clients.end(); ++i)

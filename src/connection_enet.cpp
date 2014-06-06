@@ -39,19 +39,6 @@ namespace con
 */
 
 Connection::Connection(u32 protocol_id, u32 max_packet_size, float timeout,
-		bool ipv6):
-	m_protocol_id(protocol_id),
-	m_max_packet_size(max_packet_size),
-	m_timeout(timeout),
-	m_enet_host(0),
-	m_peer_id(0),
-	m_bc_peerhandler(NULL),
-	m_bc_receive_timeout(0)
-{
-	Start();
-}
-
-Connection::Connection(u32 protocol_id, u32 max_packet_size, float timeout,
 		bool ipv6, PeerHandler *peerhandler):
 	m_protocol_id(protocol_id),
 	m_max_packet_size(max_packet_size),
@@ -59,7 +46,7 @@ Connection::Connection(u32 protocol_id, u32 max_packet_size, float timeout,
 	m_enet_host(0),
 	m_peer_id(0),
 	m_bc_peerhandler(peerhandler),
-	m_bc_receive_timeout(0)
+	m_bc_receive_timeout(30)
 {
 	Start();
 }
@@ -116,6 +103,10 @@ void Connection::processCommand(ConnectionCommand &c)
 	case CONNCMD_DISCONNECT:
 		dout_con<<getDesc()<<" processing CONNCMD_DISCONNECT"<<std::endl;
 		disconnect();
+		return;
+	case CONNCMD_DISCONNECT_PEER:
+		dout_con<<getDesc()<<" processing CONNCMD_DISCONNECT"<<std::endl;
+		DisconnectPeer(c.peer_id);
 		return;
 	case CONNCMD_SEND:
 		dout_con<<getDesc()<<" processing CONNCMD_SEND"<<std::endl;
@@ -188,7 +179,11 @@ void Connection::receive()
 void Connection::serve(u16 port)
 {
 	ENetAddress *address = new ENetAddress;
+#if defined(ENET_IPV6)
 	address->host = in6addr_any;
+#else
+	address->host = ENET_HOST_ANY;
+#endif
 	address->port = port;
 
 	m_enet_host = enet_host_create(address, g_settings->getU16("max_users"), CHANNEL_COUNT, 0, 0);
@@ -210,10 +205,18 @@ void Connection::connect(Address addr)
 
 	m_enet_host = enet_host_create(NULL, 1, 0, 0, 0);
 	ENetAddress *address = new ENetAddress;
+#if defined(ENET_IPV6)
 	if (!addr.isIPv6())
 		inet_pton (AF_INET6, ("::ffff:"+addr.serializeString()).c_str(), &address->host);
 	else
 		address->host = addr.getAddress6().sin6_addr;
+#else
+	if (addr.isIPv6())
+		throw ConnectionException("Cant connect to ipv6 address");
+	else
+		address->host = addr.getAddress().sin_addr.s_addr;
+#endif
+
 	address->port = addr.getPort();
 	ENetPeer *peer = enet_host_connect(m_enet_host, address, CHANNEL_COUNT, 0);
 	peer->data = new u16;

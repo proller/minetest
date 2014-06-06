@@ -2,6 +2,7 @@ project(freeminer)
 cmake_minimum_required( VERSION 2.6 )
 
 INCLUDE(CheckCSourceRuns)
+INCLUDE(CheckCXXSourceRuns)
 
 # Set some random things default to not being visible in the GUI
 mark_as_advanced(EXECUTABLE_OUTPUT_PATH LIBRARY_OUTPUT_PATH)
@@ -337,11 +338,6 @@ if(ENABLE_REDIS)
 	endif(REDIS_LIBRARY AND REDIS_INCLUDE_DIR)
 endif(ENABLE_REDIS)
 
-configure_file(
-	"${PROJECT_SOURCE_DIR}/cmake_config.h.in"
-	"${PROJECT_BINARY_DIR}/cmake_config.h"
-)
-
 # Add a target that always rebuilds cmake_config_githash.h
 add_custom_target(GenerateVersion
 	COMMAND ${CMAKE_COMMAND}
@@ -435,6 +431,7 @@ set(common_SRCS
 	gettext.cpp
 	httpfetch.cpp
 	fmbitset.cpp
+	log_types.cpp
 	${JTHREAD_SRCS}
 	${common_SCRIPT_SRCS}
 	${UTIL_SRCS}
@@ -686,8 +683,29 @@ else()
 		set(OTHER_FLAGS "${OTHER_FLAGS} -fsanitize=address")
 	endif()
 
-	set(CMAKE_CXX_FLAGS_RELEASE "-std=c++0x -DNDEBUG ${RELEASE_WARNING_FLAGS} ${WARNING_FLAGS} ${OTHER_FLAGS} -O3 -ffast-math -Wall -fomit-frame-pointer -pipe -funroll-loops")
-	set(CMAKE_CXX_FLAGS_DEBUG "-std=c++0x -g -O0 -Wall ${WARNING_FLAGS} ${OTHER_FLAGS}")
+	if(ENABLE_CXX1Y)
+		#set(STD_FLAGS "-std=c++1y -stdlib=libstdc++ -lc++")
+		set(STD_FLAGS "-std=c++1y")
+		if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+			set(STD_FLAGS "${STD_FLAGS} -lstdc++")
+		endif()
+		set(CMAKE_REQUIRED_FLAGS "${STD_FLAGS}")
+		CHECK_CXX_SOURCE_RUNS("
+			#include <shared_mutex>
+			int main(int argc, char *argv[]) {
+				std::shared_timed_mutex m;
+				std::shared_lock<std::shared_timed_mutex> lock(m);
+				lock.unlock();
+				return 0;
+			}
+			"
+			HAVE_SHARED_MUTEX)
+	else()
+		set(STD_FLAGS "-std=c++0x")
+	endif()
+
+	set(CMAKE_CXX_FLAGS_RELEASE "${STD_FLAGS} -DNDEBUG ${RELEASE_WARNING_FLAGS} ${WARNING_FLAGS} ${OTHER_FLAGS} -O3 -ffast-math -Wall -fomit-frame-pointer -pipe -funroll-loops")
+	set(CMAKE_CXX_FLAGS_DEBUG "${STD_FLAGS} -g -O0 -Wall ${WARNING_FLAGS} ${OTHER_FLAGS}")
 
 	if(USE_GPROF)
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -pg")
@@ -698,6 +716,11 @@ else()
 				COMPILE_DEFINITIONS "SERVER")
 	endif(BUILD_SERVER)
 
+endif()
+
+if(NOT HAVE_SHARED_MUTEX)
+	# avoid empty value in cmake_config.h
+	set(HAVE_SHARED_MUTEX 0)
 endif()
 
 #MESSAGE(STATUS "CMAKE_CXX_FLAGS_RELEASE=${CMAKE_CXX_FLAGS_RELEASE}")
@@ -807,5 +830,10 @@ if (JSON_FOUND)
 else (JSON_FOUND)
 	add_subdirectory(json)
 endif (JSON_FOUND)
+
+configure_file(
+	"${PROJECT_SOURCE_DIR}/cmake_config.h.in"
+	"${PROJECT_BINARY_DIR}/cmake_config.h"
+)
 
 #end
