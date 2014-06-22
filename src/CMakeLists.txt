@@ -493,6 +493,7 @@ set(minetest_SRCS
 	guiFileSelectMenu.cpp
 	convert_json.cpp
 	FMColoredString.cpp
+	drawscene.cpp
 	${minetest_SCRIPT_SRCS}
 	intlGUIEditBox.cpp
 	FMStaticText.cpp
@@ -553,6 +554,7 @@ if(BUILD_CLIENT)
 		${LUA_LIBRARY}
 		${JSON_LIBRARY}
 		${OPENGLES2_LIBRARIES}
+		${EGL_LIBRARIES}
 		${MSGPACK_LIBRARIES}
 		enet
 		${PLATFORM_LIBS}

@@ -46,10 +46,14 @@ endif()
 
 set(WARN_ALL 1 CACHE BOOL "Enable -Wall for Release build")
 
-if(NOT CMAKE_BUILD_TYPE)
-	# Default to release
+set(DEBUG 0 CACHE BOOL "Build with debug symbols and without optimization")
+if(DEBUG)
+	set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type: Debug or Release" FORCE)
+else()
 	set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type: Debug or Release" FORCE)
 endif()
+MARK_AS_ADVANCED(CMAKE_BUILD_TYPE)
+MESSAGE(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 # Included stuff
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -84,6 +88,7 @@ elseif(UNIX) # Linux, BSD etc
 		set(EXAMPLE_CONF_DIR ".")
 		set(MANDIR "unix/man")
 		set(XDG_APPS_DIR "unix/applications")
+		set(APPDATADIR "unix/appdata")
 		set(ICONDIR "unix/icons")
 		set(LOCALEDIR "locale")
 	else()
@@ -93,6 +98,7 @@ elseif(UNIX) # Linux, BSD etc
 		set(MANDIR "${CMAKE_INSTALL_PREFIX}/share/man")
 		set(EXAMPLE_CONF_DIR ${DOCDIR})
 		set(XDG_APPS_DIR "${CMAKE_INSTALL_PREFIX}/share/applications")
+		set(APPDATADIR "${CMAKE_INSTALL_PREFIX}/share/appdata")
 		set(ICONDIR "${CMAKE_INSTALL_PREFIX}/share/icons")
 		set(LOCALEDIR "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/locale")
 	endif()
@@ -168,6 +174,7 @@ install(FILES "freeminer.conf.example" DESTINATION "${EXAMPLE_CONF_DIR}")
 if(UNIX)
 	install(FILES "doc/freeminer.6" "doc/freeminerserver.6" DESTINATION "${MANDIR}/man6")
 	install(FILES "misc/freeminer.desktop" DESTINATION "${XDG_APPS_DIR}")
+	install(FILES "misc/freeminer.appdata.xml" DESTINATION "${APPDATADIR}")
 	install(FILES "misc/freeminer.svg" DESTINATION "${ICONDIR}/hicolor/scalable/apps")
 endif()
 

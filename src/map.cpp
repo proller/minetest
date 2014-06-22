@@ -32,7 +32,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "serialization.h"
 #include "nodemetadata.h"
 #include "settings.h"
-#include "log.h"
+#include "log_types.h"
 #include "profiler.h"
 #include "nodedef.h"
 #include "gamedef.h"
@@ -1503,18 +1503,16 @@ u32 Map::timerUpdate(float uptime, float unload_timeout,
 		++calls;
 
 		MapBlock *block = ir.second;
+		if (!block)
+			continue;
+
 		{
 			auto lock = block->lock_unique_rec();
-
-			if (!block->m_uptime_timer_last)  // not very good place, but minimum modifications
-				block->m_uptime_timer_last = uptime - 0.1;
-			block->incrementUsageTimer(uptime - block->m_uptime_timer_last);
-			block->m_uptime_timer_last = uptime;
 
 			if(block->refGet() == 0 && block->getUsageTimer() > unload_timeout)
 			{
 				v3s16 p = block->getPos();
-
+				//infostream<<" deleting block p="<<p<<" ustimer="<<block->getUsageTimer() <<" to="<< unload_timeout<<" inc="<<(uptime - block->m_uptime_timer_last)<<" state="<<block->getModified()<<std::endl;
 				// Save if modified
 				if(block->getModified() != MOD_STATE_CLEAN
 						&& save_before_unloading)
@@ -1535,6 +1533,12 @@ u32 Map::timerUpdate(float uptime, float unload_timeout,
 			}
 			else
 			{
+
+			if (!block->m_uptime_timer_last)  // not very good place, but minimum modifications
+				block->m_uptime_timer_last = uptime - 0.1;
+			block->incrementUsageTimer(uptime - block->m_uptime_timer_last);
+			block->m_uptime_timer_last = uptime;
+
 				block_count_all++;
 
 /*#ifndef SERVER
@@ -2503,9 +2507,6 @@ s16 Map::getHeat(v3s16 p, bool no_random)
 	MapBlock *block = getBlockNoCreateNoEx(getNodeBlockPos(p));
 	if(block != NULL) {
 		s16 value = block->heat;
-		// compatibility with minetest
-		if (value == HUMIDITY_UNDEFINED)
-			return 0;
 		return value + (no_random ? 0 : myrand_range(0, 1));
 	}
 	//errorstream << "No heat for " << p.X<<"," << p.Z << std::endl;
@@ -2517,9 +2518,6 @@ s16 Map::getHumidity(v3s16 p, bool no_random)
 	MapBlock *block = getBlockNoCreateNoEx(getNodeBlockPos(p));
 	if(block != NULL) {
 		s16 value = block->humidity;
-		// compatibility with minetest
-		if (value == HUMIDITY_UNDEFINED)
-			return 0;
 		return value + (no_random ? 0 : myrand_range(0, 1));
 	}
 	//errorstream << "No humidity for " << p.X<<"," << p.Z << std::endl;
@@ -2758,6 +2756,7 @@ bool ServerMap::initBlockMake(BlockMakeData *data, v3s16 blockpos)
 	v3s16 bigarea_blocks_max = blockpos_max + extra_borders;
 
 	data->vmanip = new ManualMapVoxelManipulator(this);
+	data->vmanip->replace_generated = 0;
 	//data->vmanip->setMap(this);
 
 	// Add the area
@@ -2765,7 +2764,7 @@ bool ServerMap::initBlockMake(BlockMakeData *data, v3s16 blockpos)
 		//TimeTaker timer("initBlockMake() initialEmerge");
 		data->vmanip->initialEmerge(bigarea_blocks_min, bigarea_blocks_max, false);
 	}
-	
+
 	// Ensure none of the blocks to be generated were marked as containing CONTENT_IGNORE
 /*	for (s16 z = blockpos_min.Z; z <= blockpos_max.Z; z++) {
 		for (s16 y = blockpos_min.Y; y <= blockpos_max.Y; y++) {
@@ -2785,7 +2784,7 @@ bool ServerMap::initBlockMake(BlockMakeData *data, v3s16 blockpos)
 	return true;
 }
 
-MapBlock* ServerMap::finishBlockMake(BlockMakeData *data,
+void ServerMap::finishBlockMake(BlockMakeData *data,
 		std::map<v3s16, MapBlock*> &changed_blocks)
 {
 	v3s16 blockpos_min = data->blockpos_min;
@@ -2882,7 +2881,7 @@ MapBlock* ServerMap::finishBlockMake(BlockMakeData *data,
 				y<=blockpos_max.Y+extra_borders.Y; y++)
 		{
 			v3s16 p(x, y, z);
-			MapBlock *block = getBlockNoCreateNoEx(p);
+			MapBlock * block = getBlockNoCreateNoEx(p);
 			if (block == NULL)
 				continue;
 			block->setLightingExpired(false);
@@ -2901,9 +2900,8 @@ MapBlock* ServerMap::finishBlockMake(BlockMakeData *data,
 			i != changed_blocks.end(); ++i)
 	{
 		MapBlock *block = i->second;
-		if (block == NULL)
+		if (!block)
 			continue;
-		assert(block);
 		/*
 			Update day/night difference cache of the MapBlocks
 		*/
@@ -2926,9 +2924,8 @@ MapBlock* ServerMap::finishBlockMake(BlockMakeData *data,
 	{
 		v3s16 p(x, y, z);
 		MapBlock *block = getBlockNoCreateNoEx(p);
-		if (block == NULL)
+		if (!block)
 			continue;
-		assert(block);
 		block->setGenerated(true);
 	}
 
@@ -2941,7 +2938,7 @@ MapBlock* ServerMap::finishBlockMake(BlockMakeData *data,
 	/*infostream<<"finishBlockMake() done for ("<<blockpos_requested.X
 			<<","<<blockpos_requested.Y<<","
 			<<blockpos_requested.Z<<")"<<std::endl;*/
-			
+
 	/*
 		Update weather data in blocks
 	*/
@@ -2951,7 +2948,7 @@ MapBlock* ServerMap::finishBlockMake(BlockMakeData *data,
 	for(s16 y=blockpos_min.Y-extra_borders.Y;y<=blockpos_max.Y+extra_borders.Y; y++) {
 		v3s16 p(x, y, z);
 		MapBlock *block = getBlockNoCreateNoEx(p);
-		if (block == NULL)
+		if (!block)
 			continue;
 		updateBlockHeat(senv, p * MAP_BLOCKSIZE, block);
 		updateBlockHumidity(senv, p * MAP_BLOCKSIZE, block);
@@ -2980,12 +2977,11 @@ MapBlock* ServerMap::finishBlockMake(BlockMakeData *data,
 	}
 #endif
 
-	MapBlock *block = getBlockNoCreateNoEx(blockpos_requested);
+	MapBlock * block = getBlockNoCreateNoEx(blockpos_requested);
 	if(!block) {
 		errorstream<<"finishBlockMake(): created NULL block at "<<PP(blockpos_requested)<<std::endl;
 	}
 
-	return block;
 }
 
 MapBlock * ServerMap::createBlock(v3s16 p)
@@ -3295,7 +3291,7 @@ void ServerMap::loadMapMeta()
 			break;
 		params.parseConfigLine(line);
 	}
-	
+
 	m_emerge->loadParamsFromSettings(&params);
 
 	verbosestream<<"ServerMap::loadMapMeta(): seed="
@@ -3574,6 +3570,7 @@ void MapVoxelManipulator::blitBack
 
 ManualMapVoxelManipulator::ManualMapVoxelManipulator(Map *map):
 		MapVoxelManipulator(map),
+		replace_generated(true),
 		m_create_area(false)
 {
 }
@@ -3606,6 +3603,7 @@ void ManualMapVoxelManipulator::initialEmerge(v3s16 blockpos_min,
 		infostream<<"initialEmerge: area: ";
 		block_area_nodes.print(infostream);
 		infostream<<" ("<<size_MB<<"MB)";
+		infostream<<" load_if_inexistent="<<load_if_inexistent;
 		infostream<<std::endl;
 	}
 
@@ -3641,7 +3639,7 @@ void ManualMapVoxelManipulator::initialEmerge(v3s16 blockpos_min,
 
 		if(block_data_inexistent)
 		{
-			
+
 			if (load_if_inexistent) {
 				ServerMap *svrmap = (ServerMap *)m_map;
 				block = svrmap->emergeBlock(p, false);
@@ -3651,7 +3649,7 @@ void ManualMapVoxelManipulator::initialEmerge(v3s16 blockpos_min,
 					block->copyTo(*this);
 			} else {
 				flags |= VMANIP_BLOCK_DATA_INEXIST;
-				
+
 				/*
 					Mark area inexistent
 				*/
@@ -3691,10 +3689,12 @@ void ManualMapVoxelManipulator::blitBackAll(
 		v3s16 p = i->first;
 		MapBlock *block = m_map->getBlockNoCreateNoEx(p);
 		bool existed = !(i->second & VMANIP_BLOCK_DATA_INEXIST);
-		if(!block || existed == false)
+		if((existed == false) || (block == NULL))
 		{
 			continue;
 		}
+		if (!replace_generated && block->isGenerated())
+			continue;
 
 		block->copyFrom(*this);
 
