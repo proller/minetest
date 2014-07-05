@@ -88,6 +88,7 @@ void Environment::addPlayer(Player *player)
 	m_players.push_back(player);
 }
 
+/*
 void Environment::removePlayer(u16 peer_id)
 {
 	DSTACK(__FUNCTION_NAME);
@@ -116,6 +117,7 @@ void Environment::removePlayer(const std::string &name)
 		}
 	}
 }
+*/
 
 Player * Environment::getPlayer(u16 peer_id)
 {
@@ -450,8 +452,17 @@ bool ServerEnvironment::line_of_sight(v3f pos1, v3f pos2, float stepsize, v3s16 
 
 void ServerEnvironment::saveLoadedPlayers()
 {
-	for (auto & player : m_players) {
+	auto i = m_players.begin();
+	while (i != m_players.end())
+	{
+		auto *player = *i;
 		savePlayer(player->getName());
+		if(!player->peer_id && !player->getPlayerSAO() && player->refs <= 0) {
+			delete player;
+			i = m_players.erase(i);
+		} else {
+			++i;
+		}
 	}
 }
 
@@ -1681,7 +1692,7 @@ u16 ServerEnvironment::addActiveObjectRaw(ServerActiveObject *object,
 		v3s16 blockpos = getNodeBlockPos(floatToInt(objectpos, BS));
 		MapBlock *block = m_map->emergeBlock(blockpos);
 		if(block){
-			block->m_static_objects.m_active[object->getId()] = s_obj;
+			block->m_static_objects.m_active.set(object->getId(), s_obj);
 			object->m_static_exists = true;
 			object->m_static_block = blockpos;
 
