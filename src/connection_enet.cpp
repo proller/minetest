@@ -126,7 +126,6 @@ void Connection::processCommand(ConnectionCommand &c)
 // Receive packets from the network and buffers and create ConnectionEvents
 void Connection::receive()
 {
-	JMutexAutoLock peerlock(m_peers_mutex);
 	if (!m_enet_host)
 		return;
 	ENetEvent event;
@@ -136,6 +135,7 @@ void Connection::receive()
 		{
 		case ENET_EVENT_TYPE_CONNECT:
 			{
+				JMutexAutoLock peerlock(m_peers_mutex);
 				u16 peer_id = PEER_ID_SERVER + 1;
 				if (m_peers.size() > 0)
 					// TODO: fix this shit
@@ -263,6 +263,10 @@ void Connection::send(u16 peer_id, u8 channelnum,
 	ENetPacket *packet = enet_packet_create(*data, data.getSize(), reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
 
 	ENetPeer *peer = getPeer(peer_id);
+	if(!peer) {
+		deletePeer(peer_id, false);
+		return;
+	}
 	enet_peer_send(peer, channelnum, packet);
 }
 

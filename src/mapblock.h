@@ -157,7 +157,7 @@ public:
 	void raiseModified(u32 mod)
 	{
 		if(mod >= MOD_STATE_WRITE_NEEDED && m_timestamp != BLOCK_TIMESTAMP_UNDEFINED) {
-			m_changed_timestamp = m_timestamp;
+			m_changed_timestamp = (unsigned int)m_timestamp;
 		}
 		if(mod > m_modified){
 			m_modified = mod;
@@ -299,26 +299,34 @@ public:
 				&& p.Z >= 0 && p.Z < MAP_BLOCKSIZE);
 	}
 
-	MapNode getNode(s16 x, s16 y, s16 z)
+	MapNode getNode(v3s16 p)
 	{
 		if(data == NULL)
 			throw InvalidPositionException();
-		if(x < 0 || x >= MAP_BLOCKSIZE) throw InvalidPositionException();
-		if(y < 0 || y >= MAP_BLOCKSIZE) throw InvalidPositionException();
-		if(z < 0 || z >= MAP_BLOCKSIZE) throw InvalidPositionException();
+		if(p.X < 0 || p.X >= MAP_BLOCKSIZE) throw InvalidPositionException();
+		if(p.Y < 0 || p.Y >= MAP_BLOCKSIZE) throw InvalidPositionException();
+		if(p.Z < 0 || p.Y >= MAP_BLOCKSIZE) throw InvalidPositionException();
 		auto lock = lock_shared_rec();
-		return data[z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + y*MAP_BLOCKSIZE + x];
+		return data[p.Z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + p.Y*MAP_BLOCKSIZE + p.X];
 	}
-	
-	MapNode getNode(v3s16 p)
+
+	MapNode getNodeNoLock(v3s16 p)
 	{
-		return getNode(p.X, p.Y, p.Z);
+		if(data == NULL)
+			return MapNode(CONTENT_IGNORE);
+		if(p.X < 0 || p.X >= MAP_BLOCKSIZE) throw InvalidPositionException();
+		if(p.Y < 0 || p.Y >= MAP_BLOCKSIZE) throw InvalidPositionException();
+		if(p.Z < 0 || p.Y >= MAP_BLOCKSIZE) throw InvalidPositionException();
+		auto lock = lock_shared_rec(std::chrono::milliseconds(1));
+		if (!lock->owns_lock())
+			return MapNode(CONTENT_IGNORE);
+		return data[p.Z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + p.Y*MAP_BLOCKSIZE + p.X];
 	}
 	
 	MapNode getNodeNoEx(v3s16 p)
 	{
 		try{
-			return getNode(p.X, p.Y, p.Z);
+			return getNode(p);
 		}catch(InvalidPositionException &e){
 			return MapNode(CONTENT_IGNORE);
 		}
@@ -378,8 +386,6 @@ public:
 	*/
 	bool isValidPositionParent(v3s16 p);
 	MapNode getNodeParent(v3s16 p);
-	void setNodeParent(v3s16 p, MapNode & n);
-	MapNode getNodeParentNoEx(v3s16 p);
 
 	void drawbox(s16 x0, s16 y0, s16 z0, s16 w, s16 h, s16 d, MapNode node)
 	{
@@ -458,10 +464,12 @@ public:
 	*/
 	void resetUsageTimer()
 	{
+		auto lock = lock_unique_rec();
 		m_usage_timer = 0;
 	}
 	u32 getUsageTimer()
 	{
+		auto lock = lock_shared_rec();
 		return m_usage_timer;
 	}
 	void incrementUsageTimer(float dtime);
@@ -560,8 +568,8 @@ public:
 	NodeTimerList m_node_timers;
 	StaticObjectList m_static_objects;
 	
-	s16 heat;
-	s16 humidity;
+	std::atomic_short heat;
+	std::atomic_short humidity;
 	u32 heat_last_update;
 	u32 humidity_last_update;
 	float m_uptime_timer_last;
@@ -616,11 +624,11 @@ private:
 		If this is false, lighting is exactly right.
 		If this is true, lighting might be wrong or right.
 	*/
-	bool m_lighting_expired;
+	std::atomic_bool m_lighting_expired;
 	
 	// Whether day and night lighting differs
 	bool m_day_night_differs;
-	bool m_day_night_differs_expired;
+	std::atomic_bool m_day_night_differs_expired;
 
 	bool m_generated;
 	
@@ -628,7 +636,7 @@ private:
 		When block is removed from active blocks, this is set to gametime.
 		Value BLOCK_TIMESTAMP_UNDEFINED=0xffffffff means there is no timestamp.
 	*/
-	u32 m_timestamp;
+	std::atomic_uint m_timestamp;
 	// The on-disk (or to-be on-disk) timestamp value
 	u32 m_disk_timestamp;
 

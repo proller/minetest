@@ -47,8 +47,6 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 MapBlock::MapBlock(Map *parent, v3s16 pos, IGameDef *gamedef, bool dummy):
-		heat(0),
-		humidity(0),
 		heat_last_update(0),
 		humidity_last_update(0),
 		m_uptime_timer_last(0),
@@ -59,14 +57,16 @@ MapBlock::MapBlock(Map *parent, v3s16 pos, IGameDef *gamedef, bool dummy):
 		is_underground(false),
 		m_lighting_expired(true),
 		m_day_night_differs(false),
-		m_day_night_differs_expired(true),
 		m_generated(false),
-		m_timestamp(BLOCK_TIMESTAMP_UNDEFINED),
 		m_disk_timestamp(BLOCK_TIMESTAMP_UNDEFINED),
 		m_usage_timer(0),
 		m_refcount(0)
 {
+	heat = 0;
+	humidity = 0;
+	m_timestamp = BLOCK_TIMESTAMP_UNDEFINED;
 	m_changed_timestamp = 0;
+	m_day_night_differs_expired = true;
 	data = NULL;
 	if(dummy == false)
 		reallocate();
@@ -104,51 +104,18 @@ MapNode MapBlock::getNodeParent(v3s16 p)
 {
 	if(isValidPosition(p) == false)
 	{
-		return m_parent->getNode(getPosRelative() + p);
+		auto n = m_parent->getNodeNoLock(getPosRelative() + p);
+		if (n.getContent() == CONTENT_IGNORE)
+			throw InvalidPositionException();
+		return n;
 	}
 	else
 	{
 		if(data == NULL)
 			throw InvalidPositionException();
-		auto lock = lock_shared_rec();
-		return data[p.Z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + p.Y*MAP_BLOCKSIZE + p.X];
-	}
-}
-
-void MapBlock::setNodeParent(v3s16 p, MapNode & n)
-{
-	if(isValidPosition(p) == false)
-	{
-		m_parent->setNode(getPosRelative() + p, n);
-	}
-	else
-	{
-		if(data == NULL)
+		auto lock = lock_shared_rec(std::chrono::milliseconds(1));
+		if (!lock->owns_lock())
 			throw InvalidPositionException();
-		auto lock = lock_unique_rec();
-		data[p.Z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + p.Y*MAP_BLOCKSIZE + p.X] = n;
-	}
-}
-
-MapNode MapBlock::getNodeParentNoEx(v3s16 p)
-{
-	if(isValidPosition(p) == false)
-	{
-		try{
-			return m_parent->getNode(getPosRelative() + p);
-		}
-		catch(InvalidPositionException &e)
-		{
-			return MapNode(CONTENT_IGNORE);
-		}
-	}
-	else
-	{
-		if(data == NULL)
-		{
-			return MapNode(CONTENT_IGNORE);
-		}
-		auto lock = lock_shared_rec();
 		return data[p.Z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + p.Y*MAP_BLOCKSIZE + p.X];
 	}
 }
@@ -384,6 +351,7 @@ void MapBlock::actuallyUpdateDayNightDiff()
 	/*
 		Check if any lighting value differs
 	*/
+	auto lock = lock_shared_rec();
 	for(u32 i=0; i<MAP_BLOCKSIZE*MAP_BLOCKSIZE*MAP_BLOCKSIZE; i++)
 	{
 		MapNode &n = data[i];
@@ -737,7 +705,7 @@ void MapBlock::deSerialize(std::istream &is, u8 version, bool disk)
 				<<": Timestamp"<<std::endl);
 		setTimestampNoChangedFlag(readU32(is));
 		m_disk_timestamp = m_timestamp;
-		m_changed_timestamp = m_timestamp != BLOCK_TIMESTAMP_UNDEFINED ? m_timestamp : 0;
+		m_changed_timestamp = (unsigned int)m_timestamp != BLOCK_TIMESTAMP_UNDEFINED ? (unsigned int)m_timestamp : 0;
 		
 		// Dynamically re-set ids based on node names
 		TRACESTREAM(<<"MapBlock::deSerialize "<<PP(getPos())
@@ -1049,6 +1017,7 @@ void MapBlock::deSerialize_pre22(std::istream &is, u8 version, bool disk)
 
 void MapBlock::incrementUsageTimer(float dtime)
 {
+	auto lock = lock_unique_rec();
 	m_usage_timer += dtime;
 /*
 #ifndef SERVER

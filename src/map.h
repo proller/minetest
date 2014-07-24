@@ -192,6 +192,7 @@ public:
 
 	// Returns a CONTENT_IGNORE node if not found
 	MapNode getNodeNoEx(v3s16 p);
+	MapNode getNodeNoLock(v3s16 p);
 
 	void unspreadLight(enum LightBank bank,
 			std::map<v3s16, u8> & from_nodes,
@@ -259,7 +260,7 @@ public:
 
 	// Server implements this.
 	// Client leaves it as no-op.
-	virtual void saveBlock(MapBlock *block){};
+	virtual bool saveBlock(MapBlock *block) { return false; };
 
 	/*
 		Updates usage timers and unloads unused blocks and sectors.
@@ -367,7 +368,7 @@ protected:
 	// Queued transforming water nodes
 public:
 	UniqueQueue<v3s16> m_transforming_liquid;
-	JMutex m_transforming_liquid_mutex;
+	//JMutex m_transforming_liquid_mutex;
 protected:
 	//JMutex m_update_lighting_mutex;
 };
@@ -453,8 +454,8 @@ public:
 	void saveMapMeta();
 	void loadMapMeta();
 
-
-	void saveBlock(MapBlock *block);
+	bool saveBlock(MapBlock *block, Database *db);
+	bool saveBlock(MapBlock *block);
 	MapBlock* loadBlock(v3s16 p);
 
 	// For debug printing
@@ -519,10 +520,11 @@ public:
 	{m_map = map;}
 
 	void initialEmerge(v3s16 blockpos_min, v3s16 blockpos_max,
-						bool load_if_inexistent = true);
+			bool load_if_inexistent = true);
 
 	// This is much faster with big chunks of generated data
-	void blitBackAll(std::map<v3s16, MapBlock*> * modified_blocks);
+	void blitBackAll(std::map<v3s16, MapBlock*> * modified_blocks,
+			bool overwrite_generated = true);
 
 	bool replace_generated;
 protected:
@@ -536,4 +538,3 @@ protected:
 };
 
 #endif
-

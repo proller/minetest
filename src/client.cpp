@@ -104,7 +104,8 @@ void MeshUpdateQueue::addBlock(v3s16 p, MeshMakeData *data, bool ack_block_to_se
 {
 	DSTACK(__FUNCTION_NAME);
 
-	assert(data);
+	if(!data)
+		return;
 
 	JMutexAutoLock lock(m_mutex);
 
@@ -958,8 +959,11 @@ void Client::ProcessData(u8 *data, u32 datasize, u16 sender_peer_id) {
 			block = new MapBlock(&m_env.getMap(), p, this);
 
 		block->deSerialize(istr, ser_version, false);
-		packet[TOCLIENT_BLOCKDATA_HEAT].convert(&block->heat);
-		packet[TOCLIENT_BLOCKDATA_HUMIDITY].convert(&block->humidity);
+		s32 h; // for convert to atomic
+		packet[TOCLIENT_BLOCKDATA_HEAT].convert(&h);
+		block->heat = h;
+		packet[TOCLIENT_BLOCKDATA_HUMIDITY].convert(&h);
+		block->humidity = h;
 
 		if (new_block)
 			m_env.getMap().insertBlock(block);
@@ -1122,7 +1126,7 @@ void Client::ProcessData(u8 *data, u32 datasize, u16 sender_peer_id) {
 
 		// Mesh update thread must be stopped while
 		// updating content definitions
-		assert(!m_mesh_update_thread.IsRunning());
+		//assert(!m_mesh_update_thread.IsRunning());
 
 		MediaAnnounceList announce_list;
 		packet[TOCLIENT_ANNOUNCE_MEDIA_LIST].convert(&announce_list);
@@ -1147,7 +1151,7 @@ void Client::ProcessData(u8 *data, u32 datasize, u16 sender_peer_id) {
 
 		// Mesh update thread must be stopped while
 		// updating content definitions
-		assert(!m_mesh_update_thread.IsRunning());
+		//assert(!m_mesh_update_thread.IsRunning());
 
 		for(size_t i = 0; i < media_data.size(); ++i)
 			m_media_downloader->conventionalTransferDone(
@@ -1160,7 +1164,7 @@ void Client::ProcessData(u8 *data, u32 datasize, u16 sender_peer_id) {
 
 		// Mesh update thread must be stopped while
 		// updating content definitions
-		assert(!m_mesh_update_thread.IsRunning());
+		//assert(!m_mesh_update_thread.IsRunning());
 
 		packet[TOCLIENT_NODEDEF_DEFINITIONS].convert(m_nodedef);
 		m_nodedef_received = true;
@@ -1172,7 +1176,7 @@ void Client::ProcessData(u8 *data, u32 datasize, u16 sender_peer_id) {
 
 		// Mesh update thread must be stopped while
 		// updating content definitions
-		assert(!m_mesh_update_thread.IsRunning());
+		//assert(!m_mesh_update_thread.IsRunning());
 
 		packet[TOCLIENT_ITEMDEF_DEFINITIONS].convert(m_itemdef);
 		m_itemdef_received = true;
@@ -1811,6 +1815,8 @@ void Client::addNode(v3s16 p, MapNode n, bool remove_metadata)
 	catch(InvalidPositionException &e)
 	{}
 	
+	addUpdateMeshTaskForNode(p, false, true);
+
 	for(std::map<v3s16, MapBlock * >::iterator
 			i = modified_blocks.begin();
 			i != modified_blocks.end(); ++i)
@@ -2130,9 +2136,9 @@ float Client::mediaReceiveProgress()
 void Client::afterContentReceived(IrrlichtDevice *device, gui::IGUIFont* font)
 {
 	infostream<<"Client::afterContentReceived() started"<<std::endl;
-	assert(m_itemdef_received);
-	assert(m_nodedef_received);
-	assert(mediaReceived());
+	//assert(m_itemdef_received);
+	//assert(m_nodedef_received);
+	//assert(mediaReceived());
 	
 
 	bool no_output = device->getVideoDriver()->getDriverType() == video::EDT_NULL;

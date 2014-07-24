@@ -28,6 +28,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "constants.h" // BS
 #include "json/json.h"
 #include <list>
+#include "util/lock.h"
 
 #define PLAYERNAME_SIZE 20
 
@@ -96,6 +97,7 @@ struct HudElement;
 class Environment;
 
 class Player
+: public locker
 {
 public:
 
@@ -110,11 +112,13 @@ public:
 
 	v3f getSpeed()
 	{
+		auto lock = lock_shared();
 		return m_speed;
 	}
 
 	void setSpeed(v3f speed)
 	{
+		auto lock = lock_unique();
 		m_speed = speed;
 	}
 	
@@ -123,6 +127,7 @@ public:
 
 	v3f getPosition()
 	{
+		auto lock = lock_shared();
 		return m_position;
 	}
 
@@ -141,41 +146,49 @@ public:
 
 	v3f getEyePosition()
 	{
+		auto lock = lock_shared();
 		return m_position + getEyeOffset();
 	}
 
 	virtual void setPosition(const v3f &position)
 	{
+		auto lock = lock_unique();
 		m_position = position;
 	}
 
 	void setPitch(f32 pitch)
 	{
+		auto lock = lock_unique();
 		m_pitch = pitch;
 	}
 
 	virtual void setYaw(f32 yaw)
 	{
+		auto lock = lock_unique();
 		m_yaw = yaw;
 	}
 
 	f32 getPitch()
 	{
+		auto lock = lock_shared();
 		return m_pitch;
 	}
 
 	f32 getYaw()
 	{
+		auto lock = lock_shared();
 		return m_yaw;
 	}
 
 	u16 getBreath()
 	{
+		auto lock = lock_shared();
 		return m_breath;
 	}
 
 	virtual void setBreath(u16 breath)
 	{
+		auto lock = lock_unique();
 		m_breath = breath;
 	}
 
@@ -275,7 +288,7 @@ public:
 	bool  free_move;
 	float movement_fov;
 
-	u16 peer_id;
+	std::atomic_short peer_id;
 
 	std::string inventory_formspec;
 	

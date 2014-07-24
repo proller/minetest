@@ -231,7 +231,6 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("max_clearobjects_extra_loaded_blocks", "4096");
 	settings->setDefault("time_send_interval", "5");
 	settings->setDefault("time_speed", "72");
-	settings->setDefault("year_days", "30");
 	settings->setDefault("server_unload_unused_data_timeout", "29");
 	settings->setDefault("max_objects_per_block", "49");
 	settings->setDefault("server_map_save_interval", "5.3");
@@ -284,6 +283,16 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("liquid_relax", "2");
 	settings->setDefault("liquid_fast_flood", "1");
 	settings->setDefault("weather", "true");
+	settings->setDefault("weather_heat_season", "30");
+	settings->setDefault("weather_heat_daily", "8");
+	settings->setDefault("weather_heat_width", "3000");
+	settings->setDefault("weather_hot_core", "1000");
+	settings->setDefault("weather_heat_height", "-333");
+	settings->setDefault("year_days", "30");
+	settings->setDefault("weather_humidity_season", "30");
+	settings->setDefault("weather_humidity_daily", "-12");
+	settings->setDefault("weather_humidity_width", "300");
+	settings->setDefault("weather_humidity_days", "2");
 
 	//mapgen stuff
 	settings->setDefault("mg_name", "v6");
@@ -309,6 +318,19 @@ void set_default_settings(Settings *settings)
 
 	settings->setDefault("language", "");
 
+	// gsmapper
+	settings->setDefault("hud_map", "false");
+	settings->setDefault("hud_map_back", "0,0,0");
+	settings->setDefault("hud_map_width", "128");
+	settings->setDefault("hud_map_height", "128");
+	settings->setDefault("hud_map_scale", "1.0");
+	settings->setDefault("hud_map_alpha", "192");
+	settings->setDefault("hud_map_above", "true");
+	settings->setDefault("hud_map_scan", "64");
+	settings->setDefault("hud_map_surface", "32");
+	settings->setDefault("hud_map_tracking", "false");
+	settings->setDefault("hud_map_border", "16");
+
 	// freeminer user-friendly defaults
 	settings->setDefault("pause_fps_max", "4");
 	settings->setDefault("enable_vbo", "true");
@@ -318,6 +340,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("max_users", "100");
 	settings->setDefault("server_map_save_interval", "300");
 	settings->setDefault("server_unload_unused_data_timeout", "610"); //more than client
+	settings->setDefault("save_generated_block", "true");
 	settings->setDefault("ignore_world_load_errors", "true");
 	settings->setDefault("active_block_range", "4");
 	settings->setDefault("max_block_send_distance", "30");
@@ -343,6 +366,13 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("farmesh_wanted", "500");
 	settings->setDefault("enable_any_name", "0"); //WARNING!!! SECURITY RISK WITH SOME MODULES
 	settings->setDefault("password_save", "1");
+
+#if defined(_WIN32)
+	settings->setDefault("more_threads", "false");
+#else
+	settings->setDefault("more_threads", "true");
+#endif
+
 
 #if !defined(_WIN32) && !CMAKE_USE_IPV4_DEFAULT && ENET_IPV6
 	settings->setDefault("ipv6_server", "true"); // problems on all windows versions (unable to play in local game)
@@ -399,6 +429,7 @@ void late_init_default_settings(Settings* settings)
 	settings->setDefault("mono_font_size", fontsize.str());
 	settings->setDefault("fallback_font_size", fontsize.str());
 #endif
+
 }
 
 void override_default_settings(Settings *settings, Settings *from)

@@ -52,13 +52,13 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #define PP(x) "("<<(x).X<<","<<(x).Y<<","<<(x).Z<<")"
 
 Environment::Environment():
-	m_time_of_day(9000),
 	m_time_of_day_f(9000./24000),
 	m_time_of_day_speed(0),
 	m_time_counter(0),
 	m_enable_day_night_ratio_override(false),
 	m_day_night_ratio_override(0.0f)
 {
+	m_time_of_day = 9000;
 }
 
 Environment::~Environment()
@@ -138,45 +138,6 @@ Player * Environment::getPlayer(const std::string &name)
 			return player;
 	}
 	return NULL;
-}
-
-Player * Environment::getRandomConnectedPlayer()
-{
-	std::list<Player*> connected_players = getPlayers(true);
-	u32 chosen_one = myrand() % connected_players.size();
-	u32 j = 0;
-	for(std::list<Player*>::iterator
-			i = connected_players.begin();
-			i != connected_players.end(); ++i)
-	{
-		if(j == chosen_one)
-		{
-			Player *player = *i;
-			return player;
-		}
-		j++;
-	}
-	return NULL;
-}
-
-Player * Environment::getNearestConnectedPlayer(v3f pos)
-{
-	std::list<Player*> connected_players = getPlayers(true);
-	f32 nearest_d = 0;
-	Player *nearest_player = NULL;
-	for(std::list<Player*>::iterator
-			i = connected_players.begin();
-			i != connected_players.end(); ++i)
-	{
-		Player *player = *i;
-		f32 d = player->getPosition().getDistanceFrom(pos);
-		if(d < nearest_d || nearest_player == NULL)
-		{
-			nearest_d = d;
-			nearest_player = player;
-		}
-	}
-	return nearest_player;
 }
 
 std::list<Player*> Environment::getPlayers()
@@ -373,11 +334,11 @@ ServerEnvironment::ServerEnvironment(ServerMap *map,
 	m_active_block_abm_dtime(0),
 	m_active_block_timer_last(0),
 	m_blocks_added_last(0),
-	m_game_time(0),
 	m_game_time_fraction_counter(0),
 	m_recommended_send_interval(0.1),
 	m_max_lag_estimate(0.1)
 {
+	m_game_time = 0;
 	m_use_weather = g_settings->getBool("weather");
 	try {
 		m_key_value_storage = new KeyValueStorage(path_world, "key_value_storage");
@@ -509,7 +470,7 @@ Player * ServerEnvironment::loadPlayer(const std::string &playername)
 
 	std::string players_path = m_path_world + DIR_DELIM "players" DIR_DELIM;
 
-	RemotePlayer testplayer(m_gamedef);
+	auto testplayer = new RemotePlayer(m_gamedef);
 	std::string path = players_path + playername;
 		// Open file and deserialize
 		std::ifstream is(path.c_str(), std::ios_base::binary);
@@ -517,17 +478,18 @@ Player * ServerEnvironment::loadPlayer(const std::string &playername)
 			return NULL;
 		}
 		try {
-		testplayer.deSerialize(is, path);
+		testplayer->deSerialize(is, path);
 		} catch (SerializationError e) {
 			errorstream<<e.what()<<std::endl;
 			return nullptr;
 		}
 		is.close();
-		if (testplayer.getName() == playername) {
-			*player = testplayer;
+		if (testplayer->getName() == playername) {
+			player = testplayer;
 			found = true;
 		}
 	if (!found) {
+		delete testplayer;
 		infostream << "Player file for player " << playername
 				<< " not found" << std::endl;
 		return NULL;
@@ -610,9 +572,9 @@ void ServerEnvironment::loadMeta()
 			float dtime_s, ServerEnvironment *env,
 			bool use_timers, bool activate = false):
 		m_env(env),
-		m_aabms(),
 		m_aabms_empty(true)
 	{
+		m_aabms.resize(CONTENT_ID_CAPACITY);
 		if(dtime_s < 0.001)
 			return;
 
@@ -699,6 +661,10 @@ void ServerEnvironment::loadMeta()
 		if(m_aabms_empty)
 			return;
 
+		auto lock = block->lock_unique_rec(std::chrono::milliseconds(1));
+		if (!lock->owns_lock())
+			return;
+
 		ScopeProfiler sp(g_profiler, "ABM apply", SPT_ADD);
 		ServerMap *map = &m_env->getServerMap();
 
@@ -735,7 +701,7 @@ void ServerEnvironment::loadMeta()
 					{
 						if(p1 == p)
 							continue;
-						MapNode n = map->getNodeNoEx(p1);
+						MapNode n = map->getNodeNoLock(p1);
 						content_t c = n.getContent();
 						if(required_neighbors.get(c)){
 							neighbor = n;
@@ -1324,8 +1290,9 @@ void ServerEnvironment::step(float dtime, float uptime, int max_cycle_ms)
 			if(block==NULL)
 				continue;
 
-			auto lock = block->lock_unique_rec();
-
+			auto lock = block->lock_unique_rec(std::chrono::milliseconds(1));
+			if (!lock->owns_lock())
+				continue;
 			// Set current time as timestamp
 			block->setTimestampNoChangedFlag(m_game_time);
 

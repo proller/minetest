@@ -100,7 +100,7 @@ Map::~Map()
 	for(auto &i : m_blocks_delete_2)
 		delete i.first;
 
-	auto lock = m_blocks.lock_unique();
+	auto lock = m_blocks.lock_unique_rec();
 	for(auto &i : m_blocks) {
 
 #ifndef SERVER
@@ -167,6 +167,19 @@ MapNode Map::getNodeNoEx(v3s16 p)
 	v3s16 blockpos = getNodeBlockPos(p);
 	MapBlock *block = getBlockNoCreateNoEx(blockpos);
 	if(block == NULL)
+		return MapNode(CONTENT_IGNORE);
+	v3s16 relpos = p - blockpos*MAP_BLOCKSIZE;
+	return block->getNodeNoCheck(relpos);
+}
+
+MapNode Map::getNodeNoLock(v3s16 p)
+{
+	v3s16 blockpos = getNodeBlockPos(p);
+	MapBlock *block = getBlockNoCreateNoEx(blockpos);
+	if(block == NULL)
+		return MapNode(CONTENT_IGNORE);
+	auto lock = block->lock_shared_rec(std::chrono::milliseconds(1));
+	if (!lock->owns_lock())
 		return MapNode(CONTENT_IGNORE);
 	v3s16 relpos = p - blockpos*MAP_BLOCKSIZE;
 	return block->getNodeNoCheck(relpos);
@@ -458,13 +471,17 @@ void Map::spreadLight(enum LightBank bank,
 		if(block->isDummy())
 			continue;
 
-		auto lock = block->lock_unique_rec();
+		//auto lock = block->lock_unique_rec(std::chrono::milliseconds(1));
+		//if (!lock->owns_lock())
+		//	continue;
 
 		// Calculate relative position in block
 		v3s16 relpos = pos - blockpos_last * MAP_BLOCKSIZE;
 
 		// Get node straight from the block
-		MapNode n = block->getNode(relpos);
+		MapNode n = block->getNodeNoLock(relpos);
+		if (n.getContent() == CONTENT_IGNORE)
+			continue;
 
 		u8 oldlight = n.getLight(bank, nodemgr);
 		u8 newlight = diminish_light(oldlight);
@@ -497,7 +514,9 @@ void Map::spreadLight(enum LightBank bank,
 				// Calculate relative position in block
 				v3s16 relpos = n2pos - blockpos * MAP_BLOCKSIZE;
 				// Get node straight from the block
-				MapNode n2 = block->getNode(relpos);
+				MapNode n2 = block->getNodeNoLock(relpos);
+				if (n2.getContent() == CONTENT_IGNORE)
+					continue;
 
 				bool changed = false;
 				/*
@@ -712,8 +731,9 @@ u32 Map::updateLighting(enum LightBank bank,
 			if(block->isDummy())
 				break;
 
-			auto lock = block->lock_unique_rec();
-
+			//auto lock = block->lock_unique_rec(std::chrono::milliseconds(1));
+			//if (!lock->owns_lock())
+			//	break;
 			v3s16 pos = block->getPos();
 			v3s16 posnodes = block->getPosRelative();
 			modified_blocks[pos] = block;
@@ -1491,8 +1511,11 @@ u32 Map::timerUpdate(float uptime, float unload_timeout,
 	u32 n = 0, calls = 0, end_ms = porting::getTimeMs() + max_cycle_ms;
 
 	std::vector<MapBlock *> blocks_delete;
+	int save_started = 0;
 	{
-	auto lock = m_blocks.lock_shared();
+	auto lock = m_blocks.lock_shared_rec(std::chrono::milliseconds(1));
+	if (!lock->owns_lock())
+		return m_blocks_update_last;
 	for(auto ir : m_blocks) {
 		if (n++ < m_blocks_update_last) {
 			continue;
@@ -1507,20 +1530,21 @@ u32 Map::timerUpdate(float uptime, float unload_timeout,
 			continue;
 
 		{
-			auto lock = block->lock_unique_rec();
-
+			auto lock = block->lock_unique_rec(std::chrono::milliseconds(1));
+			if (!lock->owns_lock())
+				continue;
 			if(block->refGet() == 0 && block->getUsageTimer() > unload_timeout)
 			{
 				v3s16 p = block->getPos();
 				//infostream<<" deleting block p="<<p<<" ustimer="<<block->getUsageTimer() <<" to="<< unload_timeout<<" inc="<<(uptime - block->m_uptime_timer_last)<<" state="<<block->getModified()<<std::endl;
 				// Save if modified
-				if(block->getModified() != MOD_STATE_CLEAN
-						&& save_before_unloading)
+				if (block->getModified() != MOD_STATE_CLEAN && save_before_unloading)
 				{
 					//modprofiler.add(block->getModifiedReason(), 1);
-					beginSave();
-					saveBlock(block);
-					endSave();
+					if(!save_started++)
+						beginSave();
+					if (!saveBlock(block))
+						continue;
 					saved_blocks_count++;
 				}
 
@@ -1562,6 +1586,8 @@ u32 Map::timerUpdate(float uptime, float unload_timeout,
 
 	}
 	}
+	if(save_started)
+		endSave();
 
 	if (!calls)
 		m_blocks_update_last = 0;
@@ -1624,7 +1650,7 @@ struct NodeNeighbor {
 };
 
 void Map::transforming_liquid_push_back(v3s16 & p) {
-	JMutexAutoLock lock(m_transforming_liquid_mutex);
+	//JMutexAutoLock lock(m_transforming_liquid_mutex);
 	m_transforming_liquid.push_back(p);
 }
 
@@ -1701,7 +1727,7 @@ u32 Map::transformLiquidsFinite(Server *m_server, std::map<v3s16, MapBlock*> & m
 		*/
 		v3s16 p0;
 		{
-			JMutexAutoLock lock(m_transforming_liquid_mutex);
+			//JMutexAutoLock lock(m_transforming_liquid_mutex);
 			p0 = m_transforming_liquid.pop_front();
 		}
 		u16 total_level = 0;
@@ -2080,7 +2106,7 @@ u32 Map::transformLiquidsFinite(Server *m_server, std::map<v3s16, MapBlock*> & m
 		<<" ret="<<ret<<std::endl;
 	*/
 
-	JMutexAutoLock lock(m_transforming_liquid_mutex);
+	//JMutexAutoLock lock(m_transforming_liquid_mutex);
 
 	while (must_reflow.size() > 0)
 		m_transforming_liquid.push_back(must_reflow.pop_front());
@@ -2106,7 +2132,7 @@ u32 Map::transformLiquids(Server *m_server, std::map<v3s16, MapBlock*> & modifie
 	DSTACK(__FUNCTION_NAME);
 	//TimeTaker timer("transformLiquids()");
 
-	JMutexAutoLock lock(m_transforming_liquid_mutex);
+	//JMutexAutoLock lock(m_transforming_liquid_mutex);
 
 	u32 loopcount = 0;
 	u32 initial_size = m_transforming_liquid.size();
@@ -2821,7 +2847,7 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 	{
 		// 70ms @cs=8
 		//TimeTaker timer("finishBlockMake() blitBackAll");
-		data->vmanip->blitBackAll(&changed_blocks);
+		data->vmanip->blitBackAll(&changed_blocks, false);
 	}
 
 	EMERGE_DBG_OUT("finishBlockMake: changed_blocks.size()=" << changed_blocks.size());
@@ -2830,7 +2856,7 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 		Copy transforming liquid information
 	*/
 	{
-	JMutexAutoLock lock(m_transforming_liquid_mutex);
+	//JMutexAutoLock lock(m_transforming_liquid_mutex);
 	while(data->transforming_liquid.size() > 0)
 	{
 		v3s16 p = data->transforming_liquid.pop_front();
@@ -2909,10 +2935,11 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 		/*
 			Set block as modified
 		*/
-/*
+
+		if (g_settings->getBool("save_generated_block"))
 		block->raiseModified(MOD_STATE_WRITE_NEEDED,
 				"finishBlockMake expireDayNightDiff");
-*/
+
 	}
 
 	/*
@@ -3153,7 +3180,10 @@ s32 ServerMap::save(ModifiedState save_level, bool breakable)
 		m_blocks_save_last = 0;
 
 	{
-		auto lock = m_blocks.lock_shared();
+		auto lock = breakable ? m_blocks.lock_shared_rec(std::chrono::milliseconds(1)) : m_blocks.lock_shared_rec();
+		if (!lock->owns_lock())
+			return m_blocks_save_last;
+
 		for(auto &jr : m_blocks)
 		{
 			if (n++ < m_blocks_save_last)
@@ -3167,6 +3197,7 @@ s32 ServerMap::save(ModifiedState save_level, bool breakable)
 			if (!block)
 				continue;
 
+
 			block_count_all++;
 
 			if(block->getModified() >= (u32)save_level)
@@ -3178,6 +3209,9 @@ s32 ServerMap::save(ModifiedState save_level, bool breakable)
 				}
 
 				//modprofiler.add(block->getModifiedReason(), 1);
+				auto lock = breakable ? block->lock_unique_rec(std::chrono::milliseconds(1)) : block->lock_unique_rec();
+				if (!lock->owns_lock())
+					continue;
 
 				saveBlock(block);
 				block_count++;
@@ -3226,7 +3260,7 @@ void ServerMap::listAllLoadableBlocks(std::list<v3s16> &dst)
 
 void ServerMap::listAllLoadedBlocks(std::list<v3s16> &dst)
 {
-	auto lock = m_blocks.lock_shared();
+	auto lock = m_blocks.lock_shared_rec();
 	for(auto & i : m_blocks)
 		dst.push_back(i.second->getPos());
 }
@@ -3298,25 +3332,116 @@ void ServerMap::loadMapMeta()
 		<< m_emerge->params.seed<<std::endl;
 }
 
-void ServerMap::beginSave() {
+void ServerMap::beginSave()
+{
 	dbase->beginSave();
 }
 
-void ServerMap::endSave() {
+void ServerMap::endSave()
+{
 	dbase->endSave();
 }
 
-void ServerMap::saveBlock(MapBlock *block)
+bool ServerMap::saveBlock(MapBlock *block)
 {
-  auto lock = block->lock_shared_rec();
-  dbase->saveBlock(block);
+	return saveBlock(block, dbase);
 }
 
-MapBlock* ServerMap::loadBlock(v3s16 blockpos)
+bool ServerMap::saveBlock(MapBlock *block, Database *db)
+{
+	v3s16 p3d = block->getPos();
+
+	// Dummy blocks are not written
+	if (block->isDummy()) {
+		errorstream << "WARNING: saveBlock: Not writing dummy block "
+			<< PP(p3d) << std::endl;
+		return true;
+	}
+
+	// Format used for writing
+	u8 version = SER_FMT_VER_HIGHEST_WRITE;
+
+	/*
+		[0] u8 serialization version
+		[1] data
+	*/
+	std::ostringstream o(std::ios_base::binary);
+	o.write((char*) &version, 1);
+	block->serialize(o, version, true);
+
+	std::string data = o.str();
+	bool ret = db->saveBlock(p3d, data);
+	if(ret) {
+		// We just wrote it to the disk so clear modified flag
+		block->resetModified();
+	}
+	return ret;
+}
+
+MapBlock * ServerMap::loadBlock(v3s16 p3d)
 {
 	DSTACK(__FUNCTION_NAME);
 
-	return dbase->loadBlock(blockpos);
+	const auto sector = this;
+	auto blob = dbase->loadBlock(p3d);
+	if(!blob.length())
+		return nullptr;
+
+	try {
+		std::istringstream is(blob, std::ios_base::binary);
+
+		u8 version = SER_FMT_VER_INVALID;
+		is.read((char*)&version, 1);
+
+		if(is.fail())
+			throw SerializationError("ServerMap::loadBlock(): Failed"
+					" to read MapBlock version");
+
+		/*u32 block_size = MapBlock::serializedLength(version);
+		SharedBuffer<u8> data(block_size);
+		is.read((char*)*data, block_size);*/
+
+		// This will always return a sector because we're the server
+		//MapSector *sector = emergeSector(p2d);
+
+		MapBlock *block = NULL;
+		bool created_new = false;
+		block = sector->getBlockNoCreateNoEx(p3d);
+		if(block == NULL)
+		{
+			block = sector->createBlankBlockNoInsert(p3d);
+			created_new = true;
+		}
+
+		// Read basic data
+		block->deSerialize(is, version, true);
+
+		// If it's a new block, insert it to the map
+		if(created_new)
+			sector->insertBlock(block);
+
+		// We just loaded it from, so it's up-to-date.
+		block->resetModified();
+		return block;
+	}
+	catch(SerializationError &e)
+	{
+		errorstream<<"Invalid block data in database"
+				<<" ("<<p3d.X<<","<<p3d.Y<<","<<p3d.Z<<")"
+				<<" (SerializationError): "<<e.what()<<std::endl;
+
+		// TODO: Block should be marked as invalid in memory so that it is
+		// not touched but the game can run
+
+		if(g_settings->getBool("ignore_world_load_errors")){
+			errorstream<<"Ignoring block load error. Duck and cover! "
+					<<"(ignore_world_load_errors)"<<std::endl;
+		} else {
+			throw SerializationError("Invalid block data in database");
+			//assert(0);
+		}
+	}
+	return nullptr;
 }
 
 void ServerMap::PrintInfo(std::ostream &out)
@@ -3412,8 +3537,8 @@ int ServerMap::getSurface(v3s16 basepos, int searchup, bool walkable_only) {
 
 ManualMapVoxelManipulator::ManualMapVoxelManipulator(Map *map):
 		VoxelManipulator(),
-		m_create_area(false),
 		replace_generated(true),
+		m_create_area(false),
 		m_map(map)
 {
 }
@@ -3425,7 +3550,7 @@ ManualMapVoxelManipulator::~ManualMapVoxelManipulator()
 void ManualMapVoxelManipulator::initialEmerge(v3s16 blockpos_min,
 						v3s16 blockpos_max, bool load_if_inexistent)
 {
-	TimeTaker timer1("initialEmerge", &emerge_time);
+	TimeTaker timer1("initialEmerge");
 
 	// Units of these are MapBlocks
 	v3s16 p_min = blockpos_min;
@@ -3461,7 +3586,7 @@ void ManualMapVoxelManipulator::initialEmerge(v3s16 blockpos_min,
 		bool block_data_inexistent = false;
 		try
 		{
-			TimeTaker timer1("emerge load", &emerge_load_time);
+			TimeTaker timer1("emerge load");
 
 			block = m_map->getBlockNoCreate(p);
 			if(block->isDummy())
@@ -3511,7 +3636,8 @@ void ManualMapVoxelManipulator::initialEmerge(v3s16 blockpos_min,
 }
 
 void ManualMapVoxelManipulator::blitBackAll(
-		std::map<v3s16, MapBlock*> * modified_blocks)
+		std::map<v3s16, MapBlock*> *modified_blocks,
+		bool overwrite_generated)
 {
 	if(m_area.getExtent() == v3s16(0,0,0))
 		return;
@@ -3526,11 +3652,10 @@ void ManualMapVoxelManipulator::blitBackAll(
 		v3s16 p = i->first;
 		MapBlock *block = m_map->getBlockNoCreateNoEx(p);
 		bool existed = !(i->second & VMANIP_BLOCK_DATA_INEXIST);
-		if((existed == false) || (block == NULL))
-		{
+		if ((existed == false) || (block == NULL) ||
+			(overwrite_generated == false && block->isGenerated() == true))
 			continue;
-		}
-		if (!replace_generated && block->isGenerated())
+		if (!replace_generated && block->isGenerated()) // todo: remove replace_generated
 			continue;
 
 		block->copyFrom(*this);

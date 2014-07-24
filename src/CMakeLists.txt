@@ -30,8 +30,6 @@ if(MSVC)
 	# Flags for C files (sqlite)
 	# /MT = Link statically with standard library stuff
 	set(CMAKE_C_FLAGS_RELEASE "/O2 /Ob2 /MT")
-
-	target_link_libraries(${PROJECT_NAME} shlwapi.lib)
 else()
 	# Probably GCC
 	if(APPLE)
@@ -60,8 +58,11 @@ else()
 	if(SANITIZE_ADDRESS)
 		set(OTHER_FLAGS "${OTHER_FLAGS} -fsanitize=address")
 	endif()
-	if (SANITIZE_THREAD)
+	if(SANITIZE_THREAD)
 		set(OTHER_FLAGS "${OTHER_FLAGS} -fsanitize=thread -fPIE")
+		if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+			set(OTHER_FLAGS "${OTHER_FLAGS} -pie")
+		endif()
 	endif()
 
 	if(ENABLE_CXX1Y)
@@ -491,6 +492,7 @@ set(common_SRCS
 	content_sao.cpp
 	emerge.cpp
 	mapgen.cpp
+	mapgen_v5.cpp
 	mapgen_v6.cpp
 	mapgen_v7.cpp
 	mapgen_indev.cpp
@@ -605,6 +607,7 @@ set(minetest_SRCS
 	convert_json.cpp
 	FMColoredString.cpp
 	drawscene.cpp
+	gsmapper.cpp
 	${minetest_SCRIPT_SRCS}
 	intlGUIEditBox.cpp
 	FMStaticText.cpp
@@ -710,6 +713,10 @@ if(BUILD_CLIENT)
 	if (USE_REDIS)
 		target_link_libraries(${PROJECT_NAME} ${REDIS_LIBRARY})
 	endif(USE_REDIS)
+
+	if(MSVC)
+		target_link_libraries(${PROJECT_NAME} shlwapi.lib)
+	endif()
 endif(BUILD_CLIENT)
 
 if(BUILD_SERVER)

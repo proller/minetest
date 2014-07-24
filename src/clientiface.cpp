@@ -59,7 +59,7 @@ std::string ClientInterface::state2Name(ClientState state)
 }
 
 
-void RemoteClient::GetNextBlocks(
+int RemoteClient::GetNextBlocks(
 		ServerEnvironment *env,
 		EmergeManager * emerge,
 		float dtime,
@@ -73,17 +73,17 @@ void RemoteClient::GetNextBlocks(
 	m_nearest_unsent_reset_timer += dtime;
 
 	if(m_nothing_to_send_pause_timer >= 0)
-		return;
+		return 0;
 
 	Player *player = env->getPlayer(peer_id);
 	// This can happen sometimes; clients and players are not in perfect sync.
 	if(player == NULL)
-		return;
+		return 0;
 
 	v3f playerpos = player->getPosition();
 	v3f playerspeed = player->getSpeed();
 	if(playerspeed.getLength() > 1000.0*BS) //cheater or bug, ignore him
-		return;
+		return 0;
 	v3f playerspeeddir(0,0,0);
 	if(playerspeed.getLength() > 1.0*BS)
 		playerspeeddir = playerspeed / playerspeed.getLength();
@@ -309,7 +309,8 @@ void RemoteClient::GetNextBlocks(
 				Don't send already sent blocks
 			*/
 			{
-				if(m_blocks_sent.find(p) != m_blocks_sent.end() && m_blocks_sent[p] > 0 && m_blocks_sent[p] + (d <= 2 ? 1 : d*d*d) > m_uptime) {
+				auto lock = m_blocks_sent.lock_shared_rec();
+				if(m_blocks_sent.find(p) != m_blocks_sent.end() && m_blocks_sent.get(p) > 0 && m_blocks_sent.get(p) + (d <= 2 ? 1 : d*d*d) > m_uptime) {
 					continue;
 				}
 			}
@@ -324,8 +325,11 @@ void RemoteClient::GetNextBlocks(
 			if(block != NULL)
 			{
 
-				if (m_blocks_sent[p] > 0 && m_blocks_sent[p] >= block->m_changed_timestamp) {
+				{
+				auto lock = m_blocks_sent.lock_shared_rec();
+				if (m_blocks_sent.get(p) > 0 && m_blocks_sent.get(p) >= block->m_changed_timestamp) {
 					continue;
+				}
 				}
 
 				// Reset usage timer, this block will be of use in the future.
@@ -442,11 +446,12 @@ queue_full_break:
 
 	if(new_nearest_unsent_d != -1)
 		m_nearest_unsent_d = new_nearest_unsent_d;
+	return num_blocks_selected - num_blocks_sending;
 }
 
 void RemoteClient::SentBlock(v3s16 p, double time)
 {
-	m_blocks_sent[p] = time;
+	m_blocks_sent.set(p, time);
 }
 
 void RemoteClient::SetBlockNotSent(v3s16 p)
@@ -797,7 +802,7 @@ void ClientInterface::DeleteClient(u16 peer_id)
 	}
 
 	// Delete client
-	delete m_clients[peer_id];
+	delete m_clients.get(peer_id);
 	m_clients.erase(peer_id);
 }
 
@@ -814,7 +819,7 @@ void ClientInterface::CreateClient(u16 peer_id)
 	// Create client
 	RemoteClient *client = new RemoteClient(m_env);
 	client->peer_id = peer_id;
-	m_clients[client->peer_id] = client;
+	m_clients.set(client->peer_id, client);
 }
 
 void ClientInterface::event(u16 peer_id, ClientStateEvent event)

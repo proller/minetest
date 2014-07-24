@@ -147,9 +147,9 @@ public:
 		while(!StopRequested()) {
 			//infostream<<"S run d="<<m_server->m_step_dtime<< " myt="<<(porting::getTimeMs() - time)/1000.0f<<std::endl;
 			try {
-				m_server->SendBlocks((porting::getTimeMs() - time)/1000.0f);
+				int sent = m_server->SendBlocks((porting::getTimeMs() - time)/1000.0f);
 				time = porting::getTimeMs();
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				std::this_thread::sleep_for(std::chrono::milliseconds(sent ? 5 : 100));
 #ifdef NDEBUG
 			} catch (BaseException &e) {
 				errorstream<<"SendBlocksThread: exception: "<<e.what()<<std::endl;
@@ -320,6 +320,7 @@ Server::Server(
 
 	m_step_dtime = 0.0;
 	m_lag = g_settings->getFloat("dedicated_server_step");
+	more_threads = g_settings->getBool("more_threads");
 
 	if(path_world == "")
 		throw ServerError("Supplied empty world path");
@@ -348,9 +349,10 @@ Server::Server(
 	// Create emerge manager
 	m_emerge = new EmergeManager(this);
 
-	m_map_thread = new MapThread(this);
-	m_sendblocks = new SendBlocksThread(this);
-	
+	if (more_threads) {
+		m_map_thread = new MapThread(this);
+		m_sendblocks = new SendBlocksThread(this);
+	}
 
 	// Create world if it doesn't exist
 	if(!initializeWorld(m_path_world, m_gamespec.id))
@@ -517,8 +519,10 @@ Server::~Server()
 	stop();
 	delete m_thread;
 
-	delete m_sendblocks;
-	delete m_map_thread;
+	if (m_sendblocks)
+		delete m_sendblocks;
+	if (m_map_thread)
+		delete m_map_thread;
 
 	// stop all emerge threads before deleting players that may have
 	// requested blocks to be emerged
@@ -558,16 +562,20 @@ void Server::start(Address bind_addr)
 
 	// Stop thread if already running
 	m_thread->Stop();
-	m_sendblocks->Stop();
-	m_map_thread->Stop();
+	if (m_sendblocks)
+		m_sendblocks->Stop();
+	if (m_map_thread)
+		m_map_thread->Stop();
 	
 	// Initialize connection
 	m_con.Serve(bind_addr.getPort());
 
 	// Start thread
 	m_thread->Start();
-	m_map_thread->Start();
-	m_sendblocks->Start();
+	if (m_map_thread)
+		m_map_thread->Start();
+	if (m_sendblocks)
+		m_sendblocks->Start();
 
 	actionstream << "\033[1mfree\033[1;33mminer \033[1;36mv" << minetest_version_hash << "\033[0m \t"
 #ifndef NDEBUG
@@ -595,10 +603,14 @@ void Server::stop()
 	//m_emergethread.setRun(false);
 	m_thread->Wait();
 	//m_emergethread.stop();
-	m_sendblocks->Stop();
-	m_sendblocks->Wait();
-	m_map_thread->Stop();
-	m_map_thread->Wait();
+	if (m_sendblocks) {
+		m_sendblocks->Stop();
+		m_sendblocks->Wait();
+	}
+	if (m_map_thread) {
+		m_map_thread->Stop();
+		m_map_thread->Wait();
+	}
 
 	infostream<<"Server: Threads stopped"<<std::endl;
 }
@@ -633,10 +645,11 @@ void Server::AsyncRunStep(bool initial_step)
 		dtime = m_step_dtime;
 	}
 
+	if (!more_threads)
 	{
 		TimeTaker timer_step("Server step: SendBlocks");
 		// Send blocks to clients
-		//SendBlocks(dtime);
+		SendBlocks(dtime);
 	}
 
 	if((dtime < 0.001) && (initial_step == false))
@@ -771,6 +784,9 @@ void Server::AsyncRunStep(bool initial_step)
 		}
 	}
 
+	if (!more_threads)
+		AsyncRunMapStep();
+
 	m_clients.step(dtime);
 
 	m_lag += (m_lag > dtime ? -1 : 1) * dtime/100;
@@ -803,7 +819,7 @@ void Server::AsyncRunStep(bool initial_step)
 		JMutexAutoLock envlock(m_env_mutex);
 
 		m_clients.Lock();
-		std::map<u16, RemoteClient*> clients = m_clients.getClientList();
+		auto & clients = m_clients.getClientList();
 		ScopeProfiler sp(g_profiler, "Server: checking added and deleted objs");
 
 		// Radius inside which objects are active
@@ -811,7 +827,7 @@ void Server::AsyncRunStep(bool initial_step)
 		radius *= MAP_BLOCKSIZE;
 		s16 radius_deactivate = radius*3;
 
-		for(std::map<u16, RemoteClient*>::iterator
+		for(auto
 			i = clients.begin();
 			i != clients.end(); ++i)
 		{
@@ -946,9 +962,9 @@ void Server::AsyncRunStep(bool initial_step)
 		}
 
 		m_clients.Lock();
-		std::map<u16, RemoteClient*> clients = m_clients.getClientList();
+		auto & clients = m_clients.getClientList();
 		// Route data to every client
-		for(std::map<u16, RemoteClient*>::iterator
+		for(auto
 			i = clients.begin();
 			i != clients.end(); ++i)
 		{
@@ -1226,7 +1242,7 @@ int Server::AsyncRunMapStep(bool initial_step) {
 			goto no_send;
 		}
 
-		for (std::map<u16, RemoteClient*>::iterator i = m_clients.getClientList().begin(); i != m_clients.getClientList().end(); ++i)
+		for (auto i = m_clients.getClientList().begin(); i != m_clients.getClientList().end(); ++i)
 			if (i->second->m_nearest_unsent_nearest) {
 				i->second->m_nearest_unsent_d = 0;
 				i->second->m_nearest_unsent_nearest = 0;
@@ -1837,13 +1853,19 @@ void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
 		// If failed, cancel
 		if (playersao == NULL) {
 			errorstream
-				<< "TOSERVER_CLIENT_READY stage 2 client init failed for peer "
+				<< "TOSERVER_CLIENT_READY stage 2 client init failed for peer_id: "
 				<< peer_id << std::endl;
+			m_con.DisconnectPeer(peer_id);
 			return;
 		}
 
-		if(datasize < 2+8)
+		if(datasize < 2+8) {
+			errorstream
+				<< "TOSERVER_CLIENT_READY client sent inconsistent data, disconnecting peer_id: "
+				<< peer_id << std::endl;
+			m_con.DisconnectPeer(peer_id);
 			return;
+		}
 
 		m_clients.setClientVersion(
 				peer_id,
@@ -3540,8 +3562,8 @@ void Server::SendBlockNoLock(u16 peer_id, MapBlock *block, u8 ver, u16 net_proto
 	block->serialize(os, ver, false);
 	PACK(TOCLIENT_BLOCKDATA_DATA, os.str());
 
-	PACK(TOCLIENT_BLOCKDATA_HEAT, block->heat);
-	PACK(TOCLIENT_BLOCKDATA_HUMIDITY, block->humidity);
+	PACK(TOCLIENT_BLOCKDATA_HEAT, (s16)block->heat);
+	PACK(TOCLIENT_BLOCKDATA_HUMIDITY, (s16)block->humidity);
 
 	JMutexAutoLock lock(m_env_mutex);
 	/*
@@ -3550,7 +3572,7 @@ void Server::SendBlockNoLock(u16 peer_id, MapBlock *block, u8 ver, u16 net_proto
 	m_clients.send(peer_id, 2, buffer, reliable);
 }
 
-void Server::SendBlocks(float dtime)
+int Server::SendBlocks(float dtime)
 {
 	DSTACK(__FUNCTION_NAME);
 	//TimeTaker timer("SendBlocks inside");
@@ -3559,6 +3581,8 @@ void Server::SendBlocks(float dtime)
 	//TODO check if one big lock could be faster then multiple small ones
 
 	//ScopeProfiler sp(g_profiler, "Server: sel and send blocks to clients");
+
+	int total = 0;
 
 	std::vector<PrioritySortedBlockTransfer> queue;
 
@@ -3574,10 +3598,10 @@ void Server::SendBlocks(float dtime)
 		{
 			RemoteClient *client = m_clients.lockedGetClientNoEx(*i, CS_Active);
 
-			if (client == NULL)
-				return;
+			if (!client)
+				continue;
 
-			client->GetNextBlocks(m_env,m_emerge, dtime, m_uptime.get() + m_env->m_game_time_start, queue);
+			total += client->GetNextBlocks(m_env,m_emerge, dtime, m_uptime.get() + m_env->m_game_time_start, queue);
 		}
 		//m_clients.Unlock();
 	}
@@ -3613,8 +3637,10 @@ void Server::SendBlocks(float dtime)
 		SendBlockNoLock(q.peer_id, block, client->serialization_version, client->net_proto_version, 1);
 
 		client->SentBlock(q.pos, m_uptime.get() + m_env->m_game_time_start);
+		++total;
 	}
 	//m_clients.Unlock();
+	return total;
 }
 
 void Server::fillMediaCache()

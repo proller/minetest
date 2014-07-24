@@ -86,6 +86,7 @@ GUIFormSpecMenu::GUIFormSpecMenu(irr::IrrlichtDevice* dev,
 	m_selected_amount(0),
 	m_selected_dragging(false),
 	m_tooltip_element(NULL),
+	m_old_tooltip_id(-1),
 	m_allowclose(true),
 	m_lock(false),
 	m_form_src(fsrc),
@@ -457,6 +458,7 @@ void GUIFormSpecMenu::parseCheckbox(parserData* data,std::string element)
 			);
 
 		spec.ftype = f_CheckBox;
+
 		gui::IGUICheckBox* e = Environment->addCheckBox(fselected, rect, this,
 					spec.fid, spec.flabel.c_str());
 
@@ -469,6 +471,93 @@ void GUIFormSpecMenu::parseCheckbox(parserData* data,std::string element)
 		return;
 	}
 	errorstream<< "Invalid checkbox element(" << parts.size() << "): '" << element << "'"  << std::endl;
+}
+
+void GUIFormSpecMenu::parseScrollBar(parserData* data, std::string element)
+{
+	std::vector<std::string> parts = split(element,';');
+
+	if (parts.size() >= 5) {
+		std::vector<std::string> v_pos = split(parts[0],',');
+		std::vector<std::string> v_dim = split(parts[1],',');
+		std::string name = parts[2];
+		std::string value = parts[4];
+
+		MY_CHECKPOS("scrollbar",0);
+
+		v2s32 pos = padding;
+		pos.X += stof(v_pos[0]) * (float) spacing.X;
+		pos.Y += stof(v_pos[1]) * (float) spacing.Y;
+
+		if (v_dim.size() != 2) {
+			errorstream<< "Invalid size for element " << "scrollbar"
+				<< "specified: \"" << parts[1] << "\"" << std::endl;
+			return;
+		}
+
+		v2s32 dim;
+		dim.X = stof(v_dim[0]) * (float) spacing.X;
+		dim.Y = stof(v_dim[1]) * (float) spacing.Y;
+
+		core::rect<s32> rect =
+				core::rect<s32>(pos.X, pos.Y, pos.X + dim.X, pos.Y + dim.Y);
+
+		FieldSpec spec(
+				name,
+				L"",
+				L"",
+				258+m_fields.size()
+			);
+		bool is_horizontal = true;
+
+		if (parts[2] == "vertical")
+			is_horizontal = false;
+
+		spec.ftype = f_ScrollBar;
+		spec.send  = true;
+		gui::IGUIScrollBar* e =
+				Environment->addScrollBar(is_horizontal,rect,this,spec.fid);
+
+		e->setMax(1000);
+		e->setMin(0);
+		e->setPos(stoi(parts[4]));
+		e->setSmallStep(10);
+		e->setLargeStep(100);
+
+		if (!m_lock) {
+			core::rect<s32> relative_rect = e->getRelativePosition();
+
+			if (!is_horizontal) {
+				s32 original_width = relative_rect.getWidth();
+				s32 width = (original_width/(2.0/3.0))
+						* porting::getDisplayDensity()
+						* g_settings->getFloat("gui_scaling");
+				e->setRelativePosition(core::rect<s32>(
+						relative_rect.UpperLeftCorner.X,
+						relative_rect.UpperLeftCorner.Y,
+						relative_rect.LowerRightCorner.X + (width - original_width),
+						relative_rect.LowerRightCorner.Y
+					));
+			}
+			else  {
+				s32 original_height = relative_rect.getHeight();
+				s32 height = (original_height/(2.0/3.0))
+						* porting::getDisplayDensity()
+						* g_settings->getFloat("gui_scaling");
+				e->setRelativePosition(core::rect<s32>(
+						relative_rect.UpperLeftCorner.X,
+						relative_rect.UpperLeftCorner.Y,
+						relative_rect.LowerRightCorner.X,
+						relative_rect.LowerRightCorner.Y + (height - original_height)
+					));
+			}
+		}
+
+		m_scrollbars.push_back(std::pair<FieldSpec,gui::IGUIScrollBar*>(spec,e));
+		m_fields.push_back(spec);
+		return;
+	}
+	errorstream<< "Invalid scrollbar element(" << parts.size() << "): '" << element << "'"  << std::endl;
 }
 
 void GUIFormSpecMenu::parseImage(parserData* data,std::string element)
@@ -536,8 +625,8 @@ void GUIFormSpecMenu::parseItemImage(parserData* data,std::string element)
 		pos.Y += stof(v_pos[1]) * (float) spacing.Y;
 
 		v2s32 geom;
-		geom.X = stoi(v_geom[0]) * (float)imgsize.X;
-		geom.Y = stoi(v_geom[1]) * (float)imgsize.Y;
+		geom.X = stof(v_geom[0]) * (float)imgsize.X;
+		geom.Y = stof(v_geom[1]) * (float)imgsize.Y;
 
 		if(data->bp_set != 2)
 			errorstream<<"WARNING: invalid use of item_image without a size[] element"<<std::endl;
@@ -1308,7 +1397,7 @@ void GUIFormSpecMenu::parseImageButton(parserData* data,std::string element,
 		if (spec.fname == data->focused_fieldname) {
 			Environment->setFocus(e);
 		}
-		
+
 		e->setUseAlphaChannel(true);
 		e->setImage(texture);
 		e->setPressedImage(pressed_texture);
@@ -1738,6 +1827,11 @@ void GUIFormSpecMenu::parseElement(parserData* data, std::string element)
 		return;
 	}
 
+	if (type == "scrollbar") {
+		parseScrollBar(data, description);
+		return;
+	}
+
 	// Ignore others
 	infostream
 		<< "Unknown DrawSpec: type="<<type<<", data=\""<<description<<"\""
@@ -1804,10 +1898,11 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 	m_itemimages.clear();
 	m_tables.clear();
 	m_checkboxes.clear();
+	m_scrollbars.clear();
 	m_fields.clear();
 	m_boxes.clear();
 	m_tooltips.clear();
-	
+
 	// Set default values (fits old formspec values)
 	m_bgcolor = video::SColor(140,0,0,0);
 	m_bgfullscreen = false;
@@ -1817,7 +1912,7 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 
 	m_default_tooltip_bgcolor = video::SColor(255,56,121,65);
 	m_default_tooltip_color = video::SColor(255,255,255,255);
-	
+
 	m_slotbordercolor = video::SColor(200,0,0,0);
 	m_slotborder = false;
 
@@ -2261,16 +2356,19 @@ void GUIFormSpecMenu::drawMenu()
 
 	if (hovered != NULL) {
 		s32 id = hovered->getID();
+		u32 delta;
 		if (id == -1) {
 			m_old_tooltip_id = id;
 			m_old_tooltip = "";
+			delta = 0;
 		} else if (id != m_old_tooltip_id) {
 			m_hoovered_time = getTimeMs();
 			m_old_tooltip_id = id;
+			delta = 0;
 		} else if (id == m_old_tooltip_id) {
-			u32 delta = porting::getDeltaMs(m_hoovered_time, getTimeMs());
-			if (delta <= m_tooltip_show_delay)
-				goto skip_tooltip;
+			delta = porting::getDeltaMs(m_hoovered_time, getTimeMs());
+		}
+		if (id != -1 && delta >= m_tooltip_show_delay) {
 			for(std::vector<FieldSpec>::iterator iter =  m_fields.begin();
 					iter != m_fields.end(); iter++) {
 				if ( (iter->fid == id) && (m_tooltips[iter->fname].tooltip != "") ){
@@ -2303,7 +2401,6 @@ void GUIFormSpecMenu::drawMenu()
 		}
 	}
 
-	skip_tooltip:
 	/*
 		Draw dragged item stack
 	*/
@@ -2517,6 +2614,24 @@ void GUIFormSpecMenu::acceptInput(FormspecQuitMode quitmode=quit_mode_no)
 						else
 							fields[s.fname] = "false";
 					}
+				}
+				else if (s.ftype == f_ScrollBar) {
+					// no dynamic cast possible due to some distributions shipped
+					// without rtti support in irrlicht
+					IGUIElement * element = getElementFromId(s.fid);
+					gui::IGUIScrollBar *e = NULL;
+					if ((element) && (element->getType() == gui::EGUIET_SCROLL_BAR)) {
+						e = static_cast<gui::IGUIScrollBar*>(element);
+					}
+
+					if (e != 0) {
+						std::stringstream os;
+						os << e->getPos();
+						if (s.fdefault == L"Changed")
+							fields[s.fname] = "CHG:" + os.str();
+						else
+							fields[s.fname] = "VAL:" + os.str();
+ 					}
 				}
 				else
 				{
@@ -2834,7 +2949,7 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 		}
 
 	}
-	
+
 	if(event.EventType==EET_MOUSE_INPUT_EVENT
 			&& event.MouseInput.Event != EMIE_MOUSE_MOVED) {
 		// Mouse event other than movement
@@ -3125,7 +3240,8 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 		}
 		if((event.GUIEvent.EventType == gui::EGET_BUTTON_CLICKED) ||
 				(event.GUIEvent.EventType == gui::EGET_CHECKBOX_CHANGED) ||
-				(event.GUIEvent.EventType == gui::EGET_COMBO_BOX_CHANGED)) {
+				(event.GUIEvent.EventType == gui::EGET_COMBO_BOX_CHANGED) ||
+				(event.GUIEvent.EventType == gui::EGET_SCROLL_BAR_CHANGED)) {
 			unsigned int btn_id = event.GUIEvent.Caller->getID();
 
 			if (btn_id == 257) {
@@ -3162,7 +3278,7 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 						return true;
 					}
 				}
-				if ((s.ftype == f_DropDown) &&
+				else if ((s.ftype == f_DropDown) &&
 						(s.fid == event.GUIEvent.Caller->getID())) {
 					// only send the changed dropdown
 					for(u32 i=0; i<m_fields.size(); i++) {
@@ -3184,8 +3300,16 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 					}
 					return true;
 				}
+				else if ((s.ftype == f_ScrollBar) &&
+					(s.fid == event.GUIEvent.Caller->getID()))
+				{
+					s.fdefault = L"Changed";
+					acceptInput(quit_mode_no);
+					s.fdefault = L"";
+				}
 			}
 		}
+
 		if(event.GUIEvent.EventType == gui::EGET_EDITBOX_ENTER) {
 			if(event.GUIEvent.Caller->getID() > 257) {
 
