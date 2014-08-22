@@ -144,7 +144,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("anisotropic_filter", "false");
 	settings->setDefault("bilinear_filter", "false");
 	settings->setDefault("trilinear_filter", "false");
-	settings->setDefault("preload_item_visuals", "true");
+	settings->setDefault("preload_item_visuals", "false");
 	settings->setDefault("enable_bumpmapping", "false");
 	settings->setDefault("enable_parallax_occlusion", "false");
 	settings->setDefault("generate_normalmaps", "false");
@@ -359,23 +359,26 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("enable_waving_leaves", "true");
 	settings->setDefault("enable_waving_plants", "true");
 	settings->setDefault("max_objects_per_block", "100");
-	settings->setDefault("preload_item_visuals", "false");
 	settings->setDefault("sqlite_synchronous", "1");
 	settings->setDefault("farmesh", "0");
 	settings->setDefault("farmesh_step", "2");
 	settings->setDefault("farmesh_wanted", "500");
 	settings->setDefault("enable_any_name", "0"); //WARNING!!! SECURITY RISK WITH SOME MODULES
 	settings->setDefault("password_save", "1");
-
-#if defined(_WIN32)
-	settings->setDefault("more_threads", "false");
-#else
 	settings->setDefault("more_threads", "true");
-#endif
 
 
 #if !defined(_WIN32) && !CMAKE_USE_IPV4_DEFAULT && ENET_IPV6
 	settings->setDefault("ipv6_server", "true"); // problems on all windows versions (unable to play in local game)
+#endif
+
+
+#if !defined(SERVER) && defined(_MSC_VER)
+	#ifdef NDEBUG
+		settings->setDefault("console_enabled", "false"); //don't enable Windows console
+	#else
+		settings->setDefault("console_enabled", "true"); //enable Windows console
+	#endif
 #endif
 
 #ifdef __ANDROID__
@@ -429,7 +432,6 @@ void late_init_default_settings(Settings* settings)
 	settings->setDefault("mono_font_size", fontsize.str());
 	settings->setDefault("fallback_font_size", fontsize.str());
 #endif
-
 }
 
 void override_default_settings(Settings *settings, Settings *from)

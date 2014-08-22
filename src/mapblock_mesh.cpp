@@ -37,14 +37,14 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "clientmap.h"
 #include "log_types.h"
 
-static void applyContrast(video::SColor& color, float factor)
+static void applyFacesShading(video::SColor& color, float factor)
 {
 	color.setRed(core::clamp(core::round32(color.getRed()*factor), 0, 255));
 	color.setGreen(core::clamp(core::round32(color.getGreen()*factor), 0, 255));
-	color.setBlue(core::clamp(core::round32(color.getBlue()*factor), 0, 255));
 }
 
-int getFarmeshStep(MapDrawControl& draw_control, int range) {
+int getFarmeshStep(MapDrawControl& draw_control, const v3s16 & playerpos, const v3s16 & blockpos) {
+	int range = radius_box(playerpos, blockpos);
 	if (draw_control.farmesh) {
 		if		(range >= draw_control.farmesh+draw_control.farmesh_step*3)	return 16;
 		else if (range >= draw_control.farmesh+draw_control.farmesh_step*2)	return 8;
@@ -65,14 +65,20 @@ MeshMakeData::MeshMakeData(IGameDef *gamedef, Map & map_, MapDrawControl& draw_c
 	m_smooth_lighting(false),
 	m_gamedef(gamedef)
 	,step(1),
+	range(1),
 	map(map_),
 	draw_control(draw_control_),
 	debug(0)
 {}
 
+MeshMakeData::~MeshMakeData() {
+	//infostream<<"~MeshMakeData "<<m_blockpos<<std::endl;
+}
+
 void MeshMakeData::fill(MapBlock *block)
 {
 	m_blockpos = block->getPos();
+	timestamp = block->getTimestamp();
 
 #if 0
 	v3s16 blockpos_nodes = m_blockpos*MAP_BLOCKSIZE;
@@ -1046,6 +1052,7 @@ static void updateAllFastFaceRows(MeshMakeData *data,
 MapBlockMesh::MapBlockMesh(MeshMakeData *data, v3s16 camera_offset):
 	clearHardwareBuffer(false),
 	step(data->step),
+	timestamp(data->timestamp),
 	m_mesh(new scene::SMesh()),
 	m_gamedef(data->m_gamedef),
 	m_animation_force_timer(0), // force initial animation
@@ -1179,32 +1186,30 @@ MapBlockMesh::MapBlockMesh(MeshMakeData *data, v3s16 camera_offset):
 		}
 		for(u32 j = 0; j < p.vertices.size(); j++)
 		{
-			// Note applyContrast second parameter is precalculated sqrt from original
-			// values for speed improvement
+			// Note applyFacesShading second parameter is precalculated sqrt
+			// value for speed improvement
+			// Skip it for lightsources and top faces.
 			video::SColor &vc = p.vertices[j].Color;
-			if(p.vertices[j].Normal.Y > 0.5) {
-				applyContrast (vc, 1.095445);
-			} else if (p.vertices[j].Normal.Y < -0.5) {
-				applyContrast (vc, 0.547723);
-			} else if (p.vertices[j].Normal.X > 0.5) {
-				applyContrast (vc, 0.707107);
-			} else if (p.vertices[j].Normal.X < -0.5) {
-				applyContrast (vc, 0.707107);
-			} else if (p.vertices[j].Normal.Z > 0.5) {
-				applyContrast (vc, 0.894427);
-			} else if (p.vertices[j].Normal.Z < -0.5) {
-				applyContrast (vc, 0.894427);
+			if (!vc.getBlue()) {
+				if (p.vertices[j].Normal.Y < -0.5) {
+					applyFacesShading (vc, 0.447213);
+				} else if (p.vertices[j].Normal.X > 0.5) {
+					applyFacesShading (vc, 0.670820);
+				} else if (p.vertices[j].Normal.X < -0.5) {
+					applyFacesShading (vc, 0.670820);
+				} else if (p.vertices[j].Normal.Z > 0.5) {
+					applyFacesShading (vc, 0.836660);
+				} else if (p.vertices[j].Normal.Z < -0.5) {
+					applyFacesShading (vc, 0.836660);
+				}
 			}
-			if(!enable_shaders)
-			{
-				// - Classic lighting (shaders handle this by themselves)
-				// Set initial real color and store for later updates
-				u8 day = vc.getRed();
-				u8 night = vc.getGreen();
-				finalColorBlend(vc, day, night, 1000);
-				if(day != night)
-					m_daynight_diffs[i][j] = std::make_pair(day, night);
-			}
+			// - Classic lighting
+			// Set initial real color and store for later updates
+			u8 day = vc.getRed();
+			u8 night = vc.getGreen();
+			finalColorBlend(vc, day, night, 1000);
+			if(day != night)
+				m_daynight_diffs[i][j] = std::make_pair(day, night);
 		}
 
 		// Create material
@@ -1266,9 +1271,9 @@ MapBlockMesh::MapBlockMesh(MeshMakeData *data, v3s16 camera_offset):
 	{
 #if 0
 		// Usually 1-700 faces and 1-7 materials
-		std::cout<<"Updated MapBlock has "<<fastfaces_new.size()<<" faces "
+		infostream<<"Updated MapBlock mesh p="<<data->m_blockpos<<" has "<<fastfaces_new.size()<<" faces "
 				<<"and uses "<<m_mesh->getMeshBufferCount()
-				<<" materials (meshbuffers)"<<std::endl;
+				<<" materials "<<" step="<<step<<" range="<<data->range<< " mesh="<<m_mesh<<std::endl;
 #endif
 	}
 

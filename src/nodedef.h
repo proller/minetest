@@ -30,14 +30,16 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include <list>
 #include <bitset>
 #include "mapnode.h"
-#ifndef SERVER
 #include "tile.h"
+#ifndef SERVER
 #include "shader.h"
 #endif
 #include "itemgroup.h"
 #include "sound.h" // SimpleSoundSpec
 #include "constants.h" // BS
 #include "fmbitset.h"
+#include <unordered_set>
+
 
 #include <msgpack.hpp>
 
@@ -228,12 +230,13 @@ struct ContentFeatures
 	// Special tiles
 	// - Currently used for flowing liquids
 	TileSpec special_tiles[CF_SPECIAL_COUNT];
+#endif
 	u8 solidness; // Used when choosing which face is drawn
 	u8 visual_solidness; // When solidness=0, this tells how it looks like
 	bool backface_culling;
 	video::SColor color_avg; //far mesh average color
 
-#endif
+//#endif
 
 	// Server-side cached callback existence for fast skipping
 	bool has_on_construct;
@@ -312,11 +315,11 @@ struct ContentFeatures
 	bool legacy_wallmounted;
 	
 	bool is_wire;
-	bool is_connector;
+	bool is_wire_connector;
 	bool is_circuit_element;
-	unsigned char wire_connections[6];
-	unsigned char circuit_element_states[64];
-	unsigned int circuit_element_delay;
+	u8 wire_connections[6];
+	u8 circuit_element_func[64];
+	u8 circuit_element_delay;
 
 	// Sound properties
 	SimpleSoundSpec sound_footstep;
@@ -367,7 +370,7 @@ public:
 	virtual bool getId(const std::string &name, content_t &result) const=0;
 	virtual content_t getId(const std::string &name) const=0;
 	// Allows "group:name" in addition to regular node names
-	virtual void getIds(const std::string &name, std::set<content_t> &result)
+	virtual void getIds(const std::string &name, std::unordered_set<content_t> &result)
 			const=0;
 	virtual void getIds(const std::string &name, FMBitset &result) const=0;
 	virtual const ContentFeatures& get(const std::string &name) const=0;
@@ -389,7 +392,7 @@ public:
 	// If not found, returns CONTENT_IGNORE
 	virtual content_t getId(const std::string &name) const=0;
 	// Allows "group:name" in addition to regular node names
-	virtual void getIds(const std::string &name, std::set<content_t> &result)
+	virtual void getIds(const std::string &name, std::unordered_set<content_t> &result)
 			const=0;
 	// If not found, returns the features of CONTENT_UNKNOWN
 	virtual const ContentFeatures& get(const std::string &name) const=0;

@@ -71,7 +71,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <msgpack.hpp>
 #include <chrono>
-#include <thread>
+#include "util/thread_pool.h"
 
 class ClientNotFoundException : public BaseException
 {
@@ -81,13 +81,12 @@ public:
 	{}
 };
 
-class MapThread : public JThread
+class MapThread : public thread_pool
 {
 	Server *m_server;
 public:
 
 	MapThread(Server *server):
-		JThread(),
 		m_server(server)
 	{}
 
@@ -123,13 +122,12 @@ public:
 	}
 };
 
-class SendBlocksThread : public JThread
+class SendBlocksThread : public thread_pool
 {
 	Server *m_server;
 public:
 
 	SendBlocksThread(Server *server):
-		JThread(),
 		m_server(server)
 	{}
 
@@ -170,14 +168,13 @@ public:
 
 
 
-class ServerThread : public JThread
+class ServerThread : public thread_pool
 {
 	Server *m_server;
 
 public:
 
 	ServerThread(Server *server):
-		JThread(),
 		m_server(server)
 	{
 	}
@@ -420,8 +417,6 @@ Server::Server(
 
 	m_script = new GameScripting(this);
 	
-	m_circuit = new Circuit(m_script, path_world);
-
 	std::string scriptpath = getBuiltinLuaPath() + DIR_DELIM "init.lua";
 
 	if (!m_script->loadScript(scriptpath)) {
@@ -457,6 +452,7 @@ Server::Server(
 
 	// Apply item aliases in the node definition manager
 	m_nodedef->updateAliases(m_itemdef);
+	m_nodedef->updateTextures(nullptr,nullptr);
 
 	// Load the mapgen params from global settings now after any
 	// initial overrides have been set by the mods
@@ -464,6 +460,7 @@ Server::Server(
 
 	// Initialize Environment
 	ServerMap *servermap = new ServerMap(path_world, this, m_emerge, m_circuit);
+	m_circuit = new Circuit(m_script, servermap, ndef(), path_world);
 	m_env = new ServerEnvironment(servermap, m_script, m_circuit, this, m_path_world);
 	m_emerge->env = m_env;
 
@@ -598,7 +595,6 @@ void Server::stop()
 	infostream<<"Server: Stopping and waiting threads"<<std::endl;
 
 	// Stop threads (set run=false first so both start stopping)
-	m_thread->Stop();
 	m_thread->Stop();
 	//m_emergethread.setRun(false);
 	m_thread->Wait();
@@ -785,7 +781,7 @@ void Server::AsyncRunStep(bool initial_step)
 	}
 
 	if (!more_threads)
-		AsyncRunMapStep();
+		AsyncRunMapStep(false);
 
 	m_clients.step(dtime);
 
@@ -1172,7 +1168,7 @@ void Server::AsyncRunStep(bool initial_step)
 	}
 }
 
-int Server::AsyncRunMapStep(bool initial_step) {
+int Server::AsyncRunMapStep(bool async) {
 	DSTACK(__FUNCTION_NAME);
 
 	TimeTaker timer_step("Server map step");
@@ -1186,7 +1182,7 @@ int Server::AsyncRunMapStep(bool initial_step) {
 		dtime = m_step_dtime;
 	}
 
-	u32 max_cycle_ms = 500;
+	u32 max_cycle_ms = async ? 2000 : 300;
 
 	const float map_timer_and_unload_dtime = 10.92;
 	if(m_map_timer_and_unload_interval.step(dtime, map_timer_and_unload_dtime))
@@ -1468,14 +1464,12 @@ void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
 	if(datasize < 2)
 		return;
 
-	ToServerCommand command;
+	int command;
 	std::map<int, msgpack::object> packet;
-	int cmd;
 	msgpack::unpacked msg;
-	if (con::parse_msgpack_packet(data, datasize, &packet, &cmd, &msg))
-		command = (ToServerCommand)cmd;
-	else
-		command = (ToServerCommand)readU16(&data[0]);
+	if (!con::parse_msgpack_packet(data, datasize, &packet, &command, &msg)) {
+		return;
+	}
 
 	if(command == TOSERVER_INIT)
 	{
@@ -1858,20 +1852,13 @@ void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
 			m_con.DisconnectPeer(peer_id);
 			return;
 		}
-
-		if(datasize < 2+8) {
-			errorstream
-				<< "TOSERVER_CLIENT_READY client sent inconsistent data, disconnecting peer_id: "
-				<< peer_id << std::endl;
-			m_con.DisconnectPeer(peer_id);
-			return;
-		}
-
 		m_clients.setClientVersion(
-				peer_id,
-				data[2], data[3], data[4],
-				std::string((char*) &data[8],(u16) data[6]));
-
+			peer_id,
+			packet[TOSERVER_CLIENT_READY_VERSION_MAJOR].as<int>(),
+			packet[TOSERVER_CLIENT_READY_VERSION_MINOR].as<int>(),
+			0, // packet[TOSERVER_CLIENT_READY_VERSION_PATCH].as<int>(), TODO
+			packet[TOSERVER_CLIENT_READY_VERSION_STRING].as<std::string>()
+		);
 		m_clients.event(peer_id, CSE_SetClientReady);
 		m_script->on_joinplayer(playersao);
 
@@ -1951,9 +1938,8 @@ void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
 	}
 	else if(command == TOSERVER_INVENTORY_ACTION)
 	{
-		// Strip command and create a stream
-		std::string datastring((char*)&data[2], datasize-2);
-		verbosestream<<"TOSERVER_INVENTORY_ACTION: data="<<datastring<<std::endl;
+		std::string datastring;
+		packet[TOSERVER_INVENTORY_ACTION_DATA].convert(&datastring);
 		std::istringstream is(datastring, std::ios_base::binary);
 		// Create an action
 		InventoryAction *a = InventoryAction::deSerialize(is);
@@ -2230,32 +2216,13 @@ void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
 	}
 	else if(command == TOSERVER_INTERACT)
 	{
-		std::string datastring((char*)&data[2], datasize-2);
-		std::istringstream is(datastring, std::ios_base::binary);
-
-		/*
-			[0] u16 command
-			[2] u8 action
-			[3] u16 item
-			[5] u32 length of the next item
-			[9] serialized PointedThing
-			actions:
-			0: start digging (from undersurface) or use
-			1: stop digging (all parameters ignored)
-			2: digging completed
-			3: place block or item (to abovesurface)
-			4: use item
-		*/
-		u8 action = readU8(is);
-		u16 item_i = readU16(is);
-		std::istringstream tmp_is(deSerializeLongString(is), std::ios::binary);
+		u8 action;
+		u16 item_i;
 		PointedThing pointed;
-		pointed.deSerialize(tmp_is);
 
-/*
-		verbosestream<<"TOSERVER_INTERACT: action="<<(int)action<<", item="
-				<<item_i<<", pointed="<<pointed.dump()<<std::endl;
-*/
+		packet[TOSERVER_INTERACT_ACTION].convert(&action);
+		packet[TOSERVER_INTERACT_ITEM].convert(&item_i);
+		packet[TOSERVER_INTERACT_POINTED_THING].convert(&pointed);
 
 		if(player->hp == 0)
 		{
@@ -2642,17 +2609,11 @@ void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
 	}
 	else if(command == TOSERVER_INVENTORY_FIELDS)
 	{
-		std::string datastring((char*)&data[2], datasize-2);
-		std::istringstream is(datastring, std::ios_base::binary);
-
-		std::string formname = deSerializeString(is);
-		int num = readU16(is);
+		std::string formname;
 		std::map<std::string, std::string> fields;
-		for(int k=0; k<num; k++){
-			std::string fieldname = deSerializeString(is);
-			std::string fieldvalue = deSerializeLongString(is);
-			fields[fieldname] = fieldvalue;
-		}
+
+		packet[TOSERVER_INVENTORY_FIELDS_FORMNAME].convert(&formname);
+		packet[TOSERVER_INVENTORY_FIELDS_DATA].convert(&fields);
 
 		m_script->on_playerReceiveFields(playersao, formname, fields);
 	}
@@ -3298,35 +3259,24 @@ void Server::SendMovePlayer(u16 peer_id)
 
 void Server::SendLocalPlayerAnimations(u16 peer_id, v2s32 animation_frames[4], f32 animation_speed)
 {
-	std::ostringstream os(std::ios_base::binary);
+	MSGPACK_PACKET_INIT(TOCLIENT_LOCAL_PLAYER_ANIMATIONS, 5);
+	PACK(TOCLIENT_LOCAL_PLAYER_ANIMATIONS_IDLE, animation_frames[0]);
+	PACK(TOCLIENT_LOCAL_PLAYER_ANIMATIONS_WALK, animation_frames[1]);
+	PACK(TOCLIENT_LOCAL_PLAYER_ANIMATIONS_DIG, animation_frames[2]);
+	PACK(TOCLIENT_LOCAL_PLAYER_ANIMATIONS_WALKDIG, animation_frames[3]);
+	PACK(TOCLIENT_LOCAL_PLAYER_ANIMATIONS_FRAME_SPEED, animation_speed);
 
-	writeU16(os, TOCLIENT_LOCAL_PLAYER_ANIMATIONS);
-	writeV2S32(os, animation_frames[0]);
-	writeV2S32(os, animation_frames[1]);
-	writeV2S32(os, animation_frames[2]);
-	writeV2S32(os, animation_frames[3]);
-	writeF1000(os, animation_speed);
-
-	// Make data buffer
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8 *)s.c_str(), s.size());
 	// Send as reliable
-	m_clients.send(peer_id, 0, data, true);
+	m_clients.send(peer_id, 0, buffer, true);
 }
 
 void Server::SendEyeOffset(u16 peer_id, v3f first, v3f third)
 {
-	std::ostringstream os(std::ios_base::binary);
-
-	writeU16(os, TOCLIENT_EYE_OFFSET);
-	writeV3F1000(os, first);
-	writeV3F1000(os, third);
-
-	// Make data buffer
-	std::string s = os.str();
-	SharedBuffer<u8> data((u8 *)s.c_str(), s.size());
+	MSGPACK_PACKET_INIT(TOCLIENT_EYE_OFFSET, 2);
+	PACK(TOCLIENT_EYE_OFFSET_FIRST, first);
+	PACK(TOCLIENT_EYE_OFFSET_THIRD, third);
 	// Send as reliable
-	m_clients.send(peer_id, 0, data, true);
+	m_clients.send(peer_id, 0, buffer, true);
 }
 void Server::SendPlayerPrivileges(u16 peer_id)
 {
@@ -4228,8 +4178,13 @@ bool Server::hudSetFlags(Player *player, u32 flags, u32 mask) {
 
 	SendHUDSetFlags(player->peer_id, flags, mask);
 	player->hud_flags = flags;
+	
+	PlayerSAO* playersao = player->getPlayerSAO();
+	
+	if (playersao == NULL)
+		return false;
 
-	m_script->player_event(player->getPlayerSAO(),"hud_changed");
+	m_script->player_event(playersao, "hud_changed");
 	return true;
 }
 

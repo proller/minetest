@@ -7,10 +7,12 @@ LOCAL_MODULE := Irrlicht
 LOCAL_SRC_FILES := deps/irrlicht/lib/Android/libIrrlicht.a
 include $(PREBUILT_STATIC_LIBRARY)
 
-include $(CLEAR_VARS)
-LOCAL_MODULE := LevelDB
-LOCAL_SRC_FILES := deps/leveldb/libleveldb.a
-include $(PREBUILT_STATIC_LIBRARY)
+ifeq ($(HAVE_LEVELDB), 1)
+	include $(CLEAR_VARS)
+	LOCAL_MODULE := LevelDB
+	LOCAL_SRC_FILES := deps/leveldb/libleveldb.a
+	include $(PREBUILT_STATIC_LIBRARY)
+endif
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := curl
@@ -57,13 +59,14 @@ ifdef GPROF
 GPROF_DEF=-DGPROF
 endif
 
-LOCAL_CFLAGS := -D_IRR_ANDROID_PLATFORM_ \
-				-DHAVE_TOUCHSCREENGUI    \
-				-DUSE_CURL=1             \
-				-DUSE_SOUND=1            \
-				-DUSE_FREETYPE=1         \
-				-DUSE_LEVELDB=1          \
-				$(GPROF_DEF)             \
+LOCAL_CFLAGS := -D_IRR_ANDROID_PLATFORM_      \
+				-DHAVE_TOUCHSCREENGUI         \
+				-DUSE_CURL=1                  \
+				-DUSE_SOUND=1                 \
+				-DUSE_FREETYPE=1              \
+				-DUSE_LEVELDB=$(HAVE_LEVELDB) \
+				$(GPROF_DEF)                  \
+				-std=c++0x                    \
 				-pipe -fstrict-aliasing
 
 ifndef NDEBUG
@@ -98,6 +101,14 @@ LOCAL_C_INCLUDES :=                               \
 		deps/leveldb/include                      \
 
 LOCAL_SRC_FILES :=                                \
+		jni/src/gsmapper.cpp                      \
+		jni/src/guiTextInputMenu.cpp              \
+		jni/src/FMColoredString.cpp               \
+		jni/src/FMStaticText.cpp                  \
+		jni/src/fmbitset.cpp                      \
+		jni/src/intlGUIEditBox.cpp                \
+		jni/src/key_value_storage.cpp             \
+		jni/src/log_types.cpp                     \
 		jni/src/ban.cpp                           \
 		jni/src/base64.cpp                        \
 		jni/src/biome.cpp                         \
@@ -160,6 +171,7 @@ LOCAL_SRC_FILES :=                                \
 		jni/src/mapgen_indev.cpp                  \
 		jni/src/mapgen_math.cpp                   \
 		jni/src/mapgen_singlenode.cpp             \
+		jni/src/mapgen_v5.cpp                     \
 		jni/src/mapgen_v6.cpp                     \
 		jni/src/mapgen_v7.cpp                     \
 		jni/src/mapnode.cpp                       \
@@ -206,10 +218,17 @@ LOCAL_SRC_FILES :=                                \
 		jni/src/util/string.cpp                   \
 		jni/src/util/timetaker.cpp                \
 		jni/src/touchscreengui.cpp                \
+		jni/src/util/lock.cpp                     \
+		jni/src/util/thread_pool.cpp              \
+		jni/src/circuit.cpp                       \
+		jni/src/circuit_element.cpp               \
+		jni/src/circuit_element_states.cpp        \
+		jni/src/circuit_element_virtual.cpp       \
  		jni/src/database-leveldb.cpp
 
 # lua api
 LOCAL_SRC_FILES +=                                \
+		jni/src/script/lua_api/l_key_value_storage.cpp	\
 		jni/src/script/common/c_content.cpp       \
 		jni/src/script/common/c_converter.cpp     \
 		jni/src/script/common/c_internal.cpp      \
@@ -288,15 +307,17 @@ LOCAL_SRC_FILES += jni/src/sqlite/sqlite3.c
 # jthread
 LOCAL_SRC_FILES +=                                \
 		jni/src/jthread/pthread/jevent.cpp        \
-		jni/src/jthread/pthread/jmutex.cpp        \
-		jni/src/jthread/pthread/jsemaphore.cpp    \
-		jni/src/jthread/pthread/jthread.cpp
+		jni/src/jthread/pthread/jsemaphore.cpp
 
 # json
 LOCAL_SRC_FILES += jni/src/json/jsoncpp.cpp
 
 LOCAL_SHARED_LIBRARIES := openal ogg vorbis ssl crypto
-LOCAL_STATIC_LIBRARIES := Irrlicht freetype curl LevelDB android_native_app_glue $(PROFILER_LIBS)
+LOCAL_STATIC_LIBRARIES := Irrlicht freetype curl android_native_app_glue $(PROFILER_LIBS)
+
+ifeq ($(HAVE_LEVELDB), 1)
+	LOCAL_STATIC_LIBRARIES += LevelDB
+endif
 LOCAL_LDLIBS := -lEGL -llog -lGLESv1_CM -lGLESv2 -lz -landroid
 
 include $(BUILD_SHARED_LIBRARY)

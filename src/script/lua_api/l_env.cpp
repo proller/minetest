@@ -37,6 +37,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "content_sao.h"
 #include "treegen.h"
 #include "pathfinder.h"
+#include <unordered_set>
 
 
 #define GET_ENV_PTR ServerEnvironment* env =                                   \
@@ -512,7 +513,7 @@ int ModApiEnvMod::l_find_node_near(lua_State *L)
 	INodeDefManager *ndef = getServer(L)->ndef();
 	v3s16 pos = read_v3s16(L, 1);
 	int radius = luaL_checkinteger(L, 2);
-	std::set<content_t> filter;
+	std::unordered_set<content_t> filter;
 	if(lua_istable(L, 3)){
 		int table = 3;
 		lua_pushnil(L);
@@ -552,7 +553,7 @@ int ModApiEnvMod::l_find_nodes_in_area(lua_State *L)
 	INodeDefManager *ndef = getServer(L)->ndef();
 	v3s16 minp = read_v3s16(L, 1);
 	v3s16 maxp = read_v3s16(L, 2);
-	std::set<content_t> filter;
+	std::unordered_set<content_t> filter;
 	if(lua_istable(L, 3)){
 		int table = 3;
 		lua_pushnil(L);
@@ -834,6 +835,13 @@ int ModApiEnvMod::l_forceload_free_block(lua_State *L)
 	return 0;
 }
 
+// get_us_time()
+int ModApiEnvMod::l_get_us_time(lua_State *L)
+{
+	lua_pushnumber(L, porting::getTimeUs());
+	return 1;
+}
+
 void ModApiEnvMod::Initialize(lua_State *L, int top)
 {
 	API_FCT(set_node);
@@ -874,4 +882,5 @@ void ModApiEnvMod::Initialize(lua_State *L, int top)
 	API_FCT(get_surface);
 	API_FCT(forceload_block);
 	API_FCT(forceload_free_block);
+	API_FCT(get_us_time);
 }

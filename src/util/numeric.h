@@ -27,6 +27,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "../irr_v2d.h"
 #include "../irr_v3d.h"
 #include "../irr_aabb3d.h"
+#include <algorithm>
 #include <list>
 
 // Calculate the borders of a "d-radius" cube
@@ -363,6 +364,14 @@ inline float cycle_shift(float value, float by = 0, float max = 1)
     if (value + by < 0) return max + by + value;
     if (value + by > max) return value + by - max;
     return value + by;
+}
+
+inline int radius_box(const v3s16 & a, const v3s16 & b) {
+	return std::max(std::max(abs(a.X - b.X), abs(a.Y - b.Y)), abs(a.Z - b.Z));
+}
+
+inline int radius_box(const v3f & a, const v3f & b) {
+	return std::max(std::max(abs(a.X - b.X), abs(a.Y - b.Y)), abs(a.Z - b.Z));
 }
 
 #endif

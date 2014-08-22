@@ -27,6 +27,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 #include <set>
 #include <map>
+#include "util/unordered_map_hash.h"
 #include <list>
 
 #include "irrlichttypes_bloated.h"
@@ -192,7 +193,8 @@ public:
 
 	// Returns a CONTENT_IGNORE node if not found
 	MapNode getNodeNoEx(v3s16 p);
-	MapNode getNodeNoLock(v3s16 p);
+	MapNode getNodeTry(v3s16 p);
+	MapNode getNodeNoLock(v3s16 p); // dont use
 
 	void unspreadLight(enum LightBank bank,
 			std::map<v3s16, u8> & from_nodes,
@@ -279,7 +281,7 @@ public:
 	virtual void PrintInfo(std::ostream &out);
 
 	u32 transformLiquids(Server *m_server, std::map<v3s16, MapBlock*> & modified_blocks, shared_map<v3s16, MapBlock*> & lighting_modified_blocks, int max_cycle_ms);
-	u32 transformLiquidsFinite(Server *m_server, std::map<v3s16, MapBlock*> & modified_blocks, shared_map<v3s16, MapBlock*> & lighting_modified_blocks, int max_cycle_ms);
+	u32 transformLiquidsReal(Server *m_server, std::map<v3s16, MapBlock*> & modified_blocks, shared_map<v3s16, MapBlock*> & lighting_modified_blocks, int max_cycle_ms);
 	/*
 		Node metadata
 		These are basically coordinate wrappers to MapBlock
@@ -341,7 +343,7 @@ public:
 	MapBlock *m_block_cache;
 	v3s16 m_block_cache_p;
 	try_shared_mutex m_block_cache_mutex;
-	typedef shared_map<v3s16, MapBlock*> m_blocks_type;
+	typedef shared_unordered_map<v3s16, MapBlock*, v3s16Hash, v3s16Equal> m_blocks_type;
 	m_blocks_type m_blocks;
 	//MapBlock * getBlockNoCreateNoEx(v3s16 & p);
 	MapBlock * createBlankBlockNoInsert(v3s16 & p);
@@ -526,7 +528,6 @@ public:
 	void blitBackAll(std::map<v3s16, MapBlock*> * modified_blocks,
 			bool overwrite_generated = true);
 
-	bool replace_generated;
 protected:
 	bool m_create_area;
 	Map *m_map;

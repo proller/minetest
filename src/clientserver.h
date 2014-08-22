@@ -543,23 +543,19 @@ enum {
 };
 
 #define TOCLIENT_LOCAL_PLAYER_ANIMATIONS  0x51
-	/*
-		u16 command
-		v2s32 stand/idle
-		v2s32 walk
-		v2s32 dig
-		v2s32 walk+dig
-		f1000 frame_speed
-	*/
+enum {
+	TOCLIENT_LOCAL_PLAYER_ANIMATIONS_IDLE,
+	TOCLIENT_LOCAL_PLAYER_ANIMATIONS_WALK,
+	TOCLIENT_LOCAL_PLAYER_ANIMATIONS_DIG,
+	TOCLIENT_LOCAL_PLAYER_ANIMATIONS_WALKDIG,
+	TOCLIENT_LOCAL_PLAYER_ANIMATIONS_FRAME_SPEED
+};
 
 #define TOCLIENT_EYE_OFFSET 0x52
-	/*
-		u16 command
-		v3f1000 first
-		v3f1000 third
-	*/
-
-
+enum {
+	TOCLIENT_EYE_OFFSET_FIRST,
+	TOCLIENT_EYE_OFFSET_THIRD
+};
 
 // TOSERVER_* commands
 
@@ -746,52 +742,38 @@ enum {
 		u16 breath
 	*/
 
-enum ToServerCommand
-{
-	TOSERVER_INVENTORY_ACTION = 0x31,
-	/*
-		See InventoryAction in inventory.h
-	*/
+#define TOSERVER_INVENTORY_ACTION 0x31
+enum {
+	TOSERVER_INVENTORY_ACTION_DATA
+};
 
-	TOSERVER_INTERACT = 0x39,
+#define TOSERVER_INVENTORY_FIELDS 0x3c
+enum {
+	TOSERVER_INVENTORY_FIELDS_FORMNAME,
+	TOSERVER_INVENTORY_FIELDS_DATA
+};
+
+#define TOSERVER_INTERACT 0x39
+enum {
 	/*
-		[0] u16 command
-		[2] u8 action
-		[3] u16 item
-		[5] u32 length of the next item
-		[9] serialized PointedThing
 		actions:
 		0: start digging (from undersurface) or use
 		1: stop digging (all parameters ignored)
 		2: digging completed
 		3: place block or item (to abovesurface)
 		4: use item
-
-		(Obsoletes TOSERVER_GROUND_ACTION and TOSERVER_CLICK_ACTIVEOBJECT.)
 	*/
+	TOSERVER_INTERACT_ACTION,
+	TOSERVER_INTERACT_ITEM,
+	TOSERVER_INTERACT_POINTED_THING
+};
 
-	TOSERVER_INVENTORY_FIELDS = 0x3c,
-	/*
-		u16 command
-		u16 len
-		u8[len] form name (reserved for future use)
-		u16 number of fields
-		for each field:
-			u16 len
-			u8[len] field name
-			u32 len
-			u8[len] field value
-	*/
-
-	TOSERVER_CLIENT_READY = 0x43,
-	/*
-		u8 major
-		u8 minor
-		u8 patch
-		u8 reserved
-		u16 len
-		u8[len] full_version_string
-	*/
+#define TOSERVER_CLIENT_READY 0x43
+enum {
+	TOSERVER_CLIENT_READY_VERSION_MAJOR,
+	TOSERVER_CLIENT_READY_VERSION_MINOR,
+	TOSERVER_CLIENT_READY_VERSION_PATCH,
+	TOSERVER_CLIENT_READY_VERSION_STRING
 };
 
 #endif

@@ -83,6 +83,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #include "gsmapper.h"
+#include <future>
 
 /*
 	Text input system
@@ -923,25 +924,17 @@ bool nodePlacementPrediction(Client &client,
 		// Add node to client map
 		MapNode n(id, 0, param2);
 		try{
+
 			LocalPlayer* player = client.getEnv().getLocalPlayer();
-
-			// Dont place node when player would be inside new node
-			// NOTE: This is to be eventually implemented by a mod as client-side Lua
-			if (!nodedef->get(n).walkable ||
-				(client.checkPrivilege("noclip") && g_settings->getBool("noclip")) ||
-				(nodedef->get(n).walkable &&
-				neighbourpos != player->getStandingNodePos() + v3s16(0,1,0) &&
-				neighbourpos != player->getStandingNodePos() + v3s16(0,2,0))) {
-
-					// This triggers the required mesh update too
-					client.addNode(p, n);
-					return true;
-				}
+			if(player->canPlaceNode(p, n)) {
+				client.addNode(p, n);
+				return true;
+			}
 		}catch(InvalidPositionException &e){
 			errorstream<<"Node placement prediction failed for "
-					<<playeritem_def.name<<" (places "
-					<<prediction
-					<<") - Position not loaded"<<std::endl;
+			           <<playeritem_def.name<<" (places "
+			           <<prediction
+			           <<") - Position not loaded"<<std::endl;
 		}
 	}
 	return false;
@@ -1001,7 +994,7 @@ static void show_deathscreen(GUIFormSpecMenu** cur_formspec,
 		SIZE_TAG
 		"bgcolor[#320000b4;true]"
 		"label[4.85,1.35;You died.]"
-		"button_exit[4,3;3,0.5;btn_respawn;" + gettext("Respawn") + "]"
+		"button_exit[4,3;3,0.5;btn_respawn;" + _("Respawn") + "]"
 		;
 
 	/* Create menu */
@@ -1446,16 +1439,16 @@ bool the_game(bool &kill, bool random_input, InputHandler *input,
 
 				std::stringstream message;
 				message.precision(3);
-				message << gettext("Media...");
+				message << _("Media...");
 
 				if ( ( USE_CURL == 0) ||
 						(!g_settings->getBool("enable_remote_media_server"))) {
 					float cur = client.getCurRate();
-					std::string cur_unit = gettext(" KB/s");
+					std::string cur_unit = _(" KB/s");
 
 					if (cur > 900) {
 						cur /= 1024.0;
-						cur_unit = gettext(" MB/s");
+						cur_unit = _(" MB/s");
 					}
 					message << " ( " << cur << cur_unit << " )";
 				}
@@ -1645,8 +1638,8 @@ bool the_game(bool &kill, bool random_input, InputHandler *input,
 	float object_hit_delay_timer = 0.0;
 	float time_from_last_punch = 10;
 
-	float update_draw_list_timer = 0.0;
-	v3f update_draw_list_last_cam_dir;
+	float update_draw_list_timer = 10.0;
+	v3f update_draw_list_last_cam_pos;
 
 	bool invert_mouse = g_settings->getBool("invert_mouse");
 
@@ -1711,6 +1704,9 @@ bool the_game(bool &kill, bool random_input, InputHandler *input,
 
 	bool use_weather = g_settings->getBool("weather");
 	bool no_output = device->getVideoDriver()->getDriverType() == video::EDT_NULL;
+#ifndef __ANDROID__
+	std::future<void> updateDrawList_future;
+#endif
 	int errors = 0;
 	f32 dedicated_server_step = g_settings->getFloat("dedicated_server_step");
 
@@ -3567,12 +3563,17 @@ bool the_game(bool &kill, bool random_input, InputHandler *input,
 		*/
 		update_draw_list_timer += dtime;
 		if (!no_output)
-		if(client.getEnv().getClientMap().m_drawlist_last || update_draw_list_timer >= 0.2 ||
-				update_draw_list_last_cam_dir.getDistanceFrom(camera_direction) > 0.2 ||
+		if (client.getEnv().getClientMap().m_drawlist_last || update_draw_list_timer >= 0.5 ||
+				update_draw_list_last_cam_pos.getDistanceFrom(camera_position) > MAP_BLOCKSIZE*BS*2 ||
 				camera_offset_changed){
 			update_draw_list_timer = 0;
-			client.getEnv().getClientMap().updateDrawList(driver, dtime);
-			update_draw_list_last_cam_dir = camera_direction;
+#ifndef __ANDROID__
+			if (g_settings->getBool("more_threads"))
+				updateDrawList_future = std::async(std::launch::async, [](Client * client, float dtime){ client->getEnv().getClientMap().updateDrawList(dtime); }, &client, dtime);
+			else
+#endif
+				client.getEnv().getClientMap().updateDrawList(dtime);
+			update_draw_list_last_cam_pos = camera_position;
 		}
 
 		/*
@@ -3725,11 +3726,8 @@ bool the_game(bool &kill, bool random_input, InputHandler *input,
 
 	//force answer all texture and shader jobs (TODO return empty values)
 
-	while(!client.isShutdown()) {
-		tsrc->processQueue();
-		shsrc->processQueue();
-		sleep_ms(100);
-	}
+	tsrc->processQueue();
+	shsrc->processQueue();
 
 	// Client scope (client is destructed before destructing *def and tsrc)
 	}while(0);

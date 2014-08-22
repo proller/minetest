@@ -39,7 +39,6 @@ namespace fs
 #ifdef _WIN32 // WINDOWS
 
 #define _WIN32_WINNT 0x0501
-#define NOMINMAX
 #include <windows.h>
 #include <malloc.h>
 #include <tchar.h>
@@ -709,16 +708,19 @@ bool safeWriteToFile(const std::string &path, const std::string &content)
 	os << content;
 	os.flush();
 	os.close();
-	if (os.fail())
+	if (os.fail()) {
+		remove(tmp_file.c_str());
 		return false;
+	}
 
 	// Copy file
-#ifdef _WIN32
 	remove(path.c_str());
-	return (rename(tmp_file.c_str(), path.c_str()) == 0);
-#else
-	return (rename(tmp_file.c_str(), path.c_str()) == 0);
-#endif
+	if(rename(tmp_file.c_str(), path.c_str())) {
+		remove(tmp_file.c_str());
+		return false;
+	} else {
+		return true;
+	}
 }
 
 } // namespace fs

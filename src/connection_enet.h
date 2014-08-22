@@ -37,18 +37,11 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "enet/enet.h"
 #include <msgpack.hpp>
+#include "util/msgpack_serialize.h"
+#include "util/thread_pool.h"
+#include "util/lock.h"
 
 #define CHANNEL_COUNT 3
-
-#define PACK(x, y) {pk.pack((int)x); pk.pack(y);}
-#define MSGPACK_COMMAND -1
-#define MSGPACK_PACKET_INIT(id, x) \
-	msgpack::sbuffer buffer; \
-	msgpack::packer<msgpack::sbuffer> pk(&buffer); \
-	pk.pack_map((x)+1); \
-	PACK(MSGPACK_COMMAND, id);
-
-typedef std::map<int, msgpack::object> MsgpackPacket;
 
 namespace con
 {
@@ -299,7 +292,7 @@ struct ConnectionCommand
 	}
 };
 
-class Connection: public JThread
+class Connection: public thread_pool
 {
 public:
 	Connection(u32 protocol_id, u32 max_packet_size, float timeout, bool ipv6,
@@ -351,8 +344,8 @@ private:
 	ENetPeer *m_peer;
 	u16 m_peer_id;
 
-	std::map<u16, ENetPeer*> m_peers;
-	JMutex m_peers_mutex;
+	shared_map<u16, ENetPeer*> m_peers;
+	//JMutex m_peers_mutex;
 
 	// Backwards compatibility
 	PeerHandler *m_bc_peerhandler;
