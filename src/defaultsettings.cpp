@@ -342,7 +342,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("server_unload_unused_data_timeout", "610"); //more than client
 	settings->setDefault("save_generated_block", "true");
 	settings->setDefault("ignore_world_load_errors", "true");
-	settings->setDefault("active_block_range", "4");
+	//settings->setDefault("active_block_range", "4");
 	settings->setDefault("max_block_send_distance", "30");
 	settings->setDefault("max_simultaneous_block_sends_per_client", "30");
 	settings->setDefault("emergequeue_limit_diskonly", ""); // autodetect from number of cpus
@@ -365,8 +365,12 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("farmesh_wanted", "500");
 	settings->setDefault("enable_any_name", "0"); //WARNING!!! SECURITY RISK WITH SOME MODULES
 	settings->setDefault("password_save", "1");
-	settings->setDefault("more_threads", "true");
 
+#if defined(_WIN32)
+		settings->setDefault("more_threads", "false");
+#else
+		settings->setDefault("more_threads", "true");
+#endif
 
 #if !defined(_WIN32) && !CMAKE_USE_IPV4_DEFAULT && ENET_IPV6
 	settings->setDefault("ipv6_server", "true"); // problems on all windows versions (unable to play in local game)

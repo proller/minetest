@@ -23,40 +23,62 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "map.h"
 #include "mapblock.h"
 #include "log_types.h"
+#include "util/lock.h"
 
-MapBlock * Map::getBlockBuffered(v3s16 & p)
+//#include "main.h"
+//#include "profiler.h"
+
+#if defined(__GNUC__) && ((__GNUC__*100 + __GNUC_MINOR__) < 407)
+try_shared_mutex m_block_cache_mutex;
+#define NO_THREAD_LOCAL
+#define THREAD_LOCAL
+#else
+#define THREAD_LOCAL thread_local
+#endif
+
+THREAD_LOCAL MapBlock *m_block_cache = nullptr;
+THREAD_LOCAL v3s16 m_block_cache_p;
+
+MapBlock * Map::getBlockNoCreateNoEx(v3s16 p, bool trylock)
 {
+	//ScopeProfiler sp(g_profiler, "Map: getBlockBuffered");
 	{
-		auto lock = try_shared_lock(m_block_cache_mutex);
-		if(m_block_cache && p == m_block_cache_p)
+#ifdef NO_THREAD_LOCAL
+		auto lock = try_shared_lock(m_block_cache_mutex, TRY_TO_LOCK);
+		if(lock.owns_lock())
+#endif
+		if(m_block_cache && p == m_block_cache_p) {
+			//g_profiler->add("Map: getBlockBuffered cache hit", 1);
 			return m_block_cache;
+		}
 	}
 
 	MapBlock *block;
 	{
-		auto lock_blocks = m_blocks.lock_shared_rec();
+		auto lock = trylock ? m_blocks.try_lock_shared_rec() : m_blocks.lock_shared_rec();
+		if (!lock->owns_lock())
+			return nullptr;
 		auto n = m_blocks.find(p);
 		if(n == m_blocks.end())
 			return nullptr;
 		block = n->second;
 	}
 
+#ifdef NO_THREAD_LOCAL
+		auto lock = unique_lock(m_block_cache_mutex, TRY_TO_LOCK);
+		if(lock.owns_lock())
+#endif
 	{
-	auto lock_cache = unique_lock(m_block_cache_mutex);
-	m_block_cache_p = p;
-	m_block_cache = block;
+		m_block_cache_p = p;
+		m_block_cache = block;
 	}
-	return block;
-}
 
-MapBlock * Map::getBlockNoCreateNoEx(v3s16 p)
-{
-	return getBlockBuffered(p);
+	return block;
 }
 
 MapBlock * Map::createBlankBlockNoInsert(v3s16 & p)
 {
-	MapBlock *block = getBlockBuffered(p);
+	MapBlock *block = getBlockNoCreateNoEx(p);
 	if (block != NULL) {
 		infostream<<"Block already created "<<block->getPos()<<std::endl;
 		return block;
@@ -80,7 +102,7 @@ void Map::insertBlock(MapBlock *block)
 {
 	auto block_p = block->getPos();
 
-	auto block2 = getBlockBuffered(block_p);
+	auto block2 = getBlockNoCreateNoEx(block_p);
 	if(block2){
 		//throw AlreadyExistsException("Block already exists");
 		infostream<<"Block already exists " << block_p <<std::endl;
@@ -99,7 +121,6 @@ void Map::deleteBlock(MapBlock *block, bool now)
 	else
 		(*m_blocks_delete)[block] = 1;
 	m_blocks.erase(block_p);
-	auto lock_cache = unique_lock(m_block_cache_mutex);
 	m_block_cache = nullptr;
 }
 

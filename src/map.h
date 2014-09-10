@@ -174,7 +174,7 @@ public:
 	// Returns InvalidPositionException if not found
 	MapBlock * getBlockNoCreate(v3s16 p);
 	// Returns NULL if not found
-	MapBlock * getBlockNoCreateNoEx(v3s16 p);
+	MapBlock * getBlockNoCreateNoEx(v3s16 p, bool trylock = false);
 
 	/* Server overrides */
 	virtual MapBlock * emergeBlock(v3s16 p, bool allow_generate=true)
@@ -194,7 +194,7 @@ public:
 	// Returns a CONTENT_IGNORE node if not found
 	MapNode getNodeNoEx(v3s16 p);
 	MapNode getNodeTry(v3s16 p);
-	MapNode getNodeNoLock(v3s16 p); // dont use
+	//MapNode getNodeNoLock(v3s16 p); // dont use
 
 	void unspreadLight(enum LightBank bank,
 			std::map<v3s16, u8> & from_nodes,
@@ -340,9 +340,6 @@ public:
 
 
 // from old mapsector:
-	MapBlock *m_block_cache;
-	v3s16 m_block_cache_p;
-	try_shared_mutex m_block_cache_mutex;
 	typedef shared_unordered_map<v3s16, MapBlock*, v3s16Hash, v3s16Equal> m_blocks_type;
 	m_blocks_type m_blocks;
 	//MapBlock * getBlockNoCreateNoEx(v3s16 & p);
@@ -353,7 +350,6 @@ public:
 	std::map<MapBlock *, int> * m_blocks_delete;
 	std::map<MapBlock *, int> m_blocks_delete_1, m_blocks_delete_2;
 	//void getBlocks(std::list<MapBlock*> &dest);
-	MapBlock *getBlockBuffered(v3s16 & p);
 
 protected:
 	friend class LuaVoxelManip;
@@ -460,6 +456,8 @@ public:
 	bool saveBlock(MapBlock *block);
 	MapBlock* loadBlock(v3s16 p);
 
+	void updateVManip(v3s16 pos);
+
 	// For debug printing
 	virtual void PrintInfo(std::ostream &out);
 
@@ -527,6 +525,8 @@ public:
 	// This is much faster with big chunks of generated data
 	void blitBackAll(std::map<v3s16, MapBlock*> * modified_blocks,
 			bool overwrite_generated = true);
+
+	bool m_is_dirty;
 
 protected:
 	bool m_create_area;

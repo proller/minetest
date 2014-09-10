@@ -59,7 +59,9 @@ int getFarmeshStep(MapDrawControl& draw_control, const v3s16 & playerpos, const 
 */
 
 MeshMakeData::MeshMakeData(IGameDef *gamedef, Map & map_, MapDrawControl& draw_control_):
+#if defined(MESH_ZEROCOPY)
 	m_vmanip(map_),
+#endif
 	m_blockpos(-1337,-1337,-1337),
 	m_crack_pos_relative(-1337, -1337, -1337),
 	m_smooth_lighting(false),
@@ -80,7 +82,9 @@ void MeshMakeData::fill(MapBlock *block)
 	m_blockpos = block->getPos();
 	timestamp = block->getTimestamp();
 
-#if 0
+#if !defined(MESH_ZEROCOPY)
+	ScopeProfiler sp(g_profiler, "Client: Mesh data fill");
+
 	v3s16 blockpos_nodes = m_blockpos*MAP_BLOCKSIZE;
 
 	/*
@@ -127,7 +131,7 @@ void MeshMakeData::fillSingleNode(MapNode *node)
 {
 	m_blockpos = v3s16(0,0,0);
 
-#if 0
+#if !defined(MESH_ZEROCOPY)
 	v3s16 blockpos_nodes = v3s16(0,0,0);
 	VoxelArea area(blockpos_nodes-v3s16(1,1,1)*MAP_BLOCKSIZE,
 			blockpos_nodes+v3s16(1,1,1)*MAP_BLOCKSIZE*2-v3s16(1,1,1));
@@ -223,10 +227,7 @@ static u8 getFaceLight(enum LightBank bank, MapNode n, MapNode n2,
 	// Boost light level for light sources
 	u8 light_source = MYMAX(ndef->get(n).light_source,
 			ndef->get(n2).light_source);
-	//if(light_source >= light)
-		//return decode_light(undiminish_light(light_source));
 	if(light_source > light)
-		//return decode_light(light_source);
 		light = light_source;
 
 	return decode_light(light);
@@ -302,16 +303,12 @@ static u8 getSmoothLight(enum LightBank bank, v3s16 p, MeshMakeData *data)
 
 	if(ambient_occlusion > 4)
 	{
-		//ambient_occlusion -= 4;
-		//light = (float)light / ((float)ambient_occlusion * 0.5 + 1.0);
-		float light_amount = (8 - ambient_occlusion) / 4.0;
-		float light_f = (float)light / 255.0;
-		light_f = pow(light_f, 2.2f); // gamma -> linear space
-		light_f = light_f * light_amount;
-		light_f = pow(light_f, 1.0f/2.2f); // linear -> gamma space
-		if(light_f > 1.0)
-			light_f = 1.0;
-		light = 255.0 * light_f + 0.5;
+		//calculate table index for gamma space multiplier
+		ambient_occlusion -= 5;
+		//table of precalculated gamma space multiply factors
+		//light^2.2 * factor (0.75, 0.5, 0.25, 0.0), so table holds factor ^ (1 / 2.2)
+		const float light_amount[4] = {0.877424315, 0.729740053, 0.532520545, 0.0};
+		light = core::clamp(core::round32(light*light_amount[ambient_occlusion]), 0, 255);
 	}
 
 	return light;
@@ -778,8 +775,7 @@ static void getTileInfo(
 		,int step
 	)
 {
-	//VoxelManipulator &vmanip = data->m_vmanip;
-	Map &vmanip = data->m_vmanip;
+	auto &vmanip = data->m_vmanip;
 	INodeDefManager *ndef = data->m_gamedef->ndef();
 	v3s16 blockpos_nodes = data->m_blockpos * MAP_BLOCKSIZE;
 
@@ -950,21 +946,18 @@ static void updateFastFaceRow(
 				// Floating point conversion of the position vector
 				v3f pf(p_corrected.X, p_corrected.Y, p_corrected.Z);
 				// Center point of face (kind of)
-				v3f sp = pf - ((f32)continuous_tiles_count / 2. - 0.5) * translate_dir_f;
+				v3f sp = pf - ((f32)continuous_tiles_count / 2.0 - 0.5) * translate_dir_f;
 				if(continuous_tiles_count != 1)
 					sp += translate_dir_f;
 				v3f scale(1,1,1);
 
-				if(translate_dir.X != 0)
-				{
+				if(translate_dir.X != 0) {
 					scale.X = continuous_tiles_count;
 				}
-				if(translate_dir.Y != 0)
-				{
+				if(translate_dir.Y != 0) {
 					scale.Y = continuous_tiles_count;
 				}
-				if(translate_dir.Z != 0)
-				{
+				if(translate_dir.Z != 0) {
 					scale.Z = continuous_tiles_count;
 				}
 
@@ -973,7 +966,7 @@ static void updateFastFaceRow(
 						dest);
 
 				g_profiler->avg("Meshgen: faces drawn by tiling", 0);
-				for(int i=1; i<continuous_tiles_count; i++){
+				for(int i = 1; i < continuous_tiles_count; i++){
 					g_profiler->avg("Meshgen: faces drawn by tiling", 1);
 				}
 			}
@@ -1002,8 +995,8 @@ static void updateAllFastFaceRows(MeshMakeData *data,
 	/*
 		Go through every y,z and get top(y+) faces in rows of x+
 	*/
-	for(s16 y=0; y<to; y++){
-		for(s16 z=0; z<to; z++){
+	for(s16 y = 0; y < to; y++) {
+		for(s16 z = 0; z < to; z++) {
 			updateFastFaceRow(data,
 					v3s16(0,y,z),
 					v3s16(1,0,0), //dir
@@ -1017,8 +1010,8 @@ static void updateAllFastFaceRows(MeshMakeData *data,
 	/*
 		Go through every x,y and get right(x+) faces in rows of z+
 	*/
-	for(s16 x=0; x<to; x++){
-		for(s16 y=0; y<to; y++){
+	for(s16 x = 0; x < to; x++) {
+		for(s16 y = 0; y < to; y++) {
 			updateFastFaceRow(data,
 					v3s16(x,y,0),
 					v3s16(0,0,1), //dir
@@ -1032,8 +1025,8 @@ static void updateAllFastFaceRows(MeshMakeData *data,
 	/*
 		Go through every y,z and get back(z+) faces in rows of x+
 	*/
-	for(s16 z=0; z<to; z++){
-		for(s16 y=0; y<to; y++){
+	for(s16 z = 0; z < to; z++) {
+		for(s16 y = 0; y < to; y++) {
 			updateFastFaceRow(data,
 					v3s16(0,y,z),
 					v3s16(1,0,0), //dir
@@ -1221,6 +1214,7 @@ MapBlockMesh::MapBlockMesh(MeshMakeData *data, v3s16 camera_offset):
 		//material.setFlag(video::EMF_ANTI_ALIASING, video::EAAM_OFF);
 		//material.setFlag(video::EMF_ANTI_ALIASING, video::EAAM_SIMPLE);
 		//material.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL_REF;
+		//material.setFlag(video::EMF_WIREFRAME, true);
 		material.setTexture(0, p.tile.texture);
 
 		if (enable_shaders) {

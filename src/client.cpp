@@ -77,7 +77,7 @@ void MeshUpdateQueue::addBlock(v3s16 p, std::shared_ptr<MeshMakeData> data, bool
 	auto lock = m_queue.lock_unique_rec();
 	unsigned int range = urgent ? 0 : 1 + data->range + data->step * 10;
 	if (m_process.count(p))
-		range += 100;
+		range += 3;
 	else if (m_ranges.count(p)) {
 		auto range_old = m_ranges[p];
 		if (range_old > 0 && range != range_old)  {
@@ -103,9 +103,10 @@ std::shared_ptr<MeshMakeData> MeshUpdateQueue::pop()
 	auto lock = m_queue.lock_unique_rec();
 	for (auto & it : m_queue) {
 		auto & rmap = it.second;
-		auto data = rmap.begin()->second;
-		m_ranges.erase(rmap.begin()->first);
-		rmap.erase(rmap.begin()->first);
+		auto begin = rmap.begin();
+		auto data = begin->second;
+		m_ranges.erase(begin->first);
+		rmap.erase(begin->first);
 		if (rmap.empty())
 			m_queue.erase(it.first);
 		return data;
@@ -128,7 +129,7 @@ void * MeshUpdateThread::Thread()
 	BEGIN_DEBUG_EXCEPTION_HANDLER
 
 	porting::setThreadName(("MeshUpdateThread" + itos(id)).c_str());
-	porting::setThreadPriority(50);
+	porting::setThreadPriority(30);
 
 	while(!StopRequested())
 	{
@@ -168,7 +169,7 @@ Client::Client(
 		ISoundManager *sound,
 		MtEventManager *event,
 		bool ipv6
-		, bool simple_singleplayer_mode_
+		, bool simple_singleplayer_mode
 ):
 	m_packetcounter_timer(0.0),
 	m_connection_reinit_timer(0.1),
@@ -210,7 +211,7 @@ Client::Client(
 	m_time_of_day_update_timer(0),
 	m_recommended_send_interval(0.1),
 	m_removed_sounds_check_timer(0),
-	simple_singleplayer_mode(simple_singleplayer_mode_),
+	m_simple_singleplayer_mode(simple_singleplayer_mode),
 	m_state(LC_Created)
 {
 	/*
@@ -2072,7 +2073,7 @@ void Client::afterContentReceived(IrrlichtDevice *device, gui::IGUIFont* font)
 	// Start mesh update thread after setting up content definitions
 	infostream<<"- Starting mesh update thread"<<std::endl;
 	if (!no_output) {
-		auto threads = !g_settings->getBool("more_threads") ? 1 : (porting::getNumberOfProcessors() - (simple_singleplayer_mode ? 2 : 1));
+		auto threads = !g_settings->getBool("more_threads") ? 1 : (porting::getNumberOfProcessors() - (m_simple_singleplayer_mode ? 2 : 1));
 		m_mesh_update_thread.Start(threads < 1 ? 1 : threads);
 	}
 

@@ -81,7 +81,6 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 */
 Map::Map(IGameDef *gamedef, Circuit* circuit):
 	m_liquid_step_flow(1000),
-	m_block_cache(nullptr),
 	m_blocks_delete(&m_blocks_delete_1),
 	m_gamedef(gamedef),
 	m_circuit(circuit),
@@ -93,8 +92,6 @@ Map::Map(IGameDef *gamedef, Circuit* circuit):
 
 Map::~Map()
 {
-	m_block_cache = nullptr;
-
 	for(auto &i : m_blocks_delete_1)
 		delete i.first;
 	for(auto &i : m_blocks_delete_2)
@@ -175,13 +172,14 @@ MapNode Map::getNodeNoEx(v3s16 p)
 MapNode Map::getNodeTry(v3s16 p)
 {
 	v3s16 blockpos = getNodeBlockPos(p);
-	MapBlock *block = getBlockNoCreateNoEx(blockpos);
+	MapBlock *block = getBlockNoCreateNoEx(blockpos, true);
 	if(block == NULL)
 		return MapNode(CONTENT_IGNORE);
 	v3s16 relpos = p - blockpos*MAP_BLOCKSIZE;
 	return block->getNodeTry(relpos);
 }
 
+/*
 MapNode Map::getNodeNoLock(v3s16 p) //dont use
 {
 	v3s16 blockpos = getNodeBlockPos(p);
@@ -190,6 +188,7 @@ MapNode Map::getNodeNoLock(v3s16 p) //dont use
 		return MapNode(CONTENT_IGNORE);
 	return block->getNodeNoLock(p - blockpos*MAP_BLOCKSIZE);
 }
+*/
 
 // throws InvalidPositionException if not found
 MapNode Map::getNode(v3s16 p)
@@ -1473,7 +1472,6 @@ u32 Map::timerUpdate(float uptime, float unload_timeout,
 	Profiler modprofiler;
 
 	if (/*!m_blocks_update_last && */ m_blocks_delete->size() > 1000) {
-		m_block_cache = nullptr;
 		m_blocks_delete = (m_blocks_delete == &m_blocks_delete_1 ? &m_blocks_delete_2 : &m_blocks_delete_1);
 		verbosestream<<"Deleting blocks="<<m_blocks_delete->size()<<std::endl;
 		for(auto &i : *m_blocks_delete) // delayed delete
@@ -2051,7 +2049,7 @@ u32 Map::transformLiquidsReal(Server *m_server, std::map<v3s16, MapBlock*> & mod
 			// If node emits light, MapBlock requires lighting update
 			// or if node removed
 			v3s16 blockpos = getNodeBlockPos(neighbors[i].p);
-			MapBlock *block = getBlockNoCreateNoEx(blockpos);
+			MapBlock *block = getBlockNoCreateNoEx(blockpos, true); // remove true if light bugs
 			if(block != NULL) {
 				modified_blocks[blockpos] = block;
 				if(!nodemgr->get(neighbors[i].n).light_propagates || nodemgr->get(neighbors[i].n).light_source) // better to update always
@@ -2823,7 +2821,7 @@ void ServerMap::finishBlockMake(BlockMakeData *data,
 	{
 		// 70ms @cs=8
 		//TimeTaker timer("finishBlockMake() blitBackAll");
-		data->vmanip->blitBackAll(&changed_blocks, false);
+		data->vmanip->blitBackAll(&changed_blocks);
 	}
 
 	EMERGE_DBG_OUT("finishBlockMake: changed_blocks.size()=" << changed_blocks.size());
@@ -3060,6 +3058,28 @@ void ServerMap::prepareBlock(MapBlock *block) {
 	v3s16 p = block->getPos() *  MAP_BLOCKSIZE;
 	updateBlockHeat(senv, p, block);
 	updateBlockHumidity(senv, p, block);
+}
+
+// N.B.  This requires no synchronization, since data will not be modified unless
+// the VoxelManipulator being updated belongs to the same thread.
+void ServerMap::updateVManip(v3s16 pos)
+{
+	Mapgen *mg = m_emerge->getCurrentMapgen();
+	if (!mg)
+		return;
+
+	ManualMapVoxelManipulator *vm = mg->vm;
+	if (!vm)
+		return;
+
+	if (!vm->m_area.contains(pos))
+		return;
+
+	s32 idx = vm->m_area.index(pos);
+	vm->m_data[idx] = getNodeNoEx(pos);
+	vm->m_flags[idx] &= ~VOXELFLAG_NO_DATA;
+
+	vm->m_is_dirty = true;
 }
 
 /**
@@ -3432,7 +3452,7 @@ s16 ServerMap::updateBlockHeat(ServerEnvironment *env, v3s16 p, MapBlock *block,
 		if (gametime < block->heat_last_update)
 			return block->heat + myrand_range(0, 1);
 	} else if (!cache) {
-		block = getBlockNoCreateNoEx(bp);
+		block = getBlockNoCreateNoEx(bp, true);
 	}
 	if (cache && cache->count(bp))
 		return cache->at(bp) + myrand_range(0, 1);
@@ -3457,7 +3477,7 @@ s16 ServerMap::updateBlockHumidity(ServerEnvironment *env, v3s16 p, MapBlock *bl
 		if (gametime < block->humidity_last_update)
 			return block->humidity + myrand_range(0, 1);
 	} else if (!cache) {
-		block = getBlockNoCreateNoEx(bp);
+		block = getBlockNoCreateNoEx(bp, true);
 	}
 	if (cache && cache->count(bp))
 		return cache->at(bp) + myrand_range(0, 1);
@@ -3512,6 +3532,7 @@ int ServerMap::getSurface(v3s16 basepos, int searchup, bool walkable_only) {
 
 ManualMapVoxelManipulator::ManualMapVoxelManipulator(Map *map):
 		VoxelManipulator(),
+		m_is_dirty(false),
 		m_create_area(false),
 		m_map(map)
 {
@@ -3607,6 +3628,8 @@ void ManualMapVoxelManipulator::initialEmerge(v3s16 blockpos_min,
 
 		m_loaded_blocks[p] = flags;
 	}
+
+	m_is_dirty = false;
 }
 
 void ManualMapVoxelManipulator::blitBackAll(
