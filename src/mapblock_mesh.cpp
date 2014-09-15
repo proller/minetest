@@ -68,19 +68,29 @@ MeshMakeData::MeshMakeData(IGameDef *gamedef, Map & map_, MapDrawControl& draw_c
 	m_gamedef(gamedef)
 	,step(1),
 	range(1),
+	block(nullptr),
 	map(map_),
 	draw_control(draw_control_),
-	debug(0)
+	debug(0),
+	filled(false)
 {}
 
 MeshMakeData::~MeshMakeData() {
 	//infostream<<"~MeshMakeData "<<m_blockpos<<std::endl;
 }
 
-void MeshMakeData::fill(MapBlock *block)
+void MeshMakeData::fill(MapBlock *block_)
 {
+	block = block_;
 	m_blockpos = block->getPos();
 	timestamp = block->getTimestamp();
+}
+
+void MeshMakeData::fill_data()
+{
+	if (!block || filled)
+		return;
+	filled = true;
 
 #if !defined(MESH_ZEROCOPY)
 	ScopeProfiler sp(g_profiler, "Client: Mesh data fill");
@@ -1058,6 +1068,8 @@ MapBlockMesh::MapBlockMesh(MeshMakeData *data, v3s16 camera_offset):
 	// 4-21ms for MAP_BLOCKSIZE=16  (NOTE: probably outdated)
 	// 24-155ms for MAP_BLOCKSIZE=32  (NOTE: probably outdated)
 	//TimeTaker timer1("MapBlockMesh()");
+
+	data->fill_data();
 
 	std::vector<FastFace> fastfaces_new;
 
