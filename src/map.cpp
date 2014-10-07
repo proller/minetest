@@ -134,7 +134,7 @@ MapBlock * Map::getBlockNoCreate(v3s16 p3d)
 {
 	MapBlock *block = getBlockNoCreateNoEx(p3d);
 	if(block == NULL)
-		throw InvalidPositionException();
+		throw InvalidPositionException("getBlockNoCreate block=NULL");
 	return block;
 }
 
@@ -196,7 +196,7 @@ MapNode Map::getNode(v3s16 p)
 	v3s16 blockpos = getNodeBlockPos(p);
 	MapBlock *block = getBlockNoCreateNoEx(blockpos);
 	if(block == NULL)
-		throw InvalidPositionException();
+		throw InvalidPositionException("getNode block=NULL");
 	v3s16 relpos = p - blockpos*MAP_BLOCKSIZE;
 	return block->getNodeNoCheck(relpos);
 }
@@ -631,7 +631,7 @@ v3s16 Map::getBrightestNeighbour(enum LightBank bank, v3s16 p)
 	}
 
 	if(found_something == false)
-		throw InvalidPositionException();
+		throw InvalidPositionException("getBrightestNeighbour nothing found");
 
 	return brightest_pos;
 }
@@ -3572,7 +3572,7 @@ void ManualMapVoxelManipulator::initialEmerge(v3s16 blockpos_min,
 			TimeTaker timer1("emerge load");
 
 			block = m_map->getBlockNoCreate(p);
-			if(block->isDummy())
+			if(!block || block->isDummy())
 				block_data_inexistent = true;
 			else
 				block->copyTo(*this);
