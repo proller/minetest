@@ -42,7 +42,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "environment.h"
 #include "emerge.h"
 #include "mapgen_v6.h"
-#include "biome.h"
+#include "mg_biome.h"
 #include "config.h"
 #include "server.h"
 #include "database.h"
@@ -799,6 +799,8 @@ u32 Map::updateLighting(enum LightBank bank,
 					<<pos.X<<","<<pos.Y<<","<<pos.Z<<") not valid"
 					<<std::endl;*/
 
+			block->setLightingExpired(true);
+
 			// Bottom sunlight is not valid; get the block and loop to it
 
 			pos.Y--;
@@ -847,6 +849,11 @@ u32 Map::updateLighting(enum LightBank bank,
 	{
 		TimeTaker timer("updateLighting: spreadLight");
 		spreadLight(bank, light_sources, modified_blocks);
+	}
+
+	for (auto & ir : blocks_to_update) {
+		auto block = getBlockNoCreateNoEx(ir.first);
+		block->setLightingExpired(false);
 	}
 
 	/*if(debug)
@@ -3278,7 +3285,7 @@ void ServerMap::loadMapMeta()
 	std::ifstream is(fullpath.c_str(), std::ios_base::binary);
 	if (!is.good()) {
 		errorstream << "ServerMap::loadMapMeta(): "
-				<< "could not open" << fullpath << std::endl;
+				<< "could not open " << fullpath << std::endl;
 		throw FileNotGoodException("Cannot open map metadata");
 	}
 

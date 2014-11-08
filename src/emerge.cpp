@@ -41,8 +41,10 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "profiler.h"
 #include "log_types.h"
 #include "nodedef.h"
-#include "biome.h"
 #include "mapgen_v5.h"
+#include "mg_biome.h"
+#include "mg_decoration.h"
+#include "mg_ore.h"
 #include "mapgen_v6.h"
 #include "mapgen_v7.h"
 #include "mapgen_indev.h"
@@ -383,7 +385,8 @@ void EmergeManager::loadParamsFromSettings(Settings *settings) {
 	settings->getS16NoEx("chunksize",    params.chunksize);
 	settings->getFlagStrNoEx("mg_flags", params.flags, flagdesc_mapgen);
 
-	delete params.sparams;
+	//delete params.sparams;
+	if (!params.sparams)
 	params.sparams = createMapgenParams(params.mg_name);
 	if (params.sparams)
 		params.sparams->readParams(settings);

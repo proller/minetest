@@ -37,7 +37,9 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "dungeongen.h"
 #include "cavegen.h"
 #include "treegen.h"
-#include "biome.h"
+#include "mg_biome.h"
+#include "mg_ore.h"
+#include "mg_decoration.h"
 #include "mapgen_v7.h"
 #include "mapgen_indev.h" //farscale
 #include "environment.h"
@@ -115,6 +117,8 @@ MapgenV7::MapgenV7(int mapgenid, MapgenParams *params, EmergeManager *emerge) {
 	noise_float_islands2  = new Noise(&sp->np_float_islands2, seed, csize.X, csize.Y, csize.Z);
 	noise_float_islands3  = new Noise(&sp->np_float_islands3, seed, csize.X, csize.Z);
 
+	noise_layers          = new Noise(&sp->np_layers,         seed, csize.X, csize.Y, csize.Z);
+	layers_init(emerge, sp->paramsj["layers"]);
 }
 
 
@@ -159,6 +163,7 @@ MapgenV7Params::MapgenV7Params() {
 	np_float_islands1  = NoiseParams(0,    1,   v3f(256, 256, 256), 3683,  6, 0.6,  1,   1.5);
 	np_float_islands2  = NoiseParams(0,    1,   v3f(8,   8,   8  ), 9292,  2, 0.5,  1,   1.5);
 	np_float_islands3  = NoiseParams(0,    1,   v3f(256, 256, 256), 6412,  2, 0.5,  1,   0.5);
+	np_layers          = NoiseParams(500,  500, v3f(100, 100, 100), 3663,  3, 0.6,  1,   5,   0.5);
 }
 
 
@@ -175,10 +180,13 @@ void MapgenV7Params::readParams(Settings *settings) {
 	settings->getNoiseParams("mgv7_np_mountain",        np_mountain);
 	settings->getNoiseParams("mgv7_np_ridge",           np_ridge);
 
-	settings->getS16NoEx("mgv7_float_islands", float_islands);
-	settings->getNoiseIndevParams("mgv7_np_float_islands1", np_float_islands1);
-	settings->getNoiseIndevParams("mgv7_np_float_islands2", np_float_islands2);
-	settings->getNoiseIndevParams("mgv7_np_float_islands3", np_float_islands3);
+	settings->getS16NoEx("mg_float_islands", float_islands);
+	settings->getNoiseIndevParams("mg_np_float_islands1", np_float_islands1);
+	settings->getNoiseIndevParams("mg_np_float_islands2", np_float_islands2);
+	settings->getNoiseIndevParams("mg_np_float_islands3", np_float_islands3);
+	settings->getNoiseIndevParams("mg_np_layers",         np_layers);
+	paramsj = settings->getJson("mg_params", paramsj);
+
 }
 
 
@@ -195,10 +203,11 @@ void MapgenV7Params::writeParams(Settings *settings) {
 	settings->setNoiseParams("mgv7_np_mountain",        np_mountain);
 	settings->setNoiseParams("mgv7_np_ridge",           np_ridge);
 
-	settings->setS16("mgv7_float_islands", float_islands);
-	settings->setNoiseIndevParams("mgv7_np_float_islands1", np_float_islands1);
-	settings->setNoiseIndevParams("mgv7_np_float_islands2", np_float_islands2);
-	settings->setNoiseIndevParams("mgv7_np_float_islands3", np_float_islands3);
+	settings->setS16("mg_float_islands", float_islands);
+	settings->setNoiseIndevParams("mg_np_float_islands1", np_float_islands1);
+	settings->setNoiseIndevParams("mg_np_float_islands2", np_float_islands2);
+	settings->setNoiseIndevParams("mg_np_float_islands3", np_float_islands3);
+	settings->setNoiseIndevParams("mg_np_layers",         np_layers);
 }
 
 
@@ -348,6 +357,7 @@ void MapgenV7::calculateNoise() {
 	noise_heat->perlinMap2D(x, z);
 	noise_humidity->perlinMap2D(x, z);
 	
+	if (float_islands && y >= float_islands) {
 		noise_float_islands1->perlinMap3D(
 			x + 0.33 * noise_float_islands1->np->spread.X * farscale(noise_float_islands1->np->farspread, x, y, z),
 			y + 0.33 * noise_float_islands1->np->spread.Y * farscale(noise_float_islands1->np->farspread, x, y, z),
@@ -366,6 +376,9 @@ void MapgenV7::calculateNoise() {
 			x + 0.5 * noise_float_islands3->np->spread.X * farscale(noise_float_islands3->np->farspread, x, z),
 			z + 0.5 * noise_float_islands3->np->spread.Z * farscale(noise_float_islands3->np->farspread, x, z));
 		noise_float_islands3->transformNoiseMap(x, y, z);
+	}
+
+	layers_prepare(node_min, node_max);
 
 	//printf("calculateNoise: %dus\n", t.stop());
 }
@@ -501,9 +514,16 @@ int MapgenV7::generateBaseTerrain() {
 
 		u32 i = vm->m_area.index(x, node_min.Y, z);		
 		for (s16 y = node_min.Y; y <= node_max.Y; y++) {
+
 			if (vm->m_data[i].getContent() == CONTENT_IGNORE) {
-				if (y <= surface_y)
-					vm->m_data[i] = n_stone;
+				if (y <= surface_y) {
+
+					int index3 = (z - node_min.Z) * zstride +
+						(y - node_min.Y) * ystride +
+						(x - node_min.X);
+
+					vm->m_data[i] =  layers_get(index3);
+				}
 				else if (y <= water_level)
 				{
 					vm->m_data[i] = (heat < 0 && y > heat/3) ? n_ice : n_water;
@@ -862,7 +882,7 @@ void MapgenV7::generateFloatIslands(int min_y) {
 				// Cancel if not  air
 				if (vm->m_data[i].getContent() != CONTENT_AIR)
 					continue;
-				vm->m_data[i] = n1;
+				vm->m_data[i] = layers_get(index);
 				++generated;
 			}
 		}
