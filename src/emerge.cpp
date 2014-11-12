@@ -45,6 +45,7 @@ along with Freeminer.  If not, see <http://www.gnu.org/licenses/>.
 #include "mg_biome.h"
 #include "mg_decoration.h"
 #include "mg_ore.h"
+#include "mapgen_v5.h"
 #include "mapgen_v6.h"
 #include "mapgen_v7.h"
 #include "mapgen_indev.h"
@@ -123,12 +124,12 @@ EmergeManager::EmergeManager(IGameDef *gamedef) {
 	if (!g_settings->getU16NoEx("emergequeue_limit_diskonly", qlimit_diskonly))
 		{}
 	if (qlimit_diskonly < 1) {
-		qlimit_diskonly = nthreads * 10;
+		qlimit_diskonly = nthreads * 100;
 	}
 	if (!g_settings->getU16NoEx("emergequeue_limit_generate", qlimit_generate))
 		{}
 	if (qlimit_generate < 1) {
-		qlimit_generate = nthreads * 7;
+		qlimit_generate = nthreads * 32;
 	}
 	//errorstream<<"==> qlimit_generate="<<qlimit_generate<<"  qlimit_diskonly="<<qlimit_diskonly<<" qlimit_total="<<qlimit_total<<std::endl;
 
@@ -448,7 +449,7 @@ bool EmergeThread::getBlockOrStartGen(v3s16 p, MapBlock **b,
 	// Attempt to load block
 	MapBlock *block = map->getBlockNoCreateNoEx(p);
 	if (!block || block->isDummy()) {
-		EMERGE_DBG_OUT("not in memory, attempting to load from disk ag="<<allow_gen<<" block="<<block);
+		EMERGE_DBG_OUT("not in memory, attempting to load from disk ag="<<allow_gen<<" block="<<block<<" p="<<p);
 		block = map->loadBlock(p);
 		if(block)
 		{

@@ -71,7 +71,7 @@ MeshUpdateQueue::~MeshUpdateQueue()
 {
 }
 
-void MeshUpdateQueue::addBlock(v3s16 p, std::shared_ptr<MeshMakeData> data, bool urgent)
+void MeshUpdateQueue::addBlock(v3POS p, std::shared_ptr<MeshMakeData> data, bool urgent)
 {
 	DSTACK(__FUNCTION_NAME);
 
@@ -134,6 +134,8 @@ void * MeshUpdateThread::Thread()
 
 	while(!StopRequested())
 	{
+
+		try {
 		auto q = m_queue_in.pop();
 		if(!q)
 		{
@@ -147,6 +149,19 @@ void * MeshUpdateThread::Thread()
 		m_queue_out.push_back(MeshUpdateResult(q->m_blockpos, std::shared_ptr<MapBlockMesh>(new MapBlockMesh(q.get(), m_camera_offset))));
 
 		m_queue_in.m_process.erase(q->m_blockpos);
+
+#ifdef NDEBUG
+		} catch (BaseException &e) {
+			errorstream<<"MeshUpdateThread: exception: "<<e.what()<<std::endl;
+		} catch(std::exception &e) {
+			errorstream<<"MeshUpdateThread: exception: "<<e.what()<<std::endl;
+		} catch (...) {
+			errorstream<<"MeshUpdateThread: Ooops..."<<std::endl;
+#else
+		} catch (int) { //nothing
+#endif
+		}
+
 	}
 
 	END_DEBUG_EXCEPTION_HANDLER(errorstream)
@@ -1689,20 +1704,19 @@ void Client::removeNode(v3s16 p)
 	{
 	}
 	
-	// add urgent task to update the modified node
-	addUpdateMeshTaskForNode(p, true);
-
 	for(std::map<v3s16, MapBlock * >::iterator
 			i = modified_blocks.begin();
 			i != modified_blocks.end(); ++i)
 	{
-		addUpdateMeshTaskWithEdge(i->first);
+		addUpdateMeshTask(i->first, false);
 	}
+	// add urgent task to update the modified node
+	addUpdateMeshTaskForNode(p, true);
 }
 
 void Client::addNode(v3s16 p, MapNode n, bool remove_metadata)
 {
-	TimeTaker timer1("Client::addNode()");
+	//TimeTaker timer1("Client::addNode()");
 
 	std::map<v3s16, MapBlock*> modified_blocks;
 
@@ -1720,7 +1734,7 @@ void Client::addNode(v3s16 p, MapNode n, bool remove_metadata)
 			i = modified_blocks.begin();
 			i != modified_blocks.end(); ++i)
 	{
-		addUpdateMeshTaskWithEdge(i->first);
+		addUpdateMeshTask(i->first, false);
 	}
 }
 	

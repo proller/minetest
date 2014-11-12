@@ -470,6 +470,7 @@ core.register_chatcommand("giveme", {
 		if not itemstring then
 			return false, "ItemString required"
 		end
+		core.stat_add("giveme", name)
 		return handle_give_command("/giveme", name, name, itemstring)
 	end,
 })
@@ -733,5 +734,24 @@ core.register_chatcommand("die", {
 			return
 		end
 		player:set_hp(0)
+		core.stat_add("suicide", name)
 	end,
 })
+
+core.register_chatcommand("last-login", {
+	params = "[name]",
+	description = "Get the last login time of a player",
+	func = function(name, param)
+		if param == "" then
+			param = name
+		end
+		local pauth = core.get_auth_handler().get_auth(param)
+		if pauth and pauth.last_login then
+			-- Time in UTC, ISO 8601 format
+			return true, "Last login time was " ..
+				os.date("!%Y-%m-%dT%H:%M:%SZ", pauth.last_login)
+		end
+		return false, "Last login time is unknown"
+	end,
+})
+
