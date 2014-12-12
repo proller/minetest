@@ -314,7 +314,60 @@ float contour(float v)
 }
 
 
-///////////////////////// [ New perlin stuff ] ////////////////////////////
+///////////////////////// [ New noise ] ////////////////////////////
+
+
+float NoisePerlin2D(NoiseParams *np, float x, float y, int seed)
+{
+	float a = 0;
+	float f = 1.0;
+	float g = 1.0;
+
+	x /= np->spread.X;
+	y /= np->spread.Y;
+	seed += np->seed;
+
+	for (size_t i = 0; i < np->octaves; i++) {
+		float noiseval = noise2d_gradient(x * f, y * f, seed + i,
+			np->flags & (NOISE_FLAG_DEFAULTS | NOISE_FLAG_EASED));
+
+		if (np->flags & NOISE_FLAG_ABSVALUE)
+			noiseval = fabs(noiseval);
+
+		a += g * noiseval;
+		f *= np->lacunarity;
+		g *= np->persist;
+	}
+
+	return np->offset + a * np->scale;
+}
+
+
+float NoisePerlin3D(NoiseParams *np, float x, float y, float z, int seed)
+{
+	float a = 0;
+	float f = 1.0;
+	float g = 1.0;
+
+	x /= np->spread.X;
+	y /= np->spread.Y;
+	z /= np->spread.Z;
+	seed += np->seed;
+
+	for (size_t i = 0; i < np->octaves; i++) {
+		float noiseval = noise3d_gradient(x * f, y * f, z * f, seed + i,
+			np->flags & NOISE_FLAG_EASED);
+
+		if (np->flags & NOISE_FLAG_ABSVALUE)
+			noiseval = fabs(noiseval);
+
+		a += g * noiseval;
+		f *= np->lacunarity;
+		g *= np->persist;
+	}
+
+	return np->offset + a * np->scale;
+}
 
 
 Noise::Noise(NoiseParams *np_, int seed, int sx, int sy, int sz)
@@ -611,6 +664,11 @@ float *Noise::perlinMap2D(float x, float y, float *persistence_map)
 		g *= np.persist;
 	}
 
+	if (fabs(np.offset - 0.f) > 0.00001 || fabs(np.scale - 1.f) > 0.00001) {
+		for (size_t i = 0; i != bufsize; i++)
+			result[i] = result[i] * np.scale + np.offset;
+	}
+
 	return result;
 }
 
@@ -644,6 +702,11 @@ float *Noise::perlinMap3D(float x, float y, float z, float *persistence_map)
 		g *= np.persist;
 	}
 
+	if (fabs(np.offset - 0.f) > 0.00001 || fabs(np.scale - 1.f) > 0.00001) {
+		for (size_t i = 0; i != bufsize; i++)
+			result[i] = result[i] * np.scale + np.offset;
+	}
+
 	return result;
 }
 
@@ -675,16 +738,3 @@ void Noise::updateResults(float g, float *gmap,
 		}
 	}
 }
-
-
-void Noise::transformNoiseMap()
-{
-	// Because sx, sy, and sz are object members whose values may conceivably be
-	// modified in other threads. gcc (at least) will consider the buffer size
-	// computation as invalidated between loop comparisons, resulting in a ~2x
-	// slowdown even with -O2.  To prevent this, store the value in a local.
-	size_t bufsize = sx * sy * sz;
-	for (size_t i = 0; i != bufsize; i++)
-		result[i] = result[i] * np.scale + np.offset;
-}
-

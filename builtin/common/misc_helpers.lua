@@ -351,8 +351,8 @@ end
 --------------------------------------------------------------------------------
 
 if INIT == "game" then
-	local dirs1 = {8, 17, 6, 15}
-	local dirs2 = {22, 21, 20, 23}
+	local dirs1 = {9, 18, 7, 12}
+	local dirs2 = {20, 23, 22, 21}
 
 	function core.rotate_and_place(itemstack, placer, pointed_thing,
 				infinitestacks, orient_flags)
@@ -463,7 +463,8 @@ function core.explode_table_event(evt)
 			local t = parts[1]:trim()
 			local r = tonumber(parts[2]:trim())
 			local c = tonumber(parts[3]:trim())
-			if type(r) == "number" and type(c) == "number" and t ~= "INV" then
+			if type(r) == "number" and type(c) == "number"
+					and t ~= "INV" then
 				return {type=t, row=r, column=c}
 			end
 		end
@@ -532,16 +533,18 @@ if INIT == "mainmenu" then
 		local arg = {n=select('#', ...), ...}
 		if arg.n >= 1 then
 			-- Insert positional parameters ($1, $2, ...)
-			result = ''
-			pos = 1
+			local result = ''
+			local pos = 1
 			while pos <= text:len() do
-				newpos = text:find('[$]', pos)
+				local newpos = text:find('[$]', pos)
 				if newpos == nil then
 					result = result .. text:sub(pos)
 					pos = text:len() + 1
 				else
-					paramindex = tonumber(text:sub(newpos+1, newpos+1))
-					result = result .. text:sub(pos, newpos-1) .. tostring(arg[paramindex])
+					local paramindex =
+						tonumber(text:sub(newpos+1, newpos+1))
+					result = result .. text:sub(pos, newpos-1)
+						.. tostring(arg[paramindex])
 					pos = newpos + 2
 				end
 			end

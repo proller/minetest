@@ -52,7 +52,7 @@ FlagDesc flagdesc_mapgen_v6[] = {
 MapgenV6::MapgenV6(int mapgenid, MapgenParams *params, EmergeManager *emerge)
 	: Mapgen(mapgenid, params, emerge)
 {
-	this->emerge  = emerge;
+	this->m_emerge = emerge;
 	this->ystride = csize.X; //////fix this
 
 	MapgenV6Params *sp = (MapgenV6Params *)params->sparams;
@@ -125,7 +125,7 @@ MapgenV6Params::MapgenV6Params() {
 	np_terrain_base   = NoiseParams(-4,  20.0, v3f(250.0, 250.0, 250.0), 82341,  5, 0.6, 2.0);
 	np_terrain_higher = NoiseParams(20,  16.0, v3f(500.0, 500.0, 500.0), 85039,  5, 0.6, 2.0);
 	np_steepness      = NoiseParams(0.85,0.5,  v3f(125.0, 125.0, 125.0), -932,   5, 0.7, 2.0);
-	np_height_select  = NoiseParams(0.5, 1.0,  v3f(250.0, 250.0, 250.0), 4213,   5, 0.69, 2.0);
+	np_height_select  = NoiseParams(0,   1.0,  v3f(250.0, 250.0, 250.0), 4213,   5, 0.69, 2.0);
 	np_mud            = NoiseParams(4,   2.0,  v3f(200.0, 200.0, 200.0), 91013,  3, 0.55, 2.0);
 	np_beach          = NoiseParams(0,   1.0,  v3f(250.0, 250.0, 250.0), 59420,  3, 0.50, 2.0);
 	np_biome          = NoiseParams(0,   1.0,  v3f(250.0, 250.0, 250.0), 9130,   3, 0.50, 2.0);
@@ -246,13 +246,13 @@ float MapgenV6::baseTerrainLevelFromNoise(v2s16 p) {
 	if (flags & MG_FLAT)
 		return water_level;
 
-	float terrain_base   = NoisePerlin2DPosOffset(&noise_terrain_base->np,
+	float terrain_base   = NoisePerlin2D_PO(&noise_terrain_base->np,
 							p.X, 0.5, p.Y, 0.5, seed);
-	float terrain_higher = NoisePerlin2DPosOffset(&noise_terrain_higher->np,
+	float terrain_higher = NoisePerlin2D_PO(&noise_terrain_higher->np,
 							p.X, 0.5, p.Y, 0.5, seed);
-	float steepness      = NoisePerlin2DPosOffset(&noise_steepness->np,
+	float steepness      = NoisePerlin2D_PO(&noise_steepness->np,
 							p.X, 0.5, p.Y, 0.5, seed);
-	float height_select  = NoisePerlin2DNoTxfmPosOffset(&noise_height_select->np,
+	float height_select  = NoisePerlin2D_PO(&noise_height_select->np,
 							p.X, 0.5, p.Y, 0.5, seed);
 
 	return baseTerrainLevel(terrain_base, terrain_higher,
@@ -529,10 +529,10 @@ void MapgenV6::makeChunk(BlockMakeData *data) {
 		placeTreesAndJungleGrass();
 
 	// Generate the registered decorations
-	emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
+	m_emerge->decomgr->placeAllDecos(this, blockseed, node_min, node_max);
 
 	// Generate the registered ores
-	emerge->oremgr->placeAllOres(this, blockseed, node_min, node_max);
+	m_emerge->oremgr->placeAllOres(this, blockseed, node_min, node_max);
 
 	// Calculate lighting
 	if (flags & MG_LIGHT)
@@ -547,40 +547,16 @@ void MapgenV6::calculateNoise() {
 	int x = node_min.X;
 	int z = node_min.Z;
 
-	// Need to adjust for the original implementation's +.5 offset...
 	if (!(flags & MG_FLAT)) {
-		noise_terrain_base->perlinMap2D(
-			x + 0.5 * noise_terrain_base->np.spread.X,
-			z + 0.5 * noise_terrain_base->np.spread.Z);
-		noise_terrain_base->transformNoiseMap();
-
-		noise_terrain_higher->perlinMap2D(
-			x + 0.5 * noise_terrain_higher->np.spread.X,
-			z + 0.5 * noise_terrain_higher->np.spread.Z);
-		noise_terrain_higher->transformNoiseMap();
-
-		noise_steepness->perlinMap2D(
-			x + 0.5 * noise_steepness->np.spread.X,
-			z + 0.5 * noise_steepness->np.spread.Z);
-		noise_steepness->transformNoiseMap();
-
-		noise_height_select->perlinMap2D(
-			x + 0.5 * noise_height_select->np.spread.X,
-			z + 0.5 * noise_height_select->np.spread.Z);
-
-		noise_mud->perlinMap2D(
-			x + 0.5 * noise_mud->np.spread.X,
-			z + 0.5 * noise_mud->np.spread.Z);
-		noise_mud->transformNoiseMap();
+		noise_terrain_base->perlinMap2D_PO(x, 0.5, z, 0.5);
+		noise_terrain_higher->perlinMap2D_PO(x, 0.5, z, 0.5);
+		noise_steepness->perlinMap2D_PO(x, 0.5, z, 0.5);
+		noise_height_select->perlinMap2D_PO(x, 0.5, z, 0.5);
+		noise_mud->perlinMap2D_PO(x, 0.5, z, 0.5);
 	}
 
-	noise_beach->perlinMap2D(
-		x + 0.2 * noise_beach->np.spread.X,
-		z + 0.7 * noise_beach->np.spread.Z);
-
-	noise_biome->perlinMap2D(
-		x + 0.6 * noise_biome->np.spread.X,
-		z + 0.2 * noise_biome->np.spread.Z);
+	noise_beach->perlinMap2D_PO(x, 0.2, z, 0.7);
+	noise_biome->perlinMap2D_PO(x, 0.6, z, 0.2);
 }
 
 
