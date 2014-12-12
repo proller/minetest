@@ -577,7 +577,7 @@ void Client::step(float dtime)
 		{
 			if(sendlist.size() == 255 || i == deleted_blocks.end())
 			{
-				if(sendlist.size() == 0)
+				if(sendlist.empty())
 					break;
 				/*
 					[0] u16 command
@@ -813,7 +813,7 @@ void Client::step(float dtime)
 			}
 		}
 		// Sync to server
-		if(removed_server_ids.size() != 0)
+		if(!removed_server_ids.empty())
 		{
 			std::ostringstream os(std::ios_base::binary);
 			writeU16(os, TOSERVER_REMOVED_SOUNDS);
@@ -2782,14 +2782,14 @@ void Client::makeScreenshot(IrrlichtDevice *device)
 			snprintf(filename, sizeof(filename), "%s" DIR_DELIM "screenshot_%u.png",
 				 g_settings->get("screenshot_path").c_str(),
 				 device->getTimer()->getRealTime());
-			std::stringstream sstr;
+			std::ostringstream sstr;
 			if (driver->writeImageToFile(image, filename)) {
 				sstr << "Saved screenshot to '" << filename << "'";
 			} else {
 				sstr << "Failed to save screenshot '" << filename << "'";
 			}
 			m_chat_queue.push_back(narrow_to_wide(sstr.str()));
-			infostream << sstr << std::endl;
+			infostream << sstr.str() << std::endl;
 			image->drop();
 		}
 		raw_image->drop();
