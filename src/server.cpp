@@ -295,6 +295,12 @@ Server::Server(
 	// Lock environment
 	JMutexAutoLock envlock(m_env_mutex);
 
+	// Load mapgen params from Settings
+	m_emerge->loadMapgenParams();
+
+	// Create the Map (loads map_meta.txt, overriding configured mapgen params)
+	ServerMap *servermap = new ServerMap(path_world, this, m_emerge);
+
 	// Initialize scripting
 	infostream<<"Server: Initializing Lua"<<std::endl;
 
@@ -302,10 +308,8 @@ Server::Server(
 
 	std::string scriptpath = getBuiltinLuaPath() + DIR_DELIM "init.lua";
 
-	if (!m_script->loadScript(scriptpath)) {
+	if (!m_script->loadScript(scriptpath))
 		throw ModError("Failed to load and run " + scriptpath);
-	}
-
 
 	// Print 'em
 	infostream<<"Server: Loading mods: ";
@@ -337,20 +341,12 @@ Server::Server(
 	m_nodedef->updateAliases(m_itemdef);
 
 	// Perform pending node name resolutions
-	m_nodedef->getResolver()->resolveNodes();
-
-	// Load the mapgen params from global settings now after any
-	// initial overrides have been set by the mods
-	m_emerge->loadMapgenParams();
+	m_nodedef->runNodeResolverCallbacks();
 
 	// Initialize Environment
-	ServerMap *servermap = new ServerMap(path_world, this, m_emerge);
 	m_env = new ServerEnvironment(servermap, m_script, this, m_path_world);
 
 	m_clients.setEnv(m_env);
-
-	// Run some callbacks after the MG params have been set up but before activation
-	m_script->environment_OnMapgenInit(&m_emerge->params);
 
 	// Initialize mapgens
 	m_emerge->initMapgens();
@@ -1361,7 +1357,7 @@ void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
 		u8 client_max = data[2];
 		u8 our_max = SER_FMT_VER_HIGHEST_READ;
 		// Use the highest version supported by both
-		u8 deployed = std::min(client_max, our_max);
+		int deployed = std::min(client_max, our_max);
 		// If it's lower than the lowest supported, give up.
 		if(deployed < SER_FMT_VER_LOWEST)
 			deployed = SER_FMT_VER_INVALID;
@@ -2650,7 +2646,7 @@ void Server::ProcessData(u8 *data, u32 datasize, u16 peer_id)
 			}
 
 		} // action == 4
-		
+
 
 		/*
 			Catch invalid actions
@@ -4570,7 +4566,7 @@ bool Server::showFormspec(const char *playername, const std::string &formspec, c
 u32 Server::hudAdd(Player *player, HudElement *form) {
 	if (!player)
 		return -1;
-	
+
 	u32 id = player->addHud(form);
 
 	SendHUDAdd(player->peer_id, id, form);
@@ -4586,7 +4582,7 @@ bool Server::hudRemove(Player *player, u32 id) {
 
 	if (!todel)
 		return false;
-	
+
 	delete todel;
 
 	SendHUDRemove(player->peer_id, id);
@@ -4607,9 +4603,9 @@ bool Server::hudSetFlags(Player *player, u32 flags, u32 mask) {
 
 	SendHUDSetFlags(player->peer_id, flags, mask);
 	player->hud_flags = flags;
-	
+
 	PlayerSAO* playersao = player->getPlayerSAO();
-	
+
 	if (playersao == NULL)
 		return false;
 

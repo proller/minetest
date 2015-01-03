@@ -29,11 +29,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //////////////////////// Mapgen Singlenode parameter read/write
 
-void MapgenSinglenodeParams::readParams(Settings *settings) {
+void MapgenSinglenodeParams::readParams(Settings *settings)
+{
 }
 
 
-void MapgenSinglenodeParams::writeParams(Settings *settings) {
+void MapgenSinglenodeParams::writeParams(Settings *settings)
+{
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -52,12 +54,14 @@ MapgenSinglenode::MapgenSinglenode(int mapgenid,
 }
 
 
-MapgenSinglenode::~MapgenSinglenode() {
+MapgenSinglenode::~MapgenSinglenode()
+{
 }
 
 //////////////////////// Map generator
 
-void MapgenSinglenode::makeChunk(BlockMakeData *data) {
+void MapgenSinglenode::makeChunk(BlockMakeData *data)
+{
 	assert(data->vmanip);
 	assert(data->nodedef);
 	assert(data->blockpos_requested.X >= data->blockpos_min.X &&
@@ -77,6 +81,8 @@ void MapgenSinglenode::makeChunk(BlockMakeData *data) {
 	// Area of central chunk
 	v3s16 node_min = blockpos_min*MAP_BLOCKSIZE;
 	v3s16 node_max = (blockpos_max+v3s16(1,1,1))*MAP_BLOCKSIZE-v3s16(1,1,1);
+
+	blockseed = getBlockSeed2(node_min, data->seed);
 
 	MapNode n_node(c_node);
 
@@ -101,7 +107,8 @@ void MapgenSinglenode::makeChunk(BlockMakeData *data) {
 	this->generating = false;
 }
 
-int MapgenSinglenode::getGroundLevelAtPoint(v2s16 p) {
+int MapgenSinglenode::getGroundLevelAtPoint(v2s16 p)
+{
 	return 0;
 }
 
