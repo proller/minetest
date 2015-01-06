@@ -34,6 +34,7 @@ TARGET_ABI = armeabi
 TARGET_LIBDIR = armeabi
 TARGET_TOOLCHAIN = arm-linux-androideabi-
 TARGET_CFLAGS_ADDON = -mfloat-abi=softfp -mfpu=vfp
+TARGET_ARCH = armv7
 CROSS_PREFIX = arm-linux-androideabi-
 COMPILER_VERSION = 4.8
 HAVE_LEVELDB = 1
@@ -49,6 +50,7 @@ HAVE_LEVELDB = 1
 #						-mfloat-abi=hard -march=armv7-a
 #TARGET_CXXFLAGS_ADDON = $(TARGET_CFLAGS_ADDON)
 #TARGET_LDFLAGS_ADDON = -Wl,--no-warn-mismatch -lm_hard
+#TARGET_ARCH = arm
 #CROSS_PREFIX = arm-linux-androideabi-
 #COMPILER_VERSION = 4.8
 #HAVE_LEVELDB = 1
@@ -60,6 +62,7 @@ HAVE_LEVELDB = 1
 #TARGET_ABI = mips
 #TARGET_LIBDIR = mips
 #TARGET_TOOLCHAIN = mipsel-linux-android-
+#TARGET_ARCH = mips32
 #CROSS_PREFIX = mipsel-linux-android-
 #COMPILER_VERSION = 4.8
 #HAVE_LEVELDB = 0
@@ -72,6 +75,7 @@ HAVE_LEVELDB = 1
 #TARGET_LIBDIR = x86
 #TARGET_TOOLCHAIN = x86-
 #CROSS_PREFIX = i686-linux-android-
+#TARGET_ARCH = x86
 #COMPILER_VERSION = 4.8
 #HAVE_LEVELDB = 1
 
@@ -103,12 +107,13 @@ IRRLICHT_TIMESTAMP = $(IRRLICHT_DIR)timestamp
 IRRLICHT_TIMESTAMP_INT = $(ROOT)/deps/irrlicht_timestamp
 IRRLICHT_URL_SVN = http://svn.code.sf.net/p/irrlicht/code/branches/ogl-es/
 
-OPENSSL_BASEDIR = openssl-android
+OPENSSL_VERSION = 1.0.1j
+OPENSSL_BASEDIR = openssl-$(OPENSSL_VERSION)
 OPENSSL_DIR = $(ROOT)/deps/$(OPENSSL_BASEDIR)/
-OPENSSL_LIB = $(OPENSSL_DIR)libs/$(TARGET_ABI)/libopenssl.so
+OPENSSL_LIB = $(OPENSSL_DIR)/libssl.so.1.0.0
 OPENSSL_TIMESTAMP = $(OPENSSL_DIR)timestamp
 OPENSSL_TIMESTAMP_INT = $(ROOT)/deps/openssl_timestamp
-OPENSSL_URL_GIT = https://github.com/wobbals/openssl-android
+OPENSSL_URL = http://www.openssl.org/source/openssl-$(OPENSSL_VERSION).tar.gz
 
 CURL_VERSION = 7.35.0
 CURL_DIR = $(ROOT)/deps/curl-$(CURL_VERSION)
@@ -118,7 +123,7 @@ CURL_TIMESTAMP_INT = $(ROOT)/deps/curl_timestamp
 CURL_URL_HTTP = http://curl.haxx.se/download/curl-${CURL_VERSION}.tar.bz2
 
 FREETYPE_DIR = $(ROOT)/deps/freetype2-android/
-FREETYPE_LIB = $(FREETYPE_DIR)/Android/obj/local/$(TARGER_ABI)/libfreetype2-static.a
+FREETYPE_LIB = $(FREETYPE_DIR)/Android/obj/local/$(TARGET_ABI)/libfreetype2-static.a
 FREETYPE_TIMESTAMP = $(FREETYPE_DIR)timestamp
 FREETYPE_TIMESTAMP_INT = $(ROOT)/deps/freetype_timestamp
 FREETYPE_URL_GIT = https://github.com/cdave1/freetype2-android
@@ -283,7 +288,10 @@ openssl_download :
 		echo "openssl sources missing, downloading...";                        \
 		mkdir -p ${ROOT}/deps;                                                 \
 		cd ${ROOT}/deps ;                                                      \
-		git clone ${OPENSSL_URL_GIT} || exit 1;                                \
+		wget ${OPENSSL_URL} || exit 1;                                         \
+		tar -xzf ${OPENSSL_BASEDIR}.tar.gz;                                    \
+		cd ${OPENSSL_BASEDIR};                                                 \
+		patch -p1 < ../../openssl_arch.patch;                                  \
 	fi
 	
 openssl : $(OPENSSL_LIB)
@@ -298,24 +306,27 @@ $(OPENSSL_LIB): $(OPENSSL_TIMESTAMP)
 		REFRESH=1;                                                             \
 	fi;                                                                        \
 	if [ $$REFRESH -ne 0 ] ; then                                              \
-	export PATH=$$PATH:${SDKFOLDER}/platform-tools:${ANDROID_NDK};             \
 	echo "changed timestamp for openssl detected building...";                 \
 	cd ${OPENSSL_DIR};                                                         \
-	cat jni/Application.mk | grep -v NDK_TOOLCHAIN_VERSION >jni/Application.mk.new;\
-	mv jni/Application.mk.new jni/Application.mk;                              \
-	ndk-build NDEBUG=${NDEBUG} NDK_MODULE_PATH=${NDK_MODULE_PATH}              \
-	APP_ABI=${TARGET_ABI} APP_PLATFORM=${APP_PLATFORM} -j${PARALLEL}           \
-	TARGET_CFLAGS+="${TARGET_CFLAGS_ADDON}"                                    \
-	TARGET_LDFLAGS+="${TARGET_LDFLAGS_ADDON}"                                  \
-	TARGET_CXXFLAGS+="${TARGET_CXXFLAGS_ADDON}" || exit 1;                     \
+	ln -s ${OPENSSL_DIR} ../openssl;                                           \
+	export TOOLCHAIN=/tmp/ndk-${TARGET_HOST}-openssl;                          \
+	${ANDROID_NDK}/build/tools/make-standalone-toolchain.sh                    \
+	--toolchain=${TARGET_TOOLCHAIN}${COMPILER_VERSION}                         \
+	--install-dir=$${TOOLCHAIN} --system=linux-x86_64;                         \
+	export PATH="$${TOOLCHAIN}/bin:$${PATH}";                                  \
+	CC=${CROSS_PREFIX}gcc ./Configure android-${TARGET_ARCH} no-idea no-seed -no-sha0 -DL_ENDIAN;\
+	CC=${CROSS_PREFIX}gcc ANDROID_DEV=/tmp/ndk-${TARGET_HOST} make build_libs; \
 	touch ${OPENSSL_TIMESTAMP};                                                \
 	touch ${OPENSSL_TIMESTAMP_INT};                                            \
+	$(RM) -rf $${TOOLCHAIN};                                                   \
 	else                                                                       \
 		echo "nothing to be done for openssl";                        \
 	fi
 
 clean_openssl :
-	$(RM) -rf ${OPENSSL_DIR}
+	$(RM) -rf ${OPENSSL_DIR};                                                  \
+	$(RM) -rf $(ROOT)/deps/${OPENSSL_BASEDIR}.tar.gz;                          \
+	$(RM) -rf $(ROOT)/deps/openssl
 
 $(LEVELDB_TIMESTAMP) : leveldb_download
 	@LAST_MODIF=$$(find ${LEVELDB_DIR} -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -f2- -d" "); \
@@ -346,7 +357,7 @@ $(LEVELDB_LIB): $(LEVELDB_TIMESTAMP)
 	echo "changed timestamp for leveldb detected building...";                 \
 	cd deps/leveldb;                                                           \
 	export CROSS_PREFIX=${CROSS_PREFIX};                                       \
-	export TOOLCHAIN=/tmp/ndk-arm;                                             \
+	export TOOLCHAIN=/tmp/ndk-${TARGET_HOST}-leveldb;                          \
 	${ANDROID_NDK}/build/tools/make-standalone-toolchain.sh                    \
 	--toolchain=${TARGET_TOOLCHAIN}${COMPILER_VERSION}                         \
 	--install-dir=$${TOOLCHAIN} --system=linux-x86_64;                         \
@@ -360,6 +371,7 @@ $(LEVELDB_LIB): $(LEVELDB_TIMESTAMP)
 	$(MAKE) -j${PARALLEL} -s || exit 1;                                        \
 	touch ${LEVELDB_TIMESTAMP};                                                \
 	touch ${LEVELDB_TIMESTAMP_INT};                                            \
+	$(RM) -rf $${TOOLCHAIN};                                                   \
 	else                                                                       \
 		echo "nothing to be done for leveldb";                                 \
 	fi
@@ -503,7 +515,7 @@ $(CURL_LIB): $(CURL_TIMESTAMP) $(OPENSSL_LIB)
 	echo "changed timestamp for curl detected building...";                    \
 	cd deps/curl-${CURL_VERSION};                                              \
 	export CROSS_PREFIX=${CROSS_PREFIX};                                       \
-	export TOOLCHAIN=/tmp/ndk-arm;                                             \
+	export TOOLCHAIN=/tmp/ndk-${TARGET_HOST}-curl;                             \
 	${ANDROID_NDK}/build/tools/make-standalone-toolchain.sh                    \
 	--toolchain=${TARGET_TOOLCHAIN}${COMPILER_VERSION}                         \
 	--install-dir=$${TOOLCHAIN} --system=linux-x86_64;                         \
@@ -512,14 +524,14 @@ $(CURL_LIB): $(CURL_TIMESTAMP) $(OPENSSL_LIB)
 	export CXX=${CROSS_PREFIX}g++;                                             \
 	export TARGET_OS=OS_ANDROID_CROSSCOMPILE;                                  \
 	export CPPFLAGS="$${CPPFLAGS} -I${OPENSSL_DIR}/include                     \
-	-L${OPENSSL_DIR}/libs/${TARGET_ABI}/ ${TARGET_CFLAGS_ADDON}";              \
+	-L${OPENSSL_DIR} ${TARGET_CFLAGS_ADDON}";                                  \
 	export CFLAGS="$${CFLAGS} ${TARGET_CFLAGS_ADDON}";                         \
-	export LDFLAGS="$${LDFLAGS} -L${OPENSSL_DIR}/libs/${TARGET_ABI}/           \
-	${TARGET_LDFLAGS_ADDON}";                                                  \
+	export LDFLAGS="$${LDFLAGS} -L${OPENSSL_DIR} ${TARGET_LDFLAGS_ADDON}";     \
 	./configure --host=${TARGET_HOST} --disable-shared --enable-static --with-ssl;  \
 	$(MAKE) -j${PARALLEL} -s || exit 1;                                        \
 	touch ${CURL_TIMESTAMP};                                                   \
 	touch ${CURL_TIMESTAMP_INT};                                               \
+	$(RM) -rf $${TOOLCHAIN};                                                   \
 	else                                                                       \
 		echo "nothing to be done for curl";                                    \
 	fi
