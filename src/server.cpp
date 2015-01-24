@@ -194,7 +194,8 @@ Server::Server(
 	m_clients(&m_con),
 	m_shutdown_requested(false),
 	m_ignore_map_edit_events(false),
-	m_ignore_map_edit_events_peer_id(0)
+	m_ignore_map_edit_events_peer_id(0),
+	m_next_sound_id(0)
 
 {
 	m_liquid_transform_timer = 0.0;
@@ -428,6 +429,9 @@ Server::~Server()
 void Server::start(Address bind_addr)
 {
 	DSTACK(__FUNCTION_NAME);
+
+	m_bind_addr = bind_addr;
+
 	infostream<<"Starting server on "
 			<< bind_addr.serializeString() <<"..."<<std::endl;
 
@@ -678,6 +682,7 @@ void Server::AsyncRunStep(bool initial_step)
 				g_settings->getBool("server_announce"))
 		{
 			ServerList::sendAnnounce(counter ? "update" : "start",
+					m_bind_addr.getPort(),
 					m_clients.getPlayerNames(),
 					m_uptime.get(),
 					m_env->getGameTime(),
@@ -5093,8 +5098,8 @@ void dedicated_server_loop(Server &server, bool &kill)
 		{
 			infostream<<"Dedicated server quitting"<<std::endl;
 #if USE_CURL
-			if(g_settings->getBool("server_announce") == true)
-				ServerList::sendAnnounce("delete");
+			if(g_settings->getBool("server_announce"))
+				ServerList::sendAnnounce("delete", server.m_bind_addr.getPort());
 #endif
 			break;
 		}
