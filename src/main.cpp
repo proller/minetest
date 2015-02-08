@@ -780,6 +780,8 @@ int main(int argc, char *argv[])
 {
 	int retval;
 
+	debug_set_exception_handler();
+
 	log_add_output_maxlev(&main_stderr_log_out, LMT_ACTION);
 	log_add_output_all_levs(&main_dstream_no_stderr_log_out);
 
@@ -1682,7 +1684,7 @@ bool ClientLauncher::run(GameParams &game_params, const Settings &cmd_args)
 	while (device->run() && !*kill && !g_gamecallback->shutdown_requested)
 	{
 		// Set the window caption
-		wchar_t *text = wgettext("Main Menu");
+		const wchar_t *text = wgettext("Main Menu");
 		device->setWindowCaption((std::wstring(L"Minetest [") + text + L"]").c_str());
 		delete[] text;
 
