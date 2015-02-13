@@ -1074,7 +1074,7 @@ static void show_deathscreen(GUIFormSpecMenu **cur_formspec,
 		std::string(FORMSPEC_VERSION_STRING) +
 		SIZE_TAG
 		"bgcolor[#320000b4;true]"
-		"label[4.85,1.35;You died.]"
+		"label[4.85,1.35;" + gettext("You died.") + "]"
 		"button_exit[4,3;3,0.5;btn_respawn;" + gettext("Respawn") + "]"
 		;
 
@@ -1157,7 +1157,7 @@ static void show_pause_menu(GUIFormSpecMenu **cur_formspec,
 	LocalFormspecHandler *txt_dst = new LocalFormspecHandler("MT_PAUSE_MENU");
 
 	create_formspec_menu(cur_formspec, invmgr, gamedef, tsrc, device,  fs_src, txt_dst, NULL);
-
+	(*cur_formspec)->setFocus(L"btn_continue");
 	(*cur_formspec)->doPause = true;
 }
 
@@ -2669,6 +2669,15 @@ void Game::dropSelectedItem()
 
 void Game::openInventory()
 {
+	/*
+	 * Don't permit to open inventory is CAO or player doesn't exists.
+	 * This prevent showing an empty inventory at player load
+	 */
+
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (player == NULL || player->getCAO() == NULL)
+		return;
+
 	infostream << "the_game: " << "Launching inventory" << std::endl;
 
 	PlayerInventoryFormSource *fs_src = new PlayerInventoryFormSource(client);
@@ -3218,10 +3227,13 @@ void Game::updateCamera(VolatileRunFlags *flags, u32 busy_time,
 	v3s16 old_camera_offset = camera->getOffset();
 
 	if (input->wasKeyDown(keycache.key[KeyCache::KEYMAP_ID_CAMERA_MODE])) {
-		camera->toggleCameraMode();
 		GenericCAO *playercao = player->getCAO();
 
-		assert(playercao != NULL);
+		// If playercao not loaded, don't change camera
+		if (playercao == NULL)
+			return;
+
+		camera->toggleCameraMode();
 
 		playercao->setVisible(camera->getCameraMode() > CAMERA_MODE_FIRST);
 	}
