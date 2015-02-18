@@ -1043,7 +1043,11 @@ static inline void create_formspec_menu(GUIFormSpecMenu **cur_formspec,
 	}
 }
 
+#ifdef __ANDROID__
 #define SIZE_TAG "size[11,5.5]"
+#else
+#define SIZE_TAG "size[11,5.5,true]" // Fixed size on desktop
+#endif
 
 static void show_chat_menu(GUIFormSpecMenu **cur_formspec,
 		InventoryManager *invmgr, IGameDef *gamedef,
@@ -3938,6 +3942,28 @@ void Game::updateFrame(std::vector<aabb3f> &highlight_boxes,
 }
 
 
+inline static const char *yawToDirectionString(int yaw)
+{
+	// NOTE: TODO: This can be done mathematically without the else/else-if
+	// cascade.
+
+	const char *player_direction;
+
+	yaw = wrapDegrees_0_360(yaw);
+
+	if (yaw >= 45 && yaw < 135)
+		player_direction = "West [-X]";
+	else if (yaw >= 135 && yaw < 225)
+		player_direction = "South [-Z]";
+	else if (yaw >= 225 && yaw < 315)
+		player_direction = "East [+X]";
+	else
+		player_direction = "North [+Z]";
+
+	return player_direction;
+}
+
+
 void Game::updateGui(float *statustext_time, const RunStats &stats,
 		const GameRunData& runData, f32 dtime, const VolatileRunFlags &flags,
 		const CameraOrientation &cam)
@@ -3993,6 +4019,7 @@ void Game::updateGui(float *statustext_time, const RunStats &stats,
 		   << ", " << (player_position.Y / BS)
 		   << ", " << (player_position.Z / BS)
 		   << ") (yaw=" << (wrapDegrees_0_360(cam.camera_yaw))
+		   << " " << yawToDirectionString(cam.camera_yaw)
 		   << ") (seed = " << ((u64)client->getMapSeed())
 		   << ")";
 

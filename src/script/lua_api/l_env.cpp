@@ -406,19 +406,6 @@ int ModApiEnvMod::l_add_item(lua_State *L)
 		script_error(L);
 	lua_remove(L, errorhandler); // Remove error handler
 	return 1;
-	/*lua_pushvalue(L, 1);
-	lua_pushstring(L, "__builtin:item");
-	lua_pushstring(L, item.getItemString().c_str());
-	return l_add_entity(L);*/
-	/*// Do it
-	ServerActiveObject *obj = createItemSAO(env, pos, item.getItemString());
-	int objectid = env->addActiveObject(obj);
-	// If failed to add, return nothing (reads as nil)
-	if(objectid == 0)
-		return 0;
-	// Return ObjectRef
-	objectrefGetOrCreate(L, obj);
-	return 1;*/
 }
 
 // get_player_by_name(name)
@@ -530,9 +517,8 @@ int ModApiEnvMod::l_find_node_near(lua_State *L)
 	}
 
 	for(int d=1; d<=radius; d++){
-		std::list<v3s16> list;
-		getFacePositions(list, d);
-		for(std::list<v3s16>::iterator i = list.begin();
+		std::vector<v3s16> list = FacePositionCache::getFacePositions(d);
+		for(std::vector<v3s16>::iterator i = list.begin();
 				i != list.end(); ++i){
 			v3s16 p = pos + (*i);
 			content_t c = env->getMap().getNodeNoEx(p).getContent();
