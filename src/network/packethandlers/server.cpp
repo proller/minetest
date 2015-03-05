@@ -419,7 +419,7 @@ void Server::handleCommand_Init2(NetworkPacket* pkt)
 
 void Server::handleCommand_RequestMedia(NetworkPacket* pkt)
 {
-	std::list<std::string> tosend;
+	std::vector<std::string> tosend;
 	u16 numfiles;
 
 	*pkt >> numfiles;
@@ -579,10 +579,10 @@ void Server::handleCommand_PlayerPos(NetworkPacket* pkt)
 	player->control.LMB = (keyPressed & 128);
 	player->control.RMB = (keyPressed & 256);
 
-	bool cheated = playersao->checkMovementCheat();
-	if (cheated) {
+	if (playersao->checkMovementCheat()) {
 		// Call callbacks
 		m_script->on_cheat(playersao, "moved_too_fast");
+		SendMovePlayer(pkt->getPeerId());
 	}
 }
 
@@ -851,10 +851,9 @@ void Server::handleCommand_ChatMessage(NetworkPacket* pkt)
 		else {
 			actionstream << "CHAT: " << wide_to_narrow(line)<<std::endl;
 
-			std::list<u16> clients = m_clients.getClientIDs();
+			std::vector<u16> clients = m_clients.getClientIDs();
 
-			for (std::list<u16>::iterator
-				i = clients.begin();
+			for (std::vector<u16>::iterator i = clients.begin();
 				i != clients.end(); ++i) {
 				if (*i != pkt->getPeerId())
 					SendChatMessage(*i, line);
@@ -893,12 +892,7 @@ void Server::handleCommand_Damage(NetworkPacket* pkt)
 				<< std::endl;
 
 		playersao->setHP(playersao->getHP() - damage);
-
-		if (playersao->getHP() == 0 && playersao->m_hp_not_sent)
-			DiePlayer(pkt->getPeerId());
-
-		if (playersao->m_hp_not_sent)
-			SendPlayerHP(pkt->getPeerId());
+		SendPlayerHPOrDie(playersao->getPeerID(), playersao->getHP() == 0);
 	}
 }
 
@@ -927,7 +921,7 @@ void Server::handleCommand_Breath(NetworkPacket* pkt)
 	}
 
 	playersao->setBreath(breath);
-	m_script->player_event(playersao,"breath_changed");
+	SendPlayerBreath(pkt->getPeerId());
 }
 
 void Server::handleCommand_Password(NetworkPacket* pkt)
@@ -1048,8 +1042,8 @@ void Server::handleCommand_Respawn(NetworkPacket* pkt)
 
 	RespawnPlayer(pkt->getPeerId());
 
-	actionstream<<player->getName()<<" respawns at "
-			<<PP(player->getPosition()/BS)<<std::endl;
+	actionstream << player->getName() << " respawns at "
+			<< PP(player->getPosition()/BS) << std::endl;
 
 	// ActiveObject is added to environment in AsyncRunStep after
 	// the previous addition has been succesfully removed
@@ -1234,8 +1228,24 @@ void Server::handleCommand_Interact(NetworkPacket* pkt)
 						).normalize();
 			float time_from_last_punch =
 				playersao->resetTimeFromLastPunch();
+
+			s16 src_original_hp = pointed_object->getHP();
+			s16 dst_origin_hp = playersao->getHP();
+
 			pointed_object->punch(dir, &toolcap, playersao,
 					time_from_last_punch);
+
+			// If the object is a player and its HP changed
+			if (src_original_hp != pointed_object->getHP() &&
+					pointed_object->getType() == ACTIVEOBJECT_TYPE_PLAYER) {
+				SendPlayerHPOrDie(((PlayerSAO*)pointed_object)->getPeerID(),
+						pointed_object->getHP() == 0);
+			}
+
+			// If the puncher is a player and its HP changed
+			if (dst_origin_hp != playersao->getHP()) {
+				SendPlayerHPOrDie(playersao->getPeerID(), playersao->getHP() == 0);
+			}
 		}
 
 	} // action == 0
@@ -1379,7 +1389,9 @@ void Server::handleCommand_Interact(NetworkPacket* pkt)
 			// Placement was handled in lua
 
 			// Apply returned ItemStack
-			playersao->setWieldedItem(item);
+			if (playersao->setWieldedItem(item)) {
+				SendInventory(playersao);
+			}
 		}
 
 		// If item has node placement prediction, always send the

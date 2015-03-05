@@ -29,6 +29,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "tool.h" // For ToolCapabilities
 #include "gamedef.h"
 #include "player.h"
+#include "server.h"
 #include "scripting_game.h"
 #include "genericobject.h"
 #include "log.h"
@@ -90,7 +91,7 @@ public:
 			data += itos(m_base_position.Z);
 
 			ActiveObjectMessage aom(getId(), false, data);
-			m_messages_out.push_back(aom);
+			m_messages_out.push(aom);
 		}
 	}
 
@@ -232,7 +233,7 @@ void LuaEntitySAO::step(float dtime, bool send_recommended)
 		std::string str = getPropertyPacket();
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), true, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 
 	// If attached, check that our parent is still there. If it isn't, detach.
@@ -319,7 +320,7 @@ void LuaEntitySAO::step(float dtime, bool send_recommended)
 				m_armor_groups);
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), true, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 
 	if(m_animation_sent == false){
@@ -327,7 +328,7 @@ void LuaEntitySAO::step(float dtime, bool send_recommended)
 		std::string str = gob_cmd_update_animation(m_animation_range, m_animation_speed, m_animation_blend);
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), true, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 
 	if(m_bone_position_sent == false){
@@ -336,7 +337,7 @@ void LuaEntitySAO::step(float dtime, bool send_recommended)
 			std::string str = gob_cmd_update_bone_position((*ii).first, (*ii).second.X, (*ii).second.Y);
 			// create message and add to list
 			ActiveObjectMessage aom(getId(), true, str);
-			m_messages_out.push_back(aom);
+			m_messages_out.push(aom);
 		}
 	}
 
@@ -345,7 +346,7 @@ void LuaEntitySAO::step(float dtime, bool send_recommended)
 		std::string str = gob_cmd_update_attachment(m_attachment_parent_id, m_attachment_bone, m_attachment_position, m_attachment_rotation);
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), true, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 }
 
@@ -460,7 +461,7 @@ int LuaEntitySAO::punch(v3f dir,
 			std::string str = gob_cmd_punched(result.damage, getHP());
 			// create message and add to list
 			ActiveObjectMessage aom(getId(), true, str);
-			m_messages_out.push_back(aom);
+			m_messages_out.push(aom);
 		}
 
 		if(getHP() == 0)
@@ -609,7 +610,7 @@ void LuaEntitySAO::setTextureMod(const std::string &mod)
 	std::string str = gob_cmd_set_texture_mod(mod);
 	// create message and add to list
 	ActiveObjectMessage aom(getId(), true, str);
-	m_messages_out.push_back(aom);
+	m_messages_out.push(aom);
 }
 
 void LuaEntitySAO::setSprite(v2s16 p, int num_frames, float framelength,
@@ -623,7 +624,7 @@ void LuaEntitySAO::setSprite(v2s16 p, int num_frames, float framelength,
 	);
 	// create message and add to list
 	ActiveObjectMessage aom(getId(), true, str);
-	m_messages_out.push_back(aom);
+	m_messages_out.push(aom);
 }
 
 std::string LuaEntitySAO::getName()
@@ -663,7 +664,7 @@ void LuaEntitySAO::sendPosition(bool do_interpolate, bool is_movement_end)
 	);
 	// create message and add to list
 	ActiveObjectMessage aom(getId(), false, str);
-	m_messages_out.push_back(aom);
+	m_messages_out.push(aom);
 }
 
 bool LuaEntitySAO::getCollisionBox(aabb3f *toset) {
@@ -716,11 +717,6 @@ PlayerSAO::PlayerSAO(ServerEnvironment *env_, Player *player_, u16 peer_id_,
 	m_attachment_parent_id(0),
 	m_attachment_sent(false),
 	// public
-	m_moved(false),
-	m_inventory_not_sent(false),
-	m_hp_not_sent(false),
-	m_breath_not_sent(false),
-	m_wielded_item_not_sent(false),
 	m_physics_override_speed(1),
 	m_physics_override_jump(1),
 	m_physics_override_gravity(1),
@@ -860,7 +856,7 @@ void PlayerSAO::step(float dtime, bool send_recommended)
 		std::string str = getPropertyPacket();
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), true, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 
 	// If attached, check that our parent is still there. If it isn't, detach.
@@ -871,7 +867,7 @@ void PlayerSAO::step(float dtime, bool send_recommended)
 		m_attachment_position = v3f(0,0,0);
 		m_attachment_rotation = v3f(0,0,0);
 		m_player->setPosition(m_last_good_position);
-		m_moved = true;
+		((Server*)m_env->getGameDef())->SendMovePlayer(m_peer_id);
 	}
 
 	//dstream<<"PlayerSAO::step: dtime: "<<dtime<<std::endl;
@@ -923,22 +919,16 @@ void PlayerSAO::step(float dtime, bool send_recommended)
 		);
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), false, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 
-	if(m_wielded_item_not_sent)
-	{
-		m_wielded_item_not_sent = false;
-		// GenericCAO has no special way to show this
-	}
-
-	if(m_armor_groups_sent == false){
+	if(m_armor_groups_sent == false) {
 		m_armor_groups_sent = true;
 		std::string str = gob_cmd_update_armor_groups(
 				m_armor_groups);
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), true, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 
 	if(m_physics_override_sent == false){
@@ -948,7 +938,7 @@ void PlayerSAO::step(float dtime, bool send_recommended)
 				m_physics_override_sneak, m_physics_override_sneak_glitch);
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), true, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 
 	if(m_animation_sent == false){
@@ -956,7 +946,7 @@ void PlayerSAO::step(float dtime, bool send_recommended)
 		std::string str = gob_cmd_update_animation(m_animation_range, m_animation_speed, m_animation_blend);
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), true, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 
 	if(m_bone_position_sent == false){
@@ -965,7 +955,7 @@ void PlayerSAO::step(float dtime, bool send_recommended)
 			std::string str = gob_cmd_update_bone_position((*ii).first, (*ii).second.X, (*ii).second.Y);
 			// create message and add to list
 			ActiveObjectMessage aom(getId(), true, str);
-			m_messages_out.push_back(aom);
+			m_messages_out.push(aom);
 		}
 	}
 
@@ -974,7 +964,7 @@ void PlayerSAO::step(float dtime, bool send_recommended)
 		std::string str = gob_cmd_update_attachment(m_attachment_parent_id, m_attachment_bone, m_attachment_position, m_attachment_rotation);
 		// create message and add to list
 		ActiveObjectMessage aom(getId(), true, str);
-		m_messages_out.push_back(aom);
+		m_messages_out.push(aom);
 	}
 }
 
@@ -992,8 +982,7 @@ void PlayerSAO::setPos(v3f pos)
 	m_player->setPosition(pos);
 	// Movement caused by this command is always valid
 	m_last_good_position = pos;
-	// Force position change on client
-	m_moved = true;
+	((Server*)m_env->getGameDef())->SendMovePlayer(m_peer_id);
 }
 
 void PlayerSAO::moveTo(v3f pos, bool continuous)
@@ -1003,22 +992,19 @@ void PlayerSAO::moveTo(v3f pos, bool continuous)
 	m_player->setPosition(pos);
 	// Movement caused by this command is always valid
 	m_last_good_position = pos;
-	// Force position change on client
-	m_moved = true;
+	((Server*)m_env->getGameDef())->SendMovePlayer(m_peer_id);
 }
 
 void PlayerSAO::setYaw(float yaw)
 {
 	m_player->setYaw(yaw);
-	// Force change on client
-	m_moved = true;
+	((Server*)m_env->getGameDef())->SendMovePlayer(m_peer_id);
 }
 
 void PlayerSAO::setPitch(float pitch)
 {
 	m_player->setPitch(pitch);
-	// Force change on client
-	m_moved = true;
+	((Server*)m_env->getGameDef())->SendMovePlayer(m_peer_id);
 }
 
 int PlayerSAO::punch(v3f dir,
@@ -1039,7 +1025,7 @@ int PlayerSAO::punch(v3f dir,
 			std::string str = gob_cmd_punched(0, getHP());
 			// create message and add to list
 			ActiveObjectMessage aom(getId(), true, str);
-			m_messages_out.push_back(aom);
+			m_messages_out.push(aom);
 			return 0;
 		}
 	}
@@ -1081,27 +1067,18 @@ void PlayerSAO::setHP(s16 hp)
 {
 	s16 oldhp = m_player->hp;
 
-	if(hp < 0)
+	if (hp < 0)
 		hp = 0;
-	else if(hp > PLAYER_MAX_HP)
+	else if (hp > PLAYER_MAX_HP)
 		hp = PLAYER_MAX_HP;
-
-	if(hp < oldhp && g_settings->getBool("enable_damage") == false)
-	{
-		m_hp_not_sent = true; // fix wrong prediction on client
-		return;
-	}
 
 	m_player->hp = hp;
 
-	if(hp != oldhp) {
-		m_hp_not_sent = true;
-		if(oldhp > hp)
-			m_damage += oldhp - hp;
-	}
+	if (oldhp > hp)
+		m_damage += (oldhp - hp);
 
 	// Update properties on death
-	if((hp == 0) != (oldhp == 0))
+	if ((hp == 0) != (oldhp == 0))
 		m_properties_sent = false;
 }
 
@@ -1180,11 +1157,6 @@ InventoryLocation PlayerSAO::getInventoryLocation() const
 	return loc;
 }
 
-void PlayerSAO::setInventoryModified()
-{
-	m_inventory_not_sent = true;
-}
-
 std::string PlayerSAO::getWieldList() const
 {
 	return "main";
@@ -1197,10 +1169,8 @@ int PlayerSAO::getWieldIndex() const
 
 void PlayerSAO::setWieldIndex(int i)
 {
-	if(i != m_wield_index)
-	{
+	if(i != m_wield_index) {
 		m_wield_index = i;
-		m_wielded_item_not_sent = true;
 	}
 }
 
@@ -1267,7 +1237,6 @@ bool PlayerSAO::checkMovementCheat()
 					<<" moved too fast; resetting position"
 					<<std::endl;
 			m_player->setPosition(m_last_good_position);
-			m_moved = true;
 			cheated = true;
 		}
 	}
