@@ -479,10 +479,13 @@ void Server::step(float dtime)
 		JMutexAutoLock lock(m_step_dtime_mutex);
 		m_step_dtime += dtime;
 	}
-	// Throw if fatal error occurred in thread
+	// Assert if fatal error occurred in thread
 	std::string async_err = m_async_fatal_error.get();
-	if(async_err != ""){
-		throw ServerError(async_err);
+	if(async_err != "") {
+		errorstream << "UNRECOVERABLE error occurred. Stopping server. "
+				<< "Please fix the following error:" << std::endl
+				<< async_err << std::endl;
+		assert(false);
 	}
 }
 
@@ -758,16 +761,11 @@ void Server::AsyncRunStep(bool initial_step)
 					obj->m_known_by_count++;
 			}
 
-			NetworkPacket pkt(TOCLIENT_ACTIVE_OBJECT_REMOVE_ADD, 0, client->peer_id);
-			pkt.putRawString(data_buffer.c_str(), data_buffer.size());
-
-
+			u32 pktSize = SendActiveObjectRemoveAdd(client->peer_id, data_buffer);
 			verbosestream << "Server: Sent object remove/add: "
 					<< removed_objects.size() << " removed, "
 					<< added_objects.size() << " added, "
-					<< "packet size is " << pkt.getSize() << std::endl;
-
-			Send(&pkt);
+					<< "packet size is " << pktSize << std::endl;
 		}
 		m_clients.Unlock();
 	}
@@ -846,19 +844,11 @@ void Server::AsyncRunStep(bool initial_step)
 				Send them.
 			*/
 			if(reliable_data.size() > 0) {
-				NetworkPacket pkt(TOCLIENT_ACTIVE_OBJECT_MESSAGES,
-						0, client->peer_id);
-
-				pkt.putRawString(reliable_data.c_str(), reliable_data.size());
-				Send(&pkt);
+				SendActiveObjectMessages(client->peer_id, reliable_data);
 			}
 
 			if(unreliable_data.size() > 0) {
-				NetworkPacket pkt(TOCLIENT_ACTIVE_OBJECT_MESSAGES,
-						0, client->peer_id);
-
-				pkt.putRawString(unreliable_data.c_str(), unreliable_data.size());
-				Send(&pkt);
+				SendActiveObjectMessages(client->peer_id, unreliable_data);
 			}
 		}
 		m_clients.Unlock();
@@ -1099,8 +1089,7 @@ PlayerSAO* Server::StageTwoClientInit(u16 peer_id)
 	SendInventory(playersao);
 
 	// Send HP
-	if(g_settings->getBool("enable_damage"))
-		SendPlayerHP(peer_id);
+	SendPlayerHPOrDie(peer_id, playersao->getHP() == 0);
 
 	// Send Breath
 	SendPlayerBreath(peer_id);
@@ -1896,6 +1885,23 @@ void Server::SendPlayerInventoryFormspec(u16 peer_id)
 
 	NetworkPacket pkt(TOCLIENT_INVENTORY_FORMSPEC, 0, peer_id);
 	pkt.putLongString(FORMSPEC_VERSION_STRING + player->inventory_formspec);
+	Send(&pkt);
+}
+
+u32 Server::SendActiveObjectRemoveAdd(u16 peer_id, const std::string &datas)
+{
+	NetworkPacket pkt(TOCLIENT_ACTIVE_OBJECT_REMOVE_ADD, 0, peer_id);
+	pkt.putRawString(datas.c_str(), datas.size());
+	Send(&pkt);
+	return pkt.getSize();
+}
+
+void Server::SendActiveObjectMessages(u16 peer_id, const std::string &datas)
+{
+	NetworkPacket pkt(TOCLIENT_ACTIVE_OBJECT_MESSAGES,
+			0, peer_id);
+
+	pkt.putRawString(datas.c_str(), datas.size());
 	Send(&pkt);
 }
 
