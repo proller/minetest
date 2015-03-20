@@ -223,7 +223,7 @@ Server::Server(
 	infostream<<"- game:   "<<m_gamespec.path<<std::endl;
 
 	// Create world if it doesn't exist
-	if(!initializeWorld(m_path_world, m_gamespec.id))
+	if(!loadGameConfAndInitWorld(m_path_world, m_gamespec))
 		throw ServerError("Failed to initialize world");
 
 	// Create server thread
@@ -481,8 +481,16 @@ void Server::step(float dtime)
 	}
 	// Throw if fatal error occurred in thread
 	std::string async_err = m_async_fatal_error.get();
-	if(async_err != ""){
-		throw ServerError(async_err);
+	if(async_err != "") {
+		if (m_simple_singleplayer_mode) {
+			throw ServerError(async_err);
+		}
+		else {
+			errorstream << "UNRECOVERABLE error occurred. Stopping server. "
+					<< "Please fix the following error:" << std::endl
+					<< async_err << std::endl;
+			FATAL_ERROR(async_err.c_str());
+		}
 	}
 }
 
@@ -845,7 +853,7 @@ void Server::AsyncRunStep(bool initial_step)
 			}
 
 			if(unreliable_data.size() > 0) {
-				SendActiveObjectMessages(client->peer_id, unreliable_data);
+				SendActiveObjectMessages(client->peer_id, unreliable_data, false);
 			}
 		}
 		m_clients.Unlock();
@@ -1893,13 +1901,17 @@ u32 Server::SendActiveObjectRemoveAdd(u16 peer_id, const std::string &datas)
 	return pkt.getSize();
 }
 
-void Server::SendActiveObjectMessages(u16 peer_id, const std::string &datas)
+void Server::SendActiveObjectMessages(u16 peer_id, const std::string &datas, bool reliable)
 {
 	NetworkPacket pkt(TOCLIENT_ACTIVE_OBJECT_MESSAGES,
 			0, peer_id);
 
 	pkt.putRawString(datas.c_str(), datas.size());
-	Send(&pkt);
+
+	m_clients.send(pkt.getPeerId(),
+			clientCommandFactoryTable[pkt.getCommand()].channel,
+			&pkt, reliable);
+
 }
 
 s32 Server::playSound(const SimpleSoundSpec &spec,
