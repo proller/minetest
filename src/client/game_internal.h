@@ -110,7 +110,7 @@ public:
 	bool startup(volatile std::sig_atomic_t *kill,
 			InputHandler *input,
 			RenderingEngine *rendering_engine,
-			const GameStartData &game_params,
+			GameStartData &game_params,
 			GameErrorData &errordata,
 			ChatBackend *chat_backend);
 
@@ -125,11 +125,9 @@ public:
 protected:
 
 	// Basic initialisation
-	bool init(const std::string &map_dir, const std::string &address,
-			u16 port, const SubgameSpec &gamespec);
+	bool init(GameStartData &start_data);
 	bool initSound();
-	bool createServer(const std::string &map_dir,
-			const SubgameSpec &gamespec, u16 port);
+	bool createServer(GameStartData &start_data);
 	void copyServerClientCache();
 
 	// Client creation
@@ -394,7 +392,7 @@ private:
 	bool m_touch_simulate_aux1 = false;
 	bool isTouchShootlineUsed() const;
 #ifdef __ANDROID__
-	bool m_android_chat_open;
+	bool m_android_chat_open = false;
 #endif
 
 	float m_shutdown_progress = 0.0f;

@@ -5,8 +5,7 @@ android {
 	ndkVersion "$ndk_version"
 	defaultConfig {
 		minSdkVersion 21
-		compileSdk = 34
-		targetSdkVersion 34
+		compileSdk = 36
 		externalNativeBuild {
 			cmake {
 				arguments "-DANDROID_STL=c++_shared",
@@ -15,6 +14,9 @@ android {
 					"-DBUILD_UNITTESTS=0", "-DENABLE_UPDATE_CHECKER=0"
 			}
 		}
+	}
+	lint {
+		targetSdk 36
 	}
 
 	externalNativeBuild {

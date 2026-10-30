@@ -78,10 +78,10 @@ void ModChannelMgr::registerChannel(const std::string &channel)
 
 bool ModChannelMgr::setChannelState(const std::string &channel, ModChannelState state)
 {
-	if (!channelRegistered(channel))
+	auto channel_it = m_registered_channels.find(channel);
+	if (channel_it == m_registered_channels.end())
 		return false;
 
-	auto channel_it = m_registered_channels.find(channel);
 	channel_it->second->setState(state);
 
 	return true;
@@ -96,12 +96,22 @@ bool ModChannelMgr::removeChannel(const std::string &channel)
 	return true;
 }
 
-bool ModChannelMgr::joinChannel(const std::string &channel, session_t peer_id)
+bool ModChannelMgr::joinChannel(const std::string &channel, session_t peer_id,
+		std::size_t max_channels)
 {
+	auto count_it = m_consumer_channel_counts.find(peer_id);
+	if (max_channels != 0 && count_it != m_consumer_channel_counts.end() &&
+			count_it->second >= max_channels)
+		return false;
+
 	if (!channelRegistered(channel))
 		registerChannel(channel);
 
-	return m_registered_channels[channel]->registerConsumer(peer_id);
+	if (!m_registered_channels[channel]->registerConsumer(peer_id))
+		return false;
+
+	m_consumer_channel_counts[peer_id]++;
+	return true;
 }
 
 bool ModChannelMgr::leaveChannel(const std::string &channel, session_t peer_id)
@@ -111,6 +121,11 @@ bool ModChannelMgr::leaveChannel(const std::string &channel, session_t peer_id)
 
 	// Remove consumer from channel
 	bool consumerRemoved = m_registered_channels[channel]->removeConsumer(peer_id);
+	if (consumerRemoved) {
+		auto count_it = m_consumer_channel_counts.find(peer_id);
+		if (count_it != m_consumer_channel_counts.end() && --count_it->second == 0)
+			m_consumer_channel_counts.erase(count_it);
+	}
 
 	// If channel is empty, remove it
 	if (m_registered_channels[channel]->getChannelPeers().empty()) {
@@ -121,11 +136,20 @@ bool ModChannelMgr::leaveChannel(const std::string &channel, session_t peer_id)
 
 void ModChannelMgr::leaveAllChannels(session_t peer_id)
 {
-	for (auto &channel_it : m_registered_channels)
-		channel_it.second->removeConsumer(peer_id);
+	m_consumer_channel_counts.erase(peer_id);
+
+	for (auto channel_it = m_registered_channels.begin();
+			channel_it != m_registered_channels.end();) {
+		channel_it->second->removeConsumer(peer_id);
+
+		if (channel_it->second->getChannelPeers().empty())
+			channel_it = m_registered_channels.erase(channel_it);
+		else
+			++channel_it;
+	}
 }
 
-static std::vector<u16> empty_channel_list;
+const static std::vector<u16> empty_channel_list;
 const std::vector<u16> &ModChannelMgr::getChannelPeers(const std::string &channel) const
 {
 	const auto &channel_it = m_registered_channels.find(channel);

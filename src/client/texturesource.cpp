@@ -357,7 +357,7 @@ u32 TextureSource::generateArrayTexture(const std::vector<std::string> &images)
 	std::string name;
 	{ // automatically choose a name
 		char buf[64];
-		porting::mt_snprintf(buf, sizeof(buf), "array#%u %ux%ux%u", id,
+		porting::mt_snprintf(buf, sizeof(buf), "array#%u %ux%ux%zu", id,
 			imgs[0]->getDimension().Width, imgs[0]->getDimension().Height,
 			imgs.size());
 		name = buf;
@@ -570,8 +570,11 @@ void TextureSource::rebuildImagesAndTextures()
 	video::IVideoDriver *driver = RenderingEngine::get_video_driver();
 	sanity_check(driver);
 
-	infostream << "TextureSource: recreating " << m_textureinfo_cache.size()
-			<< " textures" << std::endl;
+	size_t n = 0;
+	for (TextureInfo &ti : m_textureinfo_cache)
+		n += ti.name.empty() ? 0 : 1;
+
+	infostream << "TextureSource: recreating " << n << " textures" << std::endl;
 
 	assert(!m_image_cache_enabled || m_image_cache.empty());
 

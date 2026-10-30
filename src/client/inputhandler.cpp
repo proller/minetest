@@ -260,11 +260,12 @@ bool MyEventReceiver::OnEvent(const SEvent &event)
 	else if (event.EventType == EET_TOUCH_INPUT_EVENT)
 		last_pointer_type = PointerType::Touch;
 
-	// Let the menu handle events, if one is active.
+	bool ret = g_menumgr.runPreprocessEvent(event);
 	if (isMenuActive()) {
 		if (g_touchcontrols)
 			g_touchcontrols->setVisible(false);
-		return g_menumgr.preprocessEvent(event);
+		// Let the menu handle events, if one is active.
+		return ret;
 	}
 
 	// Remember whether each key is down or up
@@ -274,6 +275,9 @@ bool MyEventReceiver::OnEvent(const SEvent &event)
 		return true;
 	} else if (event.EventType == EET_MOUSE_INPUT_EVENT && event.MouseInput.Event == EMIE_MOUSE_WHEEL) {
 		mouse_wheel += event.MouseInput.Wheel;
+	} else if (event.EventType == EET_MOUSE_INPUT_EVENT && event.MouseInput.Event == EMIE_MOUSE_MOVED) {
+		mouse_movement.X += event.MouseInput.XRel;
+		mouse_movement.Y += event.MouseInput.YRel;
 	} else if (event.EventType == EET_USER_EVENT && event.UserEvent.type == EUET_GAME_KEY) {
 		KeyPress keyCode(static_cast<GameKeyType>(event.UserEvent.UserData1));
 		setKeyDown(keyCode, InputHandler::intToAnalog(event.UserEvent.UserData2));
@@ -354,4 +358,5 @@ void RandomInputHandler::step(float dtime)
 		}
 	}
 	mousepos += mousespeed;
+	mousemovement += mousespeed;
 }

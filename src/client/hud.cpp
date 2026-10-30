@@ -235,7 +235,7 @@ void Hud::drawItem(const ItemStack &item, const core::rect<s32>& rect,
 // mainlist can be NULL, but draw the frame anyway.
 void Hud::drawItems(v2s32 screen_pos, v2s32 screen_offset, s32 itemcount, v2f alignment,
 		s32 inv_offset, InventoryList *mainlist, u16 selectitem, u16 direction,
-		bool is_hotbar)
+		bool is_hotbar, const std::string &background_image)
 {
 	s32 height  = m_hotbar_imagesize + m_padding * 2;
 	s32 width   = (itemcount - inv_offset) * (m_hotbar_imagesize + m_padding * 2);
@@ -252,11 +252,11 @@ void Hud::drawItems(v2s32 screen_pos, v2s32 screen_offset, s32 itemcount, v2f al
 	pos.X += (alignment.X - 1.0f) * (width * 0.5f);
 	pos.Y += (alignment.Y - 1.0f) * (height * 0.5f);
 
-	// Store hotbar_image in member variable, used by drawItem()
-	if (hotbar_image != player->hotbar_image) {
-		hotbar_image = player->hotbar_image;
-		use_hotbar_image = !hotbar_image.empty();
-	}
+	// Store the effective background image in a member variable, used by drawItem().
+	// An inventory HUD element can override the player's hotbar image with text2.
+	hotbar_image = background_image.empty() ?
+			player->hotbar_image : background_image;
+	use_hotbar_image = !hotbar_image.empty();
 
 	// Store hotbar_selected_image in member variable, used by drawItem()
 	if (hotbar_selected_image != player->hotbar_selected_image) {
@@ -448,7 +448,7 @@ void Hud::drawLuaElements(const v3pos_t &camera_offset, bool only_unhidable)
 				if (!inv)
 					warningstream << "HUD: Unknown inventory list. name=" << e->text << std::endl;
 				drawItems(pos, v2s32(e->offset.X, e->offset.Y), e->number, e->align, 0,
-					inv, e->item, e->dir, false);
+					inv, e->item, e->dir, false, e->text2);
 				break; }
 			case HUD_ELEM_WAYPOINT: {
 				if (!calculateScreenPos(camera_offset, e, &pos))
@@ -522,7 +522,7 @@ void Hud::drawLuaElements(const v3pos_t &camera_offset, bool only_unhidable)
 					dstsize.Y = m_screensize.Y * (e->size.Y * -0.01);
 
 				if (dstsize.X <= 0 || dstsize.Y <= 0)
-					return; // Avoid zero divides
+					continue; // Avoid zero divides
 
 				// Angle according to camera view
 				scene::ICameraSceneNode *cam = client->getSceneManager()->getActiveCamera();
@@ -570,7 +570,7 @@ void Hud::drawLuaElements(const v3pos_t &camera_offset, bool only_unhidable)
 					dstsize.X = dstsize.Y = m_screensize.Y * (e->size.Y * -0.01);
 
 				if (dstsize.X <= 0 || dstsize.Y <= 0)
-					return;
+					continue;
 
 				v2s32 offset((e->align.X - 1.0) * dstsize.X / 2,
 				             (e->align.Y - 1.0) * dstsize.Y / 2);

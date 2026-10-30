@@ -1,7 +1,7 @@
 // Luanti
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
-// Copyright (C) 2013-2020 Minetest core developers & community
+// Copyright (C) 2013-2020 Luanti core developers & community
 
 #include "luaentity_sao.h"
 #include "AnimSpec.h"
@@ -64,6 +64,7 @@ LuaEntitySAO::LuaEntitySAO(ServerEnvironment *env, v3f pos, const std::string &d
 		// <read new values>
 		break;
 	}
+
 	// create object
 	infostream << "LuaEntitySAO(name=\"" << name << "\" state is ";
 	if (state.empty())
@@ -89,8 +90,14 @@ LuaEntitySAO::LuaEntitySAO(ServerEnvironment *env, v3f pos, const std::string &n
 
 LuaEntitySAO::~LuaEntitySAO()
 {
-	if(m_registered){
-		m_env->getScriptIface()->luaentity_Remove(m_id);
+	assert(m_env);
+
+	if (m_registered) {
+		// This shouldn't but can run when the script API is already gone
+		if (auto *script = m_env->getScriptIface())
+			script->luaentity_Remove(m_id);
+		else
+			verbosestream << "~LuaEntitySAO: script iface missing (m_id=" << m_id << ")" << std::endl;
 	}
 
 	for (u32 attached_particle_spawner : m_attached_particle_spawners) {
@@ -550,8 +557,11 @@ void LuaEntitySAO::sendPosition(bool do_interpolate, bool is_movement_end)
 		m_rotation,
 		do_interpolate,
 		is_movement_end,
-		update_interval
+		update_interval,
+		m_rotation_interpolate
 	);
+	// Reset per-update rotation interpolation flag to default
+	m_rotation_interpolate = true;
 	// create message and add to list
 	m_messages_out.emplace(getId(), false, str);
 }

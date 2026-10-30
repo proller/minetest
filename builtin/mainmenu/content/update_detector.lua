@@ -15,9 +15,10 @@ end
 
 assert(core.create_dir(core.get_cache_path() .. DIR_DELIM .. "cdb"))
 local cache_file_path = core.get_cache_path() .. DIR_DELIM .. "cdb" .. DIR_DELIM .. "updates.json"
-local has_fetched = false
+local fetched_url
 local latest_releases
 do
+	-- reuse cached data if available and valid
 	if check_cache_age("cdb_updates_last_checked", 24 * 3600) then
 		local f = io.open(cache_file_path, "r")
 		local data = ""
@@ -28,7 +29,6 @@ do
 		data = data ~= "" and core.parse_json(data) or nil
 		if type(data) == "table" then
 			latest_releases = data
-			has_fetched = true
 		end
 	end
 end
@@ -42,11 +42,12 @@ local function fetch_latest_releases()
 			core.get_max_supp_proto() .. "&engine_version=" .. core.urlencode(version.string)
 	local http = core.get_http_api()
 	local response = http.fetch_sync({ url = url })
-	if not response.succeeded then
+	if not response.succeeded or response.code >= 400 then
 		return
 	end
 
-	return core.parse_json(response.data)
+	local ret = core.parse_json(response.data) -- nil on error
+	return type(ret) == "table" and ret
 end
 
 
@@ -79,15 +80,17 @@ end
 
 
 local function fetch()
-	if has_fetched or not has_packages_from_cdb() then
+	local url = core.settings:get("contentdb_url")
+	if fetched_url == url or not has_packages_from_cdb() then
 		return
 	end
 
-	has_fetched = true
+	fetched_url = url
 
 	get_latest_releases(function(releases)
 		if not releases then
-			has_fetched = false
+			-- do not retry the same url so we don't spam the backend.
+			-- note that relaunching the menu will try again anyway.
 			return
 		end
 		latest_releases = lowercase_keys(releases)

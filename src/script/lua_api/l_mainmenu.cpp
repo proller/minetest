@@ -598,9 +598,7 @@ int ModApiMainMenu::l_get_content_translation(lua_State *L)
 	std::string path = luaL_checkstring(L, 1);
 	std::string domain = luaL_checkstring(L, 2);
 	std::string string = luaL_checkstring(L, 3);
-	std::string lang = gettext("LANG_CODE");
-	if (lang == "LANG_CODE")
-		lang = "";
+	std::string lang = gettext_get_lang_code();
 
 	auto *translations = engine->getContentTranslations(path, domain, lang);
 	string = wide_to_utf8(translate_string(utf8_to_wide(string), translations));
@@ -885,8 +883,7 @@ int ModApiMainMenu::l_extract_zip(lua_State *L)
 	CHECK_SECURE_PATH(L, zipfile, false)
 	CHECK_SECURE_PATH(L, destination, true)
 
-	auto fs = RenderingEngine::get_raw_device()->getFileSystem();
-	bool ok = fs::extractZipFile(fs, zipfile, destination);
+	bool ok = fs::extractZipFile(zipfile, destination);
 	lua_pushboolean(L, ok);
 	return 1;
 }
@@ -949,9 +946,7 @@ int ModApiMainMenu::l_download_file(lua_State *L)
 /******************************************************************************/
 int ModApiMainMenu::l_get_language(lua_State *L)
 {
-	std::string lang = gettext("LANG_CODE");
-	if (lang == "LANG_CODE")
-		lang = "";
+	std::string lang = gettext_get_lang_code();
 
 	lua_pushstring(L, lang.c_str());
 	return 1;
@@ -1102,18 +1097,10 @@ int ModApiMainMenu::l_do_async_callback(lua_State *L)
 	MainMenuScripting *script = getScriptApi<MainMenuScripting>(L);
 
 	luaL_checktype(L, 1, LUA_TFUNCTION);
-	call_string_dump(L, 1);
-	size_t func_length;
-	const char *serialized_func_raw = lua_tolstring(L, -1, &func_length);
-
-	size_t param_length;
-	const char* serialized_param_raw = luaL_checklstring(L, 2, &param_length);
-
 	u32 jobId = script->queueAsync(
-		std::string(serialized_func_raw, func_length),
-		std::string(serialized_param_raw, param_length));
+		dump_function_to_string(L, 1),
+		readParam<std::string>(L, 2));
 
-	lua_settop(L, 0);
 	lua_pushinteger(L, jobId);
 	return 1;
 }

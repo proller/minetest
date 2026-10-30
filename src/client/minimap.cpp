@@ -286,7 +286,7 @@ void Minimap::addMode(MinimapModeDef mode)
 			mode.scale = 1;
 	}
 
-	int zoom = -1;
+	float zoom = -1.0f;
 
 	// Build a default standard label
 	if (mode.label.empty()) {
@@ -295,14 +295,14 @@ void Minimap::addMode(MinimapModeDef mode)
 				mode.label = gettext("Minimap hidden");
 				break;
 			case MINIMAP_TYPE_SURFACE:
-				mode.label = gettext("Minimap in surface mode, Zoom x%d");
 				if (mode.map_size > 0)
-					zoom = 256 / mode.map_size;
+					zoom = 256.0f / ((float) mode.map_size);
+				mode.label = gettext("Minimap in surface mode, Zoom x%.*f");
 				break;
 			case MINIMAP_TYPE_RADAR:
-				mode.label = gettext("Minimap in radar mode, Zoom x%d");
 				if (mode.map_size > 0)
-					zoom = 512 / mode.map_size;
+					zoom = 512.0f / ((float) mode.map_size);
+				mode.label = gettext("Minimap in radar mode, Zoom x%.*f");
 				break;
 			case MINIMAP_TYPE_TEXTURE:
 				mode.label = gettext("Minimap in texture mode");
@@ -313,10 +313,15 @@ void Minimap::addMode(MinimapModeDef mode)
 	}
 	// else: Custom labels need mod-provided client-side translation
 
-	if (zoom >= 0) {
+	if (zoom >= 0.0f) {
 		char label_buf[1024];
+		int precision = 0;
+		if (zoom < 2.0f && std::floor(zoom) != zoom) {
+			precision = 1;
+		}
 		porting::mt_snprintf(label_buf, sizeof(label_buf),
-			mode.label.c_str(), zoom);
+			mode.label.c_str(), precision, zoom
+		);
 		mode.label = label_buf;
 	}
 
@@ -329,7 +334,7 @@ void Minimap::addMode(MinimapType type, u16 size, const std::string &label,
 	MinimapModeDef mode;
 	mode.type = type;
 	mode.label = label;
-	mode.map_size = size;
+	mode.map_size = std::min<u16>({size, MINIMAP_MAX_SX, MINIMAP_MAX_SY});
 	mode.texture = texture;
 	mode.scale = scale;
 	switch (type) {
@@ -727,6 +732,10 @@ void Minimap::updateActiveMarkers()
 
 void MinimapMapblock::getMinimapNodes(VoxelManipulator *vmanip, const NodeDefManager *nodedef, const v3pos_t &pos)
 {
+	// Uses getNodeRefUnsafeCheckFlags
+	assert(vmanip->m_area.contains(pos));
+	assert(vmanip->m_area.contains(pos + v3pos_t(MAP_BLOCKSIZE - 1)));
+
 	for (s16 x = 0; x < MAP_BLOCKSIZE; x++)
 	for (s16 z = 0; z < MAP_BLOCKSIZE; z++) {
 		s16 air_count = 0;
@@ -735,7 +744,7 @@ void MinimapMapblock::getMinimapNodes(VoxelManipulator *vmanip, const NodeDefMan
 
 		for (s16 y = MAP_BLOCKSIZE -1; y >= 0; y--) {
 			v3pos_t p(x, y, z);
-			MapNode n = vmanip->getNodeNoEx(pos + p);
+			MapNode n = vmanip->getNodeRefUnsafeCheckFlags(pos + p);
 			const ContentFeatures &f = nodedef->get(n);
 			if (!surface_found && f.drawtype != NDT_AIRLIKE) {
 				mmpixel->height = y;

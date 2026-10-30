@@ -15,7 +15,6 @@
 #include "client/particles.h"
 #include "client/renderingengine.h"
 #include "client/sound.h"
-#include "client/texturepaths.h"
 #include "client/texturesource.h"
 #include "camera.h"
 #include "filesys.h"
@@ -376,9 +375,9 @@ Client::~Client()
 	m_mesh_update_manager->clearAllQueues(true);
 
 	// Delete detached inventories
-	for (auto &m_detached_inventorie : m_detached_inventories) {
-		delete m_detached_inventorie.second;
-	}
+	for (auto &it : m_detached_inventories)
+		delete it.second;
+	m_detached_inventories.clear();
 
 	// cleanup 3d model meshes on client shutdown
 	m_rendering_engine->cleanupMeshCache();
@@ -394,6 +393,7 @@ Client::~Client()
 	if (m_mod_storage_database)
 		m_mod_storage_database->endSave();
 	delete m_mod_storage_database;
+	m_mod_storage_database = nullptr;
 
 	// Free sound ids
 	for (auto &csp : m_sounds_client_to_server)
@@ -414,7 +414,8 @@ void Client::connect(const Address &address, const std::string &address_name)
 	}
 
 	m_address_name = address_name;
-	m_con.reset(con::createMTP(CONNECTION_TIMEOUT, address.isIPv6(), this));
+	m_con.reset(con::createMTP(/*is_server=*/false,
+			UDPSocket::CreateEphemeral(address.isIPv6()), this));
 
 	infostream << "Connecting to server at ";
 	address.print(infostream);
@@ -614,6 +615,10 @@ void Client::step(float dtime)
 		Replace updated meshes
 	*/
 	{
+		// This can cause pending mesh updates to lose their validity, so do it
+		// before processing them.
+		updateStaticLighting(player->getLighting().static_);
+
 		int num_processed_meshes = 0;
 		std::vector<v3bpos_t> blocks_to_ack;
 		bool force_update_shadows = false;
@@ -671,6 +676,8 @@ void Client::step(float dtime)
 				}
 			}
 
+			// TODO?: it's really weird and complicates things how we only ack
+			// blocks after they've been through the meshgen queue...
 			for (auto p : r.ack_list) {
 				if (blocks_to_ack.size() == 255) {
 					sendGotBlocks(blocks_to_ack);
@@ -680,9 +687,7 @@ void Client::step(float dtime)
 				blocks_to_ack.emplace_back(p);
 			}
 
-			for (auto block : r.map_blocks)
-				if (block)
-					block->refDrop();
+			r.dropBlocks();
 		}
 		if (blocks_to_ack.size() > 0) {
 				// Acknowledge block(s)
@@ -815,6 +820,31 @@ void Client::step(float dtime)
 	}
 }
 
+bool Client::updateStaticLighting(const StaticLighting &future)
+{
+	auto &current = m_committed_static_light;
+
+	if (current == future)
+		return false;
+	current = future;
+	infostream << "Static lighting params changed" << std::endl;
+
+	float gamma = g_settings->getFloat("display_gamma");
+	if (current.light_curve_set) {
+		set_light_table(current.light_curve, gamma);
+	} else {
+		set_light_curve(gamma);
+	}
+
+	// Force a re-mesh of all blocks
+	ClientMap &map = m_env.getClientMap();
+	std::vector<v3bpos_t> to_update;
+	map.getBlocksWithMeshes(to_update);
+	m_mesh_update_manager->forceRegenerate(&map, to_update);
+
+	return true;
+}
+
 bool Client::loadMedia(const std::string &data, const std::string &filename,
 	bool from_media_push)
 {
@@ -890,6 +920,8 @@ bool Client::loadMedia(const std::string &data, const std::string &filename,
 			return false;
 		TRACESTREAM(<< "Client: Loading translation: "
 				<< "\"" << filename << "\"" << std::endl);
+
+		g_client_translations->setTargetLanguage(gettext_get_lang_code());
 		g_client_translations->loadTranslation(filename, data);
 		return true;
 	}
@@ -928,7 +960,7 @@ void Client::deletingPeer(con::IPeer *peer, bool timeout)
 		m_access_denied_reason = gettext("Connection aborted (protocol error?).");
 }
 
-void Client::request_media(const std::vector<std::string> &file_requests)
+void Client::requestMedia(const std::vector<std::string> &file_requests)
 {
 	std::ostringstream os(std::ios_base::binary);
 	writeU16(os, TOSERVER_REQUEST_MEDIA);
@@ -986,15 +1018,16 @@ void Client::ReceiveAll()
 {
 	NetworkPacket pkt;
 	u64 start_ms = porting::getTimeMs();
-	const u64 budget = 10;
+	const u64 budget = m_state == LC_Ready ? 10 : 100;
 
 	FATAL_ERROR_IF(!m_con, "Networking not initialized");
-	for(;;) {
+	for (;;) {
 		// Limit time even if there would be huge amounts of data to
 		// process
-		if (porting::getTimeMs() > start_ms + budget) {
+		if (u64 d = porting::getTimeMs() - start_ms; d >= budget) {
 			infostream << "Client::ReceiveAll(): "
-					"Packet processing budget exceeded." << std::endl;
+				"Packet processing budget exceeded, took "
+				<< d << "ms" << std::endl;
 			break;
 		}
 
@@ -1895,24 +1928,22 @@ void Client::afterContentReceived()
 	// content from previous sessions.
 	guiScalingCacheClear();
 
-	// Rebuild inherited images and recreate textures
 	infostream<<"- Rebuilding images and textures"<<std::endl;
 	m_rendering_engine->draw_load_screen(wstrgettext("Loading textures..."),
 			guienv, m_tsrc, 0, 66);
 	m_tsrc->rebuildImagesAndTextures();
 
-	// Rebuild shaders
 	infostream<<"- Rebuilding shaders"<<std::endl;
 	m_rendering_engine->draw_load_screen(wstrgettext("Rebuilding shaders..."),
 			guienv, m_tsrc, 0, 68);
 	m_shsrc->rebuildShaders();
 
-	// Update node aliases
 	infostream<<"- Updating node aliases"<<std::endl;
 	m_rendering_engine->draw_load_screen(wstrgettext("Initializing nodes..."),
 			guienv, m_tsrc, 0, 70);
 	m_nodedef->updateAliases(m_itemdef);
-	for (const auto &path : getTextureDirs()) {
+	// Apply texture overrides from texturepack/override.txt
+	for (const std::string &path : getTexturePathsReversed()) {
 		TextureOverrideSource override_source(path + DIR_DELIM + "override.txt");
 		m_nodedef->applyTextureOverrides(override_source.getNodeTileOverrides());
 		m_itemdef->applyTextureOverrides(override_source.getItemTextureOverrides());
@@ -1920,8 +1951,7 @@ void Client::afterContentReceived()
 	m_nodedef->setNodeRegistrationStatus(true);
 	m_nodedef->runNodeResolveCallbacks();
 
-	// Update node textures and assign shaders to each tile
-	infostream<<"- Updating node textures"<<std::endl;
+	infostream<<"- Updating node visuals"<<std::endl;
 	TextureUpdateArgs tu_args;
 	tu_args.last_time_ms = porting::getTimeMs();
 	tu_args.text_base = wstrgettext("Initializing nodes");
@@ -1931,7 +1961,9 @@ void Client::afterContentReceived()
 	// minimap_color, and palette - the two values we care for in SSCSM, get populated
 	m_sscsm_controller->runEvent(this, std::make_unique<SSCSMEventAfterContentReceived>());
 
-	// Start mesh update thread after setting up content definitions
+	// cf. updateStaticLighting()
+	set_light_curve(g_settings->getFloat("display_gamma"));
+
 	infostream<<"- Starting mesh update thread"<<std::endl;
 	m_mesh_update_manager->start();
 
@@ -2000,8 +2032,12 @@ float Client::getCurRate()
 			m_con->getLocalStat(con::CUR_DL_RATE));
 }
 
-void Client::makeScreenshot()
+void Client::takeScreenshotIfRequested()
 {
+	if (!m_take_screenshot)
+		return;
+	m_take_screenshot = false;
+
 	video::IVideoDriver *driver = m_rendering_engine->get_video_driver();
 	std::string filename;
 	if (takeScreenshot(driver, filename)) {

@@ -2,9 +2,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Russian (Minetest)\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-10 17:35+0200\n"
-"PO-Revision-Date: 2026-08-15 12:51+0000\n"
-"Last-Translator: BlackImpostor <SkyBuilderOFFICAL@yandex.ru>\n"
+"POT-Creation-Date: 2026-10-17 19:12+0200\n"
+"PO-Revision-Date: 2026-10-18 17:09+0000\n"
+"Last-Translator: Andrei Stepanov <adem@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/minetest/"
 "minetest/ru/>\n"
 "Language: ru\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 2026.9.dev0\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #: builtin/client/chatcommands.lua
 msgid "Clear the out chat queue"
@@ -347,6 +347,17 @@ msgstr "<пусто>"
 msgid "Accessibility"
 msgstr "Доступность"
 
+#: builtin/common/settings/dlg_settings.lua
+msgid ""
+"Any mods listed in \"Trusted Mods\" will have unrestricted access to user "
+"data and programs on your device. This is not normally needed. Make sure you "
+"can trust the mod's code and its author beforehand!"
+msgstr ""
+"Любые моды, перечисленные в разделе «Доверенные моды», получат "
+"неограниченный доступ к пользовательским данным и программам на вашем "
+"устройстве. Обычно это не требуется. Заранее убедитесь, что вы можете "
+"доверять коду мода и его автору!"
+
 #. TRANSLATORS: Automatic
 #: builtin/common/settings/dlg_settings.lua
 msgid "Auto"
@@ -615,7 +626,7 @@ msgstr "Загрузка..."
 msgid "Featured"
 msgstr "Рекомендуемое"
 
-#: builtin/mainmenu/content/dlg_contentdb.lua
+#: builtin/mainmenu/content/dlg_contentdb.lua builtin/mainmenu/tab_content.lua
 msgid "Games"
 msgstr "Игры"
 
@@ -626,7 +637,7 @@ msgstr "Игры"
 msgid "Loading..."
 msgstr "Загрузка..."
 
-#: builtin/mainmenu/content/dlg_contentdb.lua
+#: builtin/mainmenu/content/dlg_contentdb.lua builtin/mainmenu/tab_content.lua
 msgid "Mods"
 msgstr "Моды"
 
@@ -800,10 +811,6 @@ msgstr "от $1"
 #: builtin/mainmenu/content/dlg_package.lua
 msgid "by $1  —  $2 downloads  —  +$3 / $4 / -$5"
 msgstr "от $1  —  $2 загрузок  —  +$3 / $4 / -$5"
-
-#: builtin/mainmenu/content/pkgmgr.lua
-msgid "$1 (Enabled)"
-msgstr "$1 (включено)"
 
 #: builtin/mainmenu/content/pkgmgr.lua
 msgid "$1 mods"
@@ -1387,8 +1394,26 @@ msgid "Disable Texture Pack"
 msgstr "Отключить набор текстур"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Installed Packages:"
-msgstr "Установленные дополнения:"
+msgid "Enable Texture Pack"
+msgstr "Включить набор текстур"
+
+#: builtin/mainmenu/tab_content.lua
+msgid "Enabled texture packs are applied in priority order."
+msgstr "Включённые наборы текстур применяются в порядке приоритета."
+
+#: builtin/mainmenu/tab_content.lua
+msgid "If two packs provide the same texture, the one listed first wins."
+msgstr ""
+"Если два набора предоставляют одну и ту же текстуру, побеждает тот, что "
+"указан первым."
+
+#: builtin/mainmenu/tab_content.lua
+msgid "Move Down"
+msgstr "Переместить вниз"
+
+#: builtin/mainmenu/tab_content.lua
+msgid "Move Up"
+msgstr "Переместить вверх"
 
 #: builtin/mainmenu/tab_content.lua
 msgid "No dependencies."
@@ -1403,12 +1428,12 @@ msgid "Rename"
 msgstr "Переименовать"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Update available?"
-msgstr "Обновление недоступно?"
+msgid "Texture packs"
+msgstr "Наборы текстур"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Use Texture Pack"
-msgstr "Использовать набор текстур"
+msgid "Update available?"
+msgstr "Обновление недоступно?"
 
 #: builtin/mainmenu/tab_local.lua
 msgid "Announce Server"
@@ -1619,8 +1644,8 @@ msgid "No world selected and no address provided. Nothing to do."
 msgstr "Не выбран мир и не введён адрес. Нечего выполнять."
 
 #: src/client/clientlauncher.cpp
-msgid "Player name too long."
-msgstr "Имя игрока слишком длинное."
+msgid "Player name is invalid."
+msgstr "Имя игрока недопустимо."
 
 #: src/client/clientlauncher.cpp
 msgid "Please choose a name!"
@@ -2491,13 +2516,13 @@ msgstr "Миникарта скрыта"
 
 #: src/client/minimap.cpp
 #, c-format
-msgid "Minimap in radar mode, Zoom x%d"
-msgstr "Миникарта в режиме радара, увеличение x%d"
+msgid "Minimap in radar mode, Zoom x%.*f"
+msgstr "Миникарта в режиме радара, увеличение x%.*f"
 
 #: src/client/minimap.cpp
 #, c-format
-msgid "Minimap in surface mode, Zoom x%d"
-msgstr "Миникарта в ландшафтном режиме, увеличение x%d"
+msgid "Minimap in surface mode, Zoom x%.*f"
+msgstr "Миникарта в ландшафтном режиме, увеличение x%.*f"
 
 #: src/client/minimap.cpp
 msgid "Minimap in texture mode"
@@ -3083,10 +3108,6 @@ msgid "Always fly fast"
 msgstr "Всегда ускоренный полёт"
 
 #: src/settings_translation_file.cpp
-msgid "Ambient occlusion gamma"
-msgstr "Гамма глобального затенения"
-
-#: src/settings_translation_file.cpp
 msgid "Amplifies the valleys."
 msgstr "Увеличивает долины."
 
@@ -3558,21 +3579,20 @@ msgstr ""
 
 #: src/settings_translation_file.cpp
 msgid ""
-"Comma-separated list of mods that are allowed to access HTTP APIs, which\n"
-"allow them to upload and download data to/from the internet."
+"Comma-separated list of mods that are allowed to use HTTP APIs, which\n"
+"allows them to connect to the Internet and devices on your network."
 msgstr ""
-"Список модов, разделённый запятыми, у которых есть доступ к HTTP API,\n"
-"что позволяет им загружать и отдавать данные через интернет."
+"Разделённый запятыми список модов, которым разрешено использовать HTTP API,\n"
+"что позволяет им подключаться к интернету и устройствам в вашей сети."
 
 #: src/settings_translation_file.cpp
 msgid ""
-"Comma-separated list of trusted mods that are allowed to access insecure\n"
-"functions even when mod security is on (via request_insecure_environment())."
+"Comma-separated list of trusted mods that are allowed to bypass the Lua\n"
+"sandbox. They will have full access to the host machine."
 msgstr ""
-"Список доверенных модов, разделённый запятыми, которым разрешён доступ к "
-"небезопасным\n"
-"функциям, даже когда включена безопасность модов (через "
-"request_insecure_environment())."
+"Разделённый запятыми список доверенных модов, которым разрешено обходить "
+"песочницу Lua.\n"
+"Они получат полный доступ к хост-машине."
 
 #: src/settings_translation_file.cpp
 msgid "Command"
@@ -3930,6 +3950,10 @@ msgid "Developer Options"
 msgstr "Для разработчиков"
 
 #: src/settings_translation_file.cpp
+msgid "Digging particles"
+msgstr "Частицы при копании"
+
+#: src/settings_translation_file.cpp
 msgid "Disable if you only want to instrument with Tracy."
 msgstr "Отключите, если хотите использовать только Трассировку."
 
@@ -4106,10 +4130,6 @@ msgstr "Включает динамичные тени"
 #: src/settings_translation_file.cpp
 msgid "Enable mod channels support."
 msgstr "Включить поддержку каналов модов."
-
-#: src/settings_translation_file.cpp
-msgid "Enable mod security"
-msgstr "Включить безопасность модов"
 
 #: src/settings_translation_file.cpp
 msgid "Enable mouse wheel (scroll) for item selection in hotbar."
@@ -4537,10 +4557,6 @@ msgstr "Фильтр масштабирования интерфейса"
 #: src/settings_translation_file.cpp
 msgid "Gamepads and Joysticks"
 msgstr "Геймпады и Джойстики"
-
-#: src/settings_translation_file.cpp
-msgid "Gamma"
-msgstr "Гамма"
 
 #: src/settings_translation_file.cpp
 msgid "Global callbacks"
@@ -4999,13 +5015,13 @@ msgstr ""
 
 #: src/settings_translation_file.cpp
 msgid ""
-"If enabled, you can place nodes at the position (feet + eye level) where you "
-"stand.\n"
+"If enabled, you can place nodes that would be blocked by your collision "
+"box.\n"
 "This is helpful when working with nodeboxes in small areas."
 msgstr ""
-"Если включено, то вы можете размещать новые ноды на том месте, где вы "
-"стоите.\n"
-"Это может быть полезно при строительстве в узких местах."
+"Если включено, вы можете размещать узлы, которые блокировались бы вашей "
+"коробкой коллизий.\n"
+"Это полезно при работе с блоками узлов в небольших областях."
 
 #: src/settings_translation_file.cpp
 msgid ""
@@ -5576,18 +5592,6 @@ msgid ""
 msgstr ""
 "Включить зависимость цвета тумана и облаков от времени суток (рассвет/закат) "
 "и направления взгляда."
-
-#: src/settings_translation_file.cpp
-msgid ""
-"Make volumetrics weaker against closer objects to emulate physical "
-"volumetrics."
-msgstr ""
-"Делает объёмные эффекты слабее при приближении к объектам, чтобы имитировать "
-"физические объёмные эффекты."
-
-#: src/settings_translation_file.cpp
-msgid "Makes the color of light fog more saturated."
-msgstr "Делает цвет светлого тумана более насыщенным."
 
 #: src/settings_translation_file.cpp
 msgid "Map Compression Level for Disk Storage"
@@ -6202,6 +6206,22 @@ msgid "Occlusion Culling"
 msgstr "Окклюзивное отсечение"
 
 #: src/settings_translation_file.cpp
+msgid ""
+"Occlusion culler to prefer\n"
+"\n"
+"\"loops\" is a simple nested algorithm with O(n³) complexity\n"
+"\"bfs\" is the new algorithm based on breadth-first-search and side culling\n"
+"\n"
+"This setting should only be changed if you have performance problems."
+msgstr ""
+"Предпочитаемый метод окклюзивного отсечения\n"
+"\n"
+"«loops» — простой вложенный алгоритм сложностью O(n³)\n"
+"«bfs» — новый алгоритм на основе поиска в ширину и отсечения боковых граней\n"
+"\n"
+"Это значение следует изменять только при проблемах с производительностью."
+
+#: src/settings_translation_file.cpp
 msgid "Opaqueness (alpha) of the shadow behind the font."
 msgstr "Непрозрачность (альфа) теней за шрифтом."
 
@@ -6328,12 +6348,6 @@ msgstr ""
 "Предотвращает повторное копание и размещение нод при удержании кнопки.\n"
 "Включите это, если слишком часто случайно копаете или строите лишнее.\n"
 "На сенсорных экранах влияет только на копание."
-
-#: src/settings_translation_file.cpp
-msgid "Prevent mods from doing insecure things like running shell commands."
-msgstr ""
-"Запретить модам выполнение небезопасных вещей, например выполнение shell-"
-"команд."
 
 #: src/settings_translation_file.cpp
 msgid ""
@@ -6846,14 +6860,6 @@ msgstr "Задаёт максимальную длину сообщений ча
 
 #: src/settings_translation_file.cpp
 msgid ""
-"Set the post processing gamma value.\n"
-"Higher values give lower contrast and vice versa."
-msgstr ""
-"Задаёт значение гаммы для постобработки.\n"
-"Чем выше значение, тем ниже контрастность, и наоборот."
-
-#: src/settings_translation_file.cpp
-msgid ""
 "Set the shadow strength gamma.\n"
 "Adjusts the intensity of in-game dynamic shadows.\n"
 "Lower value means lighter shadows, higher value means darker shadows."
@@ -6971,6 +6977,10 @@ msgid ""
 msgstr ""
 "Показывать рамку выделения сущностей\n"
 "Требует перезапуска после изменения."
+
+#: src/settings_translation_file.cpp
+msgid "Show local particles when digging nodes."
+msgstr "Показывать локальные частицы при копании узлов."
 
 #: src/settings_translation_file.cpp
 msgid "Show name tag backgrounds by default"
@@ -7447,18 +7457,6 @@ msgstr ""
 
 #: src/settings_translation_file.cpp
 msgid ""
-"The strength (darkness) of node ambient-occlusion shading.\n"
-"Lower is darker, Higher is lighter. The valid range of values for this\n"
-"setting is 0.25 to 4.0 inclusive. If the value is out of range it will be\n"
-"set to the nearest valid value."
-msgstr ""
-"Сила глобального затенения нод. Чем меньше, тем темнее,\n"
-"и наоборот. Возможные значения параметра - от 0.25 до 4.0\n"
-"включительно. Если значение находится вне этого диапазона,\n"
-"то оно будет округлено до ближайшего подходящего."
-
-#: src/settings_translation_file.cpp
-msgid ""
 "The time (in seconds) that the liquids queue may grow beyond processing\n"
 "capacity until an attempt is made to decrease its size by dumping old queue\n"
 "items.  A value of 0 disables the functionality."
@@ -7534,18 +7532,6 @@ msgstr "Скорость хода времени"
 msgid "Timeout for client to remove unused map data from memory, in seconds."
 msgstr ""
 "Таймаут для клиента, чтобы удалить неиспользуемые данные о мире, в секундах."
-
-#: src/settings_translation_file.cpp
-msgid "Tint sunlight during sunrise/sunset."
-msgstr "Оттенок солнечного света во время восхода/захода."
-
-#: src/settings_translation_file.cpp
-msgid "Tinted fog"
-msgstr "Оттенок тумана"
-
-#: src/settings_translation_file.cpp
-msgid "Tinted sunlight"
-msgstr "Окрашенный солнечный свет"
 
 #: src/settings_translation_file.cpp
 msgid ""
@@ -7690,24 +7676,6 @@ msgstr "Доверенные моды"
 
 #: src/settings_translation_file.cpp
 msgid ""
-"Type of occlusion_culler\n"
-"\n"
-"\"loops\" is the legacy algorithm with nested loops and O(n³) complexity\n"
-"\"bfs\" is the new algorithm based on breadth-first-search and side culling\n"
-"\n"
-"This setting should only be changed if you have performance problems."
-msgstr ""
-"Методы окклюзивного отсечения\n"
-"\n"
-"«loops» - старый алгоритм со вложенными циклами и O(n³) сложностью\n"
-"«bfs» - новый алгоритм основанный на поиске в ширину и обрезании боковых "
-"граней\n"
-"\n"
-"Это значение должно изменяться только если у вас возникли проблемы с "
-"производительностью."
-
-#: src/settings_translation_file.cpp
-msgid ""
 "URL to JSON file which provides information about the newest Luanti "
 "release.\n"
 "If this is empty the engine will never check for updates."
@@ -7795,13 +7763,13 @@ msgstr ""
 
 #: src/settings_translation_file.cpp
 msgid ""
-"Use raytraced occlusion culling in the new culler.\n"
-"This flag enables use of raytraced occlusion culling test for\n"
-"client mesh sizes smaller than 4x4x4 map blocks."
+"Use raytraced occlusion culling.\n"
+"\n"
+"This setting should only be changed if you have performance problems."
 msgstr ""
-"Использовать лучевое окклюзивное отсечение.\n"
-"Этот флаг включает использование трассировки лучей в проверках отсечения\n"
-"для клиентских мешей меньше чем 4x4x4 мапблоков."
+"Использовать трассируемое окклюзивное отсечение.\n"
+"\n"
+"Это значение следует изменять только при проблемах с производительностью."
 
 #: src/settings_translation_file.cpp
 msgid "Use smooth cloud shading."
@@ -7943,10 +7911,6 @@ msgid "Volume when unfocused"
 msgstr "Громкость при расфокусировке"
 
 #: src/settings_translation_file.cpp
-msgid "Volumetric Depth Attenuation"
-msgstr "Объемное Затухание по Глубине"
-
-#: src/settings_translation_file.cpp
 msgid "Volumetric Lighting"
 msgstr "Объёмное Освещение"
 
@@ -8019,12 +7983,8 @@ msgid "Weblink color"
 msgstr "Цвет ссылки"
 
 #: src/settings_translation_file.cpp
-msgid ""
-"When enabled, crude liquid reflections are simulated.\n"
-"Wave height, length and speed will affect these reflections."
-msgstr ""
-"Если включен, имитирует грубые отражения от поверхности жидкости.\n"
-"Высота, длина и скорость волн влияют на эти отражения."
+msgid "When enabled, liquid reflections are simulated."
+msgstr "Если включено, имитируются отражения жидкости."
 
 #: src/settings_translation_file.cpp
 msgid ""
@@ -8263,23 +8223,85 @@ msgstr "Прокси адрес для cURL"
 msgid "Failed to save screenshot to \"%s\""
 msgstr "Не удалось сохранить снимок экрана в \"%s\""
 
-#~ msgid "Enable joysticks"
-#~ msgstr "Включить контроллер"
+#~ msgid "$1 (Enabled)"
+#~ msgstr "$1 (включено)"
 
-#~ msgid "Enable joysticks. Requires a restart to take effect"
-#~ msgstr "Включить поддержку контроллера. Требуется перезапуск"
+#~ msgid "Ambient occlusion gamma"
+#~ msgstr "Гамма глобального затенения"
 
-#~ msgid "Keybindings"
-#~ msgstr "Привязки клавиш"
+#~ msgid "Enable mod security"
+#~ msgstr "Включить безопасность модов"
 
-#~ msgid "The dead zone of the joystick"
-#~ msgstr "Мёртвая зона джойстика"
+#~ msgid "Gamma"
+#~ msgstr "Гамма"
 
-#~ msgid "The identifier of the joystick to use"
-#~ msgstr "Идентификатор используемого контроллера"
+#~ msgid "Installed Packages:"
+#~ msgstr "Установленные дополнения:"
 
-#~ msgid "The type of joystick"
-#~ msgstr "Тип контроллера"
+#~ msgid ""
+#~ "Make volumetrics weaker against closer objects to emulate physical "
+#~ "volumetrics."
+#~ msgstr ""
+#~ "Делает объёмные эффекты слабее при приближении к объектам, чтобы "
+#~ "имитировать физические объёмные эффекты."
 
-#~ msgid "When enabled, liquid reflections are simulated."
-#~ msgstr "При включении имитируются отражения от жидкости."
+#~ msgid "Makes the color of light fog more saturated."
+#~ msgstr "Делает цвет светлого тумана более насыщенным."
+
+#~ msgid "Player name too long."
+#~ msgstr "Имя игрока слишком длинное."
+
+#~ msgid "Prevent mods from doing insecure things like running shell commands."
+#~ msgstr ""
+#~ "Запретить модам выполнение небезопасных вещей, например выполнение shell-"
+#~ "команд."
+
+#~ msgid ""
+#~ "Set the post processing gamma value.\n"
+#~ "Higher values give lower contrast and vice versa."
+#~ msgstr ""
+#~ "Задаёт значение гаммы для постобработки.\n"
+#~ "Чем выше значение, тем ниже контрастность, и наоборот."
+
+#~ msgid ""
+#~ "The strength (darkness) of node ambient-occlusion shading.\n"
+#~ "Lower is darker, Higher is lighter. The valid range of values for this\n"
+#~ "setting is 0.25 to 4.0 inclusive. If the value is out of range it will "
+#~ "be\n"
+#~ "set to the nearest valid value."
+#~ msgstr ""
+#~ "Сила глобального затенения нод. Чем меньше, тем темнее,\n"
+#~ "и наоборот. Возможные значения параметра - от 0.25 до 4.0\n"
+#~ "включительно. Если значение находится вне этого диапазона,\n"
+#~ "то оно будет округлено до ближайшего подходящего."
+
+#~ msgid "Tint sunlight during sunrise/sunset."
+#~ msgstr "Оттенок солнечного света во время восхода/захода."
+
+#~ msgid "Tinted fog"
+#~ msgstr "Оттенок тумана"
+
+#~ msgid "Tinted sunlight"
+#~ msgstr "Окрашенный солнечный свет"
+
+#~ msgid "Use Texture Pack"
+#~ msgstr "Использовать набор текстур"
+
+#~ msgid ""
+#~ "Use raytraced occlusion culling in the new culler.\n"
+#~ "This flag enables use of raytraced occlusion culling test for\n"
+#~ "client mesh sizes smaller than 4x4x4 map blocks."
+#~ msgstr ""
+#~ "Использовать лучевое окклюзивное отсечение.\n"
+#~ "Этот флаг включает использование трассировки лучей в проверках отсечения\n"
+#~ "для клиентских мешей меньше чем 4x4x4 мапблоков."
+
+#~ msgid "Volumetric Depth Attenuation"
+#~ msgstr "Объемное Затухание по Глубине"
+
+#~ msgid ""
+#~ "When enabled, crude liquid reflections are simulated.\n"
+#~ "Wave height, length and speed will affect these reflections."
+#~ msgstr ""
+#~ "Если включен, имитирует грубые отражения от поверхности жидкости.\n"
+#~ "Высота, длина и скорость волн влияют на эти отражения."

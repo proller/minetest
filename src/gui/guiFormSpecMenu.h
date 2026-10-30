@@ -312,7 +312,7 @@ public:
 	core::rect<s32> getAbsoluteRect();
 
 #ifdef __ANDROID__
-	void getAndroidUIInput();
+	void getAndroidUIInput() override;
 #endif
 
 	// Returns the fixed formspec coordinate size for the given parameters.
@@ -510,6 +510,7 @@ private:
 	void parseBox(parserData* data, const std::string &element);
 	void parseBackgroundColor(parserData* data, const std::string &element);
 	void parseListColors(parserData* data, const std::string &element);
+	void parseListImages(parserData* data, const std::string &element);
 	void parseTooltip(parserData* data, const std::string &element);
 	bool parseVersionDirect(const std::string &data);
 	bool parseSizeDirect(parserData* data, const std::string &element);

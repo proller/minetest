@@ -1,5 +1,5 @@
 /*
-Part of Minetest
+Part of Luanti
 Copyright (C) 2023-24 rubenwardy
 
 Permission to use, copy, modify, and distribute this software for any
@@ -140,14 +140,14 @@ void GUIOpenURLMenu::regenerateGui(v2u32 screensize)
 	ypos += 80 * s;
 	if (ok) {
 		core::rect<s32> rect(0, 0, 100 * s, 40 * s);
-		rect = rect + v2s32(size.X / 2 - 150 * s, ypos);
+		rect = rect + v2s32(size.X / 2 + 50 * s, ypos);
 		auto *e = GUIButton::addButton(Environment, rect, m_tsrc, this, ID_open,
 				wstrgettext("Open").c_str());
 		e->setStyles(styles);
 	}
 	{
 		core::rect<s32> rect(0, 0, 100 * s, 40 * s);
-		rect = rect + v2s32(size.X / 2 + 50 * s, ypos);
+		rect = rect + v2s32(size.X / 2 - 150 * s, ypos);
 		auto *e = GUIButton::addButton(Environment, rect, m_tsrc, this, ID_cancel,
 				wstrgettext("Cancel").c_str());
 		e->setStyles(styles);

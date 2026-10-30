@@ -337,7 +337,10 @@ void ScriptApiSecurity::initializeSecurity()
 
 	replace_string_metatable(L);
 
-	FATAL_ERROR_IF(sanity_check_top != lua_gettop(L), "unbalanced stack");
+	if (sanity_check_top != lua_gettop(L)) {
+		stackDump(errorstream);
+		FATAL_ERROR("unbalanced stack");
+	}
 }
 
 #if CHECK_CLIENT_BUILD()
@@ -687,7 +690,7 @@ void ScriptApiSecurity::getGlobalsBackup(lua_State *L)
 	}
 	lua_rawgeti(L, LUA_REGISTRYINDEX, CUSTOM_RIDX_GLOBALS_BACKUP);
 	// We cannot fulfill the callers wish securely if they don't exist.
-	FATAL_ERROR_IF(lua_isnil(L, -1), "Globals backup requested, but it is not available. Cannot proceed securely.");
+	FATAL_ERROR_IF(!lua_istable(L, -1), "Globals backup requested, but it is not available. Cannot proceed securely.");
 }
 
 bool ScriptApiSecurity::safeLoadString(lua_State *L, std::string_view code, const char *chunk_name)
@@ -735,10 +738,10 @@ bool ScriptApiSecurity::safeLoadFile(lua_State *L, const char *path, const char 
 
 	// Check sha256 if it's a builtin file
 	do {
-		assert(path != nullptr);
 		auto path_local = fs::MakePathRelativeTo(path, Server::getBuiltinLuaPath());
 		if (path_local.empty())
 			break; // not in builtin
+		str_replace(path_local, DIR_DELIM_CHAR, '/');
 
 		auto it = g_builtin_file_sha256_map.find(path_local);
 		if (it == g_builtin_file_sha256_map.end()) {
@@ -915,8 +918,7 @@ bool ScriptApiSecurity::checkPathWithGamedef(lua_State *L,
 	bool is_git_path;
 	{
 		std::string tmp = lowercase(abs_path) + DIR_DELIM;
-		if constexpr (DIR_DELIM_CHAR != '/')
-			str_replace(tmp, '/', DIR_DELIM_CHAR);
+		str_replace(tmp, '/', DIR_DELIM_CHAR);
 		is_git_path = tmp.find(DIR_DELIM ".git" DIR_DELIM) != std::string::npos;
 	}
 
@@ -989,7 +991,7 @@ int ScriptApiSecurity::sl_g_load(lua_State *L)
 			return 2;
 		}
 		buf = lua_tolstring(L, -1, &len);
-		code += std::string(buf, len);
+		code.append(buf, len);
 		lua_pop(L, 1); // Pop return value
 	}
 	if (!safeLoadString(L, code, chunk_name)) {
@@ -1088,28 +1090,30 @@ int ScriptApiSecurity::sl_g_collectgarbage(lua_State *L)
 
 int ScriptApiSecurity::sl_io_open(lua_State *L)
 {
-	bool with_mode = lua_gettop(L) > 1;
-
 	luaL_checktype(L, 1, LUA_TSTRING);
 	const char *path = lua_tostring(L, 1);
 
-	bool write_requested = false;
-	if (with_mode) {
+	bool write = false, plus = false, append = false, binary = false;
+	if (!lua_isnoneornil(L, 2)) {
 		luaL_checktype(L, 2, LUA_TSTRING);
-		const char *mode = lua_tostring(L, 2);
-		write_requested = strchr(mode, 'w') != NULL ||
-			strchr(mode, '+') != NULL ||
-			strchr(mode, 'a') != NULL;
+		// "Parse, don't validate."
+		std::string_view mode(lua_tostring(L, 2));
+		write  = mode.find('w') != mode.npos;
+		plus   = mode.find('+') != mode.npos;
+		append = mode.find('a') != mode.npos;
+		binary = mode.find('b') != mode.npos;
+		if (mode.find_first_not_of("rw+abt") != mode.npos)
+			throw LuaError("Invalid file mode");
 	}
-	CHECK_SECURE_PATH_INTERNAL(L, path, write_requested, NULL);
+	CHECK_SECURE_PATH_INTERNAL(L, path, write || plus || append, NULL);
+	std::string modestr = append ? "a" : (write ? "w" : "r");
+	modestr.append(plus ? "+" : "").append(binary ? "b" : "");
 
 	push_original(L, "io", "open");
 	lua_pushvalue(L, 1);
-	if (with_mode) {
-		lua_pushvalue(L, 2);
-	}
+	lua_pushstring(L, modestr.c_str());
 
-	lua_call(L, with_mode ? 2 : 1, 2);
+	lua_call(L, 2, 2);
 	return 2;
 }
 
@@ -1119,6 +1123,8 @@ int ScriptApiSecurity::sl_io_input(lua_State *L)
 	if (lua_isstring(L, 1)) {
 		const char *path = lua_tostring(L, 1);
 		CHECK_SECURE_PATH_INTERNAL(L, path, false, NULL);
+	} else if (lua_isnone(L, 1)) {
+		lua_pushnil(L);
 	}
 
 	push_original(L, "io", "input");
@@ -1133,6 +1139,8 @@ int ScriptApiSecurity::sl_io_output(lua_State *L)
 	if (lua_isstring(L, 1)) {
 		const char *path = lua_tostring(L, 1);
 		CHECK_SECURE_PATH_INTERNAL(L, path, true, NULL);
+	} else if (lua_isnone(L, 1)) {
+		lua_pushnil(L);
 	}
 
 	push_original(L, "io", "output");
@@ -1147,6 +1155,8 @@ int ScriptApiSecurity::sl_io_lines(lua_State *L)
 	if (lua_isstring(L, 1)) {
 		const char *path = lua_tostring(L, 1);
 		CHECK_SECURE_PATH_INTERNAL(L, path, false, NULL);
+	} else if (lua_isnone(L, 1)) {
+		lua_pushnil(L);
 	}
 
 	int top_precall = lua_gettop(L);

@@ -22,6 +22,7 @@ class Client;
 class NodeDefManager;
 class IShaderSource;
 class ITextureSource;
+struct LightPair;
 
 /*
 	Mesh making stuff
@@ -45,6 +46,7 @@ struct MeshMakeData
 
 	// relative to blockpos
 	v3pos_t m_crack_pos_relative = v3pos_t(-1337,-1337,-1337);
+	float m_ao_gamma_inv = 0.0f;
 	bool m_generate_minimap = false;
 	bool m_smooth_lighting = false;
 	bool m_enable_water_reflections = false;
@@ -323,12 +325,10 @@ private:
  * from 0 to LIGHT_SUN.
  */
 video::SColor encode_light(u16 light, u8 emissive_light);
+video::SColor encode_light(LightPair light, u8 emissive_light);
 
 // Compute light at node
 u16 getInteriorLight(MapNode n, s32 increment, const NodeDefManager *ndef);
-u16 getFaceLight(MapNode n, MapNode n2, const NodeDefManager *ndef);
-u16 getSmoothLightSolid(const v3pos_t &p, const v3pos_t &face_dir, const v3pos_t &corner, MeshMakeData *data);
-u16 getSmoothLightTransparent(const v3pos_t &p, const v3pos_t &corner, MeshMakeData *data);
 
 /*!
  * Returns the sunlight's color from the current
