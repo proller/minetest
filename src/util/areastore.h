@@ -59,11 +59,15 @@ public:
 	/// Stores output in passed vector.
 	void getAreasForPos(std::vector<Area *> *result, v3pos_t pos);
 
+	/// Finds areas that are overlapping the area defined by the passed edges.
+	/// This finds any areas that intersect with the passed area at any point.
+	virtual void getOverlappingAreas(std::vector<Area *> *result,
+		v3pos_t minedge, v3pos_t maxedge) = 0;
+
 	/// Finds areas that are completely contained inside the area defined
-	/// by the passed edges.  If @p accept_overlap is true this finds any
-	/// areas that intersect with the passed area at any point.
-	virtual void getAreasInArea(std::vector<Area *> *result,
-		v3pos_t minedge, v3pos_t maxedge, bool accept_overlap) = 0;
+	/// by the passed edges.
+	virtual void getContainingAreas(std::vector<Area *> *result,
+		v3pos_t minedge, v3pos_t maxedge) = 0;
 
 	/// Sets cache parameters.
 	void setCacheParams(bool enabled, u8 block_radius, size_t limit);
@@ -112,14 +116,14 @@ private:
 
 class VectorAreaStore : public AreaStore {
 public:
-	virtual void reserve(size_t count) { m_areas.reserve(count); }
-	virtual bool insertArea(Area *a);
-	virtual bool removeArea(u32 id);
-	virtual void getAreasInArea(std::vector<Area *> *result,
-		v3pos_t minedge, v3pos_t maxedge, bool accept_overlap);
+	void reserve(size_t count) override { m_areas.reserve(count); }
+	bool insertArea(Area *a) override;
+	bool removeArea(u32 id) override;
+	void getOverlappingAreas(std::vector<Area *> *result, v3pos_t minedge, v3pos_t maxedge) override;
+	void getContainingAreas(std::vector<Area *> *result, v3pos_t minedge, v3pos_t maxedge) override;
 
 protected:
-	virtual void getAreasForPosImpl(std::vector<Area *> *result, v3pos_t pos);
+	void getAreasForPosImpl(std::vector<Area *> *result, v3pos_t pos) override;
 
 private:
 	std::vector<Area *> m_areas;
@@ -133,13 +137,13 @@ public:
 	SpatialAreaStore();
 	virtual ~SpatialAreaStore();
 
-	virtual bool insertArea(Area *a);
-	virtual bool removeArea(u32 id);
-	virtual void getAreasInArea(std::vector<Area *> *result,
-		v3pos_t minedge, v3pos_t maxedge, bool accept_overlap);
+	bool insertArea(Area *a) override;
+	bool removeArea(u32 id) override;
+	void getOverlappingAreas(std::vector<Area *> *result, v3pos_t minedge, v3pos_t maxedge) override;
+	void getContainingAreas(std::vector<Area *> *result, v3pos_t minedge, v3pos_t maxedge) override;
 
 protected:
-	virtual void getAreasForPosImpl(std::vector<Area *> *result, v3pos_t pos);
+	void getAreasForPosImpl(std::vector<Area *> *result, v3pos_t pos) override;
 
 private:
 	SpatialIndex::ISpatialIndex *m_tree = nullptr;

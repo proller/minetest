@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright (C) 2015 est31, <MTest31@outlook.com>
 
+#include "irr_v3d.h"
 #include "test.h"
 
 #include "util/areastore.h"
@@ -80,15 +81,15 @@ void TestAreaStore::genericStoreTest(AreaStore *store)
 	UASSERTEQ(size_t, res.size(), 1);
 	res.clear();
 
-	store->getAreasInArea(&res, v3pos_t(-10, -3, 5), v3pos_t(0, 29, 7), false);
+	store->getContainingAreas(&res, v3pos_t(-10, -3, 5), v3pos_t(0, 29, 7));
 	UASSERTEQ(size_t, res.size(), 3);
 	res.clear();
 
-	store->getAreasInArea(&res, v3pos_t(-100, 0, 6), v3pos_t(200, 0, 6), false);
+	store->getContainingAreas(&res, v3pos_t(-100, 0, 6), v3pos_t(200, 0, 6));
 	UASSERTEQ(size_t, res.size(), 0);
 	res.clear();
 
-	store->getAreasInArea(&res, v3pos_t(-100, 0, 6), v3pos_t(200, 0, 6), true);
+	store->getOverlappingAreas(&res, v3pos_t(-100, 0, 6), v3pos_t(200, 0, 6));
 	UASSERTEQ(size_t, res.size(), 3);
 	res.clear();
 

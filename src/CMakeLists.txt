@@ -140,6 +140,7 @@ endif()
 
 if(BUILD_CLIENT)
 	find_package(Freetype REQUIRED)
+	find_package(Libzip 1.7.2 REQUIRED)
 endif()
 
 option(ENABLE_CURSES "Enable ncurses console" ${BUILD_SERVER})
@@ -315,6 +316,7 @@ if(WIN32)
 			set(PNG_DLL "" CACHE FILEPATH "Path to libpng DLL for installation (optional)")
 			set(JPEG_DLL "" CACHE FILEPATH "Path to libjpeg DLL for installation (optional)")
 			set(SDL2_DLL "" CACHE FILEPATH "Path to SDL2 DLL for installation (optional)")
+			set(LIBZIP_DLL "" CACHE FILEPATH "Path to libzip DLL for installation (optional)")
 		endif()
 		if(BUILD_CLIENT AND ENABLE_SOUND)
 			set(OPENAL_DLL "" CACHE FILEPATH "Path to OpenAL DLL for installation (optional)")
@@ -331,6 +333,12 @@ if(WIN32)
 else()
 	# Unix probably
 	list(APPEND PLATFORM_LIBS ${CMAKE_DL_LIBS})
+
+	check_library_exists(m frexpf "" HAVE_LIBM)
+	if (HAVE_LIBM)
+		list(APPEND PLATFORM_LIBS -lm)
+	endif()
+
 	if(APPLE)
 		list(APPEND PLATFORM_LIBS "-framework CoreFoundation")
 	else()
@@ -360,7 +368,7 @@ endif()
 # Note that find_library does not reliably find it so we have to resort to this.
 # Also, passing -latomic is not always the same as adding atomic to the library list.
 include(CheckCSourceCompiles)
-if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+if(NOT MSVC)
 	set(CMAKE_REQUIRED_LIBRARIES "-latomic")
 	check_c_source_compiles("int main(){}" HAVE_LINK_ATOMIC)
 	set(CMAKE_REQUIRED_LIBRARIES "")
@@ -454,6 +462,7 @@ set(independent_SRCS
 	hud_element.cpp
 	inventory.cpp
 	itemstackmetadata.cpp
+	lighting.cpp
 	log.cpp
 	metadata.cpp
 	modchannels.cpp
@@ -714,6 +723,7 @@ if(BUILD_CLIENT)
 	target_link_libraries(
 		${PROJECT_NAME}
 		${ZLIB_LIBRARIES}
+		libzip::zip
 		IrrlichtMt::IrrlichtMt
 		${ZSTD_LIBRARY}
 		${SOUND_LIBRARIES}
@@ -891,39 +901,24 @@ endif()
 
 include(CheckCSourceCompiles)
 
-set(CMAKE_REQUIRED_INCLUDES ${LUA_INCLUDE_DIR})
 if(USE_LUAJIT)
-	# libm usually required if statically linking
-	set(CMAKE_REQUIRED_LIBRARIES ${LUA_LIBRARY} m)
-	# LuaJIT provides exactly zero ways to determine how recent it is (the version
-	# is unchanged since 2017), however it happens that string buffers were added
-	# after the changes which we care about so that works as an indicator.
-	# (https://github.com/LuaJIT/LuaJIT/commit/4c6b669 March 2021)
-	# Note: This is no longer true as of August 2023, but we're keeping the old check.
+	set(CMAKE_REQUIRED_INCLUDES ${LUA_INCLUDE_DIR})
+	set(CMAKE_REQUIRED_LIBRARIES ${LUA_LIBRARY} ${PLATFORM_LIBS})
+	# Require a somewhat recent LuaJIT version
+	# Why?
+	# - there are known concrete issues with old versions on macOS or aarch64 (see e.g. #9614)
+	# - we think there's no excuse to expose our users to old bugs in general
+	# How?
+	# LuaJIT only started reporting a rolling version number in August 2023.
+	# Before that the only statically detectable change is the addition of the
+	# string buffer library (which we don't actually use) in March 2021.
+	# That's recent enough for our purposes, so check for that.
 	unset(HAVE_RECENT_LJ CACHE)
 	check_symbol_exists(luaopen_string_buffer "lualib.h" HAVE_RECENT_LJ)
 	if(NOT HAVE_RECENT_LJ)
-		string(CONCAT explanation_msg
-			"You are using a relatively old version of LuaJIT. We recommend "
-			"running a recent version (from git) as older ones are known not "
-			"to build/work correctly in all cases.\n"
-			"THIS APPLIES ESPECIALLY ON macOS OR Linux/aarch64!")
-		message(WARNING ${explanation_msg})
-	endif()
-elseif(NOT MSVC)
-	set(CMAKE_REQUIRED_LIBRARIES "")
-	unset(HAVE_ATCCALL CACHE)
-	# Note: we need to check the function without having the library
-	#       available for linking, so check_symbol_exists won't work.
-	# Incidentally this doesn't seem to work on MSVC...
-	check_c_source_compiles("#include <lua.h>\nint main(){return sizeof(lua_atccall);}" HAVE_ATCCALL)
-	if(NOT HAVE_ATCCALL)
-		string(CONCAT explanation_msg
-			"It looks like you're trying to build ${PROJECT_NAME_CAPITALIZED} using a system-wide "
-			"Lua installation. This is no longer supported because PUC Lua "
-			"cannot interoperate with C++ correctly. Read src/unittest/test_lua.cpp "
-			" for technical details.")
-		message(FATAL_ERROR ${explanation_msg})
+		message(FATAL_ERROR "You are using a LuaJIT version older than March 2021, "
+			"which is not supported for ${PROJECT_NAME_CAPITALIZED} due to known bugs.\n"
+			"To continue, either install a recent version or disable it (-DENABLE_LUAJIT=0).")
 	endif()
 endif()
 
@@ -931,10 +926,7 @@ if(MSVC)
 	# Visual Studio
 	add_compile_definitions(_WIN32_WINNT=0x0601 WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
 	# EHa enables SEH exceptions (used for catching segfaults)
-	set(CMAKE_CXX_FLAGS_RELEASE "/EHa /Ox /MD /GS- /Zi /fp:fast /D NDEBUG /D _HAS_ITERATOR_DEBUGGING=0")
-	if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /arch:SSE")
-	endif()
+	set(CMAKE_CXX_FLAGS_RELEASE "/EHa /Ox /MD /GS- /Zi /fp:precise /fp:except- /D NDEBUG /D _HAS_ITERATOR_DEBUGGING=0")
 
 	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/INCREMENTAL:NO /DEBUG /OPT:REF /OPT:ICF /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
 
@@ -968,6 +960,11 @@ else()
 	check_cxx_compiler_flag("-Werror=mismatched-tags" SUPPORTS_W_MISMATCHED_TAGS)
 	if(SUPPORTS_W_MISMATCHED_TAGS)
 		set(WARNING_FLAGS "${WARNING_FLAGS} -Werror=mismatched-tags")
+	endif()
+
+	check_cxx_compiler_flag("-Wnull-dereference" SUPPORTS_W_NULL_DEREFERENCE)
+	if(SUPPORTS_W_NULL_DEREFERENCE)
+		set(WARNING_FLAGS "${WARNING_FLAGS} -Wnull-dereference")
 	endif()
 
 	if(WARN_ALL)
@@ -1070,6 +1067,9 @@ if(WIN32)
 			endif()
 			if(SDL2_DLL)
 				install(FILES ${SDL2_DLL} DESTINATION ${BINDIR})
+			endif()
+			if(LIBZIP_DLL)
+				install(FILES ${LIBZIP_DLL} DESTINATION ${BINDIR})
 			endif()
 			if(FREETYPE_DLL)
 				install(FILES ${FREETYPE_DLL} DESTINATION ${BINDIR})

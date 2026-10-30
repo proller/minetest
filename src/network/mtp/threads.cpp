@@ -10,6 +10,7 @@
 #include "network/networkexceptions.h"
 #include "network/networkpacket.h"
 #include "util/serialize.h"
+#include <sstream>
 
 namespace con
 {
@@ -446,7 +447,6 @@ void ConnectionSendThread::processReliableCommand(ConnectionCommandPtr &c)
 			return;
 		}
 
-		case CONNCMD_SERVE:
 		case CONNCMD_CONNECT:
 		case CONNCMD_DISCONNECT:
 		case CONCMD_ACK:
@@ -467,12 +467,6 @@ void ConnectionSendThread::processNonReliableCommand(ConnectionCommandPtr &c_ptr
 		case CONNCMD_NONE:
 			LOG(dout_con << m_connection->getDesc()
 				<< " UDP processing CONNCMD_NONE" << std::endl);
-			return;
-		case CONNCMD_SERVE:
-			LOG(dout_con << m_connection->getDesc()
-				<< " UDP processing CONNCMD_SERVE port="
-				<< c.address.serializeString() << std::endl);
-			serve(c.address);
 			return;
 		case CONNCMD_CONNECT:
 			LOG(dout_con << m_connection->getDesc()
@@ -518,20 +512,6 @@ void ConnectionSendThread::processNonReliableCommand(ConnectionCommandPtr &c_ptr
 	}
 }
 
-void ConnectionSendThread::serve(Address bind_address)
-{
-	LOG(dout_con << m_connection->getDesc()
-		<< "UDP serving at port " << bind_address.serializeString() << std::endl);
-	try {
-		m_connection->m_udpSocket.Bind(bind_address);
-		m_connection->SetPeerID(PEER_ID_SERVER);
-	}
-	catch (SocketException &e) {
-		// Create event
-		m_connection->putEvent(ConnectionEvent::bindFailed());
-	}
-}
-
 void ConnectionSendThread::connect(Address address)
 {
 	dout_con << m_connection->getDesc() << " connecting to ";
@@ -542,14 +522,6 @@ void ConnectionSendThread::connect(Address address)
 
 	// Create event
 	m_connection->putEvent(ConnectionEvent::peerAdded(peer->id, peer->address));
-
-	Address bind_addr;
-	if (address.isIPv6())
-		bind_addr.setAddress(static_cast<IPv6AddressBytes*>(nullptr));
-	else
-		bind_addr.setAddress(static_cast<u32>(0));
-
-	m_connection->m_udpSocket.Bind(bind_addr);
 
 	// Send a dummy packet to server with peer_id = PEER_ID_INEXISTENT
 	m_connection->SetPeerID(PEER_ID_INEXISTENT);
@@ -1166,7 +1138,7 @@ SharedBuffer<u8> ConnectionReceiveThread::processPacket(Channel *channel,
 	u8 type = readU8(&(packetdata[0]));
 
 	if (MAX_UDP_PEERS <= 65535 && peer_id >= MAX_UDP_PEERS) {
-		std::string errmsg = "Invalid peer_id=" + itos(peer_id);
+		std::string errmsg = "Invalid peer_id=" + std::to_string(peer_id);
 		errorstream << errmsg << std::endl;
 		throw InvalidIncomingDataException(errmsg.c_str());
 	}
@@ -1389,7 +1361,6 @@ SharedBuffer<u8> ConnectionReceiveThread::handlePacketType_Reliable(Channel *cha
 				<< ", seqnum: " << seqnum << std::endl;)
 
 			throw ProcessedQueued("Buffered future reliable packet");
-		} catch (AlreadyExistsException &e) {
 		} catch (IncomingDataCorruption &e) {
 			m_connection->putCommand(ConnectionCommand::disconnect_peer(peer->id));
 
@@ -1398,6 +1369,7 @@ SharedBuffer<u8> ConnectionReceiveThread::handlePacketType_Reliable(Channel *cha
 				<< ", channel: " << (channelnum & 0xFF)
 				<< ", seqnum: " << seqnum
 				<< "DROPPING CLIENT!" << std::endl;)
+			throw ProcessedSilentlyException("Dropped corrupt reliable packet");
 		}
 	}
 

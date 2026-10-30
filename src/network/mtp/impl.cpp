@@ -398,6 +398,11 @@ std::vector<ConstSharedPtr<BufferedPacket>>
 	IncomingSplitPacket
 */
 
+bool IncomingSplitPacket::hasChunk(u32 chunk_num) const
+{
+	return chunks.find(chunk_num) != chunks.end();
+}
+
 bool IncomingSplitPacket::insert(u32 chunk_num, SharedBuffer<u8> &chunkdata)
 {
 	sanity_check(chunk_num < chunk_count);
@@ -405,11 +410,12 @@ bool IncomingSplitPacket::insert(u32 chunk_num, SharedBuffer<u8> &chunkdata)
 	// If chunk already exists, ignore it.
 	// Sometimes two identical packets may arrive when there is network
 	// lag and the server re-sends stuff.
-	if (chunks.find(chunk_num) != chunks.end())
+	if (hasChunk(chunk_num))
 		return false;
 
 	// Set chunk data in buffer
 	chunks[chunk_num] = chunkdata;
+	total_size += chunkdata.getSize();
 
 	return true;
 }
@@ -418,12 +424,7 @@ SharedBuffer<u8> IncomingSplitPacket::reassemble()
 {
 	sanity_check(allReceived());
 
-	// Calculate total size
-	u32 totalsize = 0;
-	for (const auto &chunk : chunks)
-		totalsize += chunk.second.getSize();
-
-	SharedBuffer<u8> fulldata(totalsize);
+	SharedBuffer<u8> fulldata(total_size);
 
 	// Copy chunks to data buffer
 	u32 start = 0;
@@ -473,6 +474,11 @@ SharedBuffer<u8> IncomingSplitBuffer::insert(BufferedPacketPtr &p_ptr, bool reli
 				<< " >= chunk_count=" << chunk_count << std::endl;
 		return SharedBuffer<u8>();
 	}
+	if (chunk_count > MAX_SPLIT_PACKET_CHUNK_COUNT) {
+		errorstream << "IncomingSplitBuffer::insert(): chunk_count="
+				<< chunk_count << " exceeds the limit" << std::endl;
+		return SharedBuffer<u8>();
+	}
 
 	// Add if doesn't exist
 	IncomingSplitPacket *sp;
@@ -496,6 +502,15 @@ SharedBuffer<u8> IncomingSplitBuffer::insert(BufferedPacketPtr &p_ptr, bool reli
 
 	// Cut chunk data out of packet
 	u32 chunkdatasize = p.size() - headersize;
+	if (!sp->hasChunk(chunk_num) &&
+			chunkdatasize > MAX_SPLIT_PACKET_PAYLOAD_SIZE - sp->getTotalSize()) {
+		errorstream << "IncomingSplitBuffer::insert(): split payload exceeds "
+				"the limit" << std::endl;
+		m_buf.erase(seqnum);
+		delete sp;
+		return SharedBuffer<u8>();
+	}
+
 	SharedBuffer<u8> chunkdata(chunkdatasize);
 	memcpy(*chunkdata, &(p.data[headersize]), chunkdatasize);
 
@@ -545,13 +560,6 @@ void IncomingSplitBuffer::removeUnreliableTimedOuts(float dtime, float timeout)
 ConnectionCommandPtr ConnectionCommand::create(ConnectionCommandType type)
 {
 	return ConnectionCommandPtr(new ConnectionCommand(type));
-}
-
-ConnectionCommandPtr ConnectionCommand::serve(Address address)
-{
-	auto c = create(CONNCMD_SERVE);
-	c->address = address;
-	return c;
 }
 
 ConnectionCommandPtr ConnectionCommand::connect(Address address)
@@ -1237,8 +1245,6 @@ const char *ConnectionEvent::describe() const
 		return "CONNEVENT_PEER_ADDED";
 	case CONNEVENT_PEER_REMOVED:
 		return "CONNEVENT_PEER_REMOVED";
-	case CONNEVENT_BIND_FAILED:
-		return "CONNEVENT_BIND_FAILED";
 	}
 	return "Invalid ConnectionEvent";
 }
@@ -1274,18 +1280,13 @@ ConnectionEventPtr ConnectionEvent::peerRemoved(session_t peer_id, bool is_timeo
 	return e;
 }
 
-ConnectionEventPtr ConnectionEvent::bindFailed()
-{
-	return create(CONNEVENT_BIND_FAILED);
-}
-
 /*
 	Connection
 */
 
 Connection::Connection(u32 max_packet_size, float timeout,
-		bool ipv6, PeerHandler *peerhandler) :
-	m_udpSocket(ipv6),
+		UDPSocket &&socket, bool is_server, PeerHandler *peerhandler) :
+	m_udpSocket(std::move(socket)),
 	m_protocol_id(PROTOCOL_ID),
 	m_sendThread(new ConnectionSendThread(max_packet_size, timeout)),
 	m_receiveThread(new ConnectionReceiveThread()),
@@ -1295,6 +1296,8 @@ Connection::Connection(u32 max_packet_size, float timeout,
 	/* Amount of time Receive() will wait for data, this is entirely different
 	 * from the connection timeout */
 	m_udpSocket.setTimeoutMs(500);
+	if (is_server)
+		SetPeerID(PEER_ID_SERVER);
 
 	m_sendThread->setParent(this);
 	m_receiveThread->setParent(this);
@@ -1421,11 +1424,6 @@ void Connection::putCommand(ConnectionCommandPtr c)
 	}
 }
 
-void Connection::Serve(Address bind_addr)
-{
-	putCommand(ConnectionCommand::serve(bind_addr));
-}
-
 void Connection::Connect(Address address)
 {
 	putCommand(ConnectionCommand::connect(address));
@@ -1492,9 +1490,6 @@ bool Connection::ReceiveTimeoutMs(NetworkPacket *pkt, u32 timeout_ms)
 				m_bc_peerhandler->deletingPeer(&tmp, e.timeout);
 			continue;
 		}
-		case CONNEVENT_BIND_FAILED:
-			throw ConnectionBindFailed("Failed to bind socket "
-					"(port already in use?)");
 		}
 	}
 	return false;
@@ -1507,7 +1502,7 @@ void Connection::Send(session_t peer_id, u8 channelnum,
 
 	// approximate check similar to UDPPeer::processReliableSendCommand()
 	// to get nicer errors / backtraces if this happens.
-	if (reliable && pkt->getSize() > MAX_RELIABLE_WINDOW_SIZE*512) {
+	if (reliable && pkt->getSize() > MAX_RELIABLE_PACKET_DATA_SIZE) {
 		std::ostringstream oss;
 		oss << "Packet too big for window, peer_id=" << peer_id
 			<< " command=" << pkt->getCommand() << " size=" << pkt->getSize();
@@ -1620,7 +1615,6 @@ session_t Connection::createPeer(const Address &sender, int fd)
 
 const std::string Connection::getDesc()
 {
-	MutexAutoLock _(m_info_mutex);
 	return std::string("con(")+
 			itos(m_udpSocket.GetHandle())+"/"+itos(m_peer_id)+")";
 }
@@ -1632,10 +1626,7 @@ void Connection::DisconnectPeer(session_t peer_id)
 
 void Connection::SetPeerID(session_t id)
 {
-	{
-		MutexAutoLock _(m_info_mutex);
-		m_peer_id = id;
-	}
+	m_peer_id = id;
 	// fix peer id in existing queued reliable packets
 	if (id != PEER_ID_INEXISTENT)
 		putCommand(ConnectionCommand::peer_id_set(id));

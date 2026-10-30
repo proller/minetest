@@ -27,17 +27,17 @@ extern "C" {
 	Lua 5.2 and above define the LUA_RIDX_LAST macro. Only numbers above that
 	may be used for custom indices, anything else is reserved.
 
-	Lua 5.1 / LuaJIT do not use any numeric indices (only string indices),
-	so we can use numeric indices freely.
+	Lua 5.1 / LuaJIT only hardcode the 0 numerical index (FREELIST_REF)
+	but will use free numerical indices at runtime (luaL_ref)
 */
 enum {
 #ifdef LUA_RIDX_LAST
-	CUSTOM_RIDX_BEFORE_ = LUA_RIDX_LAST,
+	CUSTOM_RIDX_FIRST = LUA_RIDX_LAST + 1,
 #else
-	CUSTOM_RIDX_BEFORE_ = 0,
+	CUSTOM_RIDX_FIRST = 1,
 #endif
 
-	CUSTOM_RIDX_SCRIPTAPI,
+	CUSTOM_RIDX_SCRIPTAPI = CUSTOM_RIDX_FIRST,
 	/// @warning don't use directly, `ScriptApiSecurity` has wrappers
 	CUSTOM_RIDX_GLOBALS_BACKUP,
 	CUSTOM_RIDX_CURRENT_MOD_NAME,
@@ -54,6 +54,8 @@ enum {
 	CUSTOM_RIDX_READ_NODE,
 	CUSTOM_RIDX_PUSH_NODE,
 	CUSTOM_RIDX_PUSH_MOVERESULT1,
+
+	CUSTOM_RIDX_LAST,
 };
 
 
@@ -111,7 +113,7 @@ enum RunCallbacksMode
 std::string script_get_backtrace(lua_State *L);
 // Wrapper for CFunction calls that converts C++ exceptions to Lua errors
 int script_exception_wrapper(lua_State *L, lua_CFunction f);
-// Acts as the error handler for lua_pcall
+// Pushes error handler for lua_pcall to the stack
 int script_error_handler(lua_State *L);
 // Takes an error from lua_pcall and throws it as a LuaError
 void script_error(lua_State *L, int pcall_result, const char *mod, const char *fxn);
@@ -143,7 +145,10 @@ DeprecatedHandlingMode get_deprecated_handling_mode();
  */
 void log_deprecated(lua_State *L, std::string_view message,
 	int stack_depth = 1, bool once = false);
-
-// Safely call string.dump on a function value
-// (does not pop, leaves one value on stack)
-void call_string_dump(lua_State *L, int idx);
+/**
+ * @brief Dumps a function at index to a string
+ *
+ * @throws LuaError if it's unable to dump the function
+ *         the Lua stack state is not defined if this happens.
+ */
+std::string dump_function_to_string(lua_State *L, int idx);

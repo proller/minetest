@@ -4,7 +4,7 @@
 
 #include "filesys.h"
 #include "util/string.h"
-#include <iostream>
+#include <filesystem>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -16,11 +16,8 @@
 #include "config.h"
 #include "porting.h"
 #if CHECK_CLIENT_BUILD()
-#include "irr_ptr.h"
-#include <IFileArchive.h>
-#include <IFileList.h>
-#include <IFileSystem.h>
-#include <IReadFile.h>
+#include <zip.h>
+#include <algorithm>
 #endif
 
 #ifdef _WIN32
@@ -32,7 +29,6 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
 #endif
@@ -142,46 +138,13 @@ bool IsExecutable(const std::string &path)
 	return GetBinaryType(path.c_str(), &type) != 0;
 }
 
-bool RecursiveDelete(const std::string &path)
-{
-	assert(IsPathAbsolute(path));
-	if (!PathExists(path))
-		return true;
-
-	bool is_file = !IsDir(path);
-	infostream << "Recursively deleting " << (is_file ? "file" : "directory")
-		<< " \"" << path << "\"" << std::endl;
-	if (is_file) {
-		if (!DeleteFile(path.c_str())) {
-			errorstream << "RecursiveDelete: Failed to delete file \""
-					<< path << "\": " << LAST_OS_ERROR() << std::endl;
-			return false;
-		}
-		return true;
-	}
-	std::vector<DirListNode> content = GetDirListing(path);
-	for (const auto &n : content) {
-		std::string fullpath = path + DIR_DELIM + n.name;
-		if (!RecursiveDelete(fullpath)) {
-			errorstream << "RecursiveDelete: Failed to recurse to \""
-					<< fullpath << "\"" << std::endl;
-			return false;
-		}
-	}
-	if (!RemoveDirectory(path.c_str())) {
-		errorstream << "RecursiveDelete: Failed to delete directory \""
-					<< path << "\": " << LAST_OS_ERROR() << std::endl;
-		return false;
-	}
-	return true;
-}
-
 bool DeleteSingleFileOrEmptyDirectory(const std::string &path, bool log_error)
 {
 	if (!IsDir(path)) {
 		bool ok = DeleteFile(path.c_str()) != 0;
 		if (!ok && log_error)
 			errorstream << "DeleteFile failed: " << LAST_OS_ERROR() << std::endl;
+		return ok;
 	}
 	bool ok = RemoveDirectory(path.c_str()) != 0;
 	if (!ok && log_error)
@@ -363,49 +326,6 @@ bool IsExecutable(const std::string &path)
 	return access(path.c_str(), X_OK) == 0;
 }
 
-bool RecursiveDelete(const std::string &path)
-{
-	assert(IsPathAbsolute(path));
-	if (!PathExists(path))
-		return true;
-
-	// Execute the 'rm' command directly, by fork() and execve()
-
-	infostream << "Removing \"" << path << "\"" << std::endl;
-
-	const pid_t child_pid = fork();
-	if (child_pid == -1) {
-		errorstream << "fork errno: " << errno << ": " << strerror(errno)
-			<< std::endl;
-		return false;
-	}
-
-	if (child_pid == 0) {
-		// Child
-		std::array<const char*, 4> argv = {
-			"rm",
-			"-rf",
-			path.c_str(),
-			nullptr
-		};
-
-		execvp(argv[0], const_cast<char**>(argv.data()));
-
-		// note: use cerr because our logging won't flush in forked process
-		std::cerr << "exec errno: " << errno << ": " << strerror(errno)
-			<< std::endl;
-		_exit(1);
-	} else {
-		// Parent
-		int status;
-		pid_t tpid;
-		do
-			tpid = waitpid(child_pid, &status, 0);
-		while (tpid != child_pid);
-		return WIFEXITED(status) && WEXITSTATUS(status) == 0;
-	}
-}
-
 bool DeleteSingleFileOrEmptyDirectory(const std::string &path, bool log_error)
 {
 	if (IsDir(path)) {
@@ -551,6 +471,52 @@ bool CopyFileContents(const std::string &source, const std::string &target)
 /****************************
  * portable implementations *
  ****************************/
+
+bool RecursiveDelete(const std::string &path)
+{
+	assert(IsPathAbsolute(path));
+
+	std::filesystem::path p;
+	try {
+		// On Windows, this throws if `path` is not valid UTF-8.
+		p = std::filesystem::path(path);
+	} catch (const std::exception &e) {
+		errorstream << "RecursiveDelete: Invalid path \"" << path << "\": "
+				<< e.what() << std::endl;
+		return false;
+	}
+
+	std::error_code ec;
+
+	// A dangling symlink still counts as existing and will be removed below.
+	auto status = std::filesystem::symlink_status(p, ec);
+
+	// If the file does not exist, `status` will have type `not_found` and
+	// `ec` may or may not be set. So we must check the status type first.
+	//
+	// Note that we can't use std::filesystem::exists(status) here, because
+	// if a genuine error occurs (such as access denied or out-of-memory),
+	// status will have type `none`, and `exists()` returns false for that.
+	if (status.type() == std::filesystem::file_type::not_found)
+		return true;
+
+	if (ec) {
+		errorstream << "RecursiveDelete: Failed to inspect \"" << path
+				<< "\": " << ec.message() << std::endl;
+		return false;
+	}
+
+	infostream << "Recursively deleting \"" << path << "\"" << std::endl;
+
+	// Deletes symlinks instead of following them.
+	std::filesystem::remove_all(p, ec);
+	if (ec) {
+		errorstream << "RecursiveDelete: Failed to delete \"" << path
+				<< "\": " << ec.message() << std::endl;
+		return false;
+	}
+	return true;
+}
 
 void GetRecursiveDirs(std::vector<std::string> &dirs, const std::string &dir)
 {
@@ -747,14 +713,15 @@ std::string MakePathRelativeTo(const std::string &child, const std::string &pare
 	if (!fs::PathStartsWith(child_abs, parent_abs))
 		return ""; // not child
 
+	// Note: this only works because AbsolutePathPartial gets rid of duplicate
+	// dir delimiters, so that both paths are in the canonical shortest representation.
 	if (child_abs.size() == parent_abs.size()) {
-		assert(child_abs == parent_abs);
+		assert(fs::PathsEqual(child_abs, parent_abs));
 		return ".";
-	} else {
-		assert(child_abs.size() >= parent_abs.size() + 1);
-		assert(child_abs[parent_abs.size()] == DIR_DELIM_CHAR);
-		return std::move(child_abs).substr(parent_abs.size() + 1);
 	}
+	assert(child_abs.size() >= parent_abs.size() + 1);
+	assert(fs::IsDirDelimiter(child_abs[parent_abs.size()]));
+	return std::move(child_abs).substr(parent_abs.size() + 1);
 }
 
 std::string RemoveLastPathComponent(const std::string &path,
@@ -862,8 +829,14 @@ std::string AbsolutePath(const std::string &path)
 #endif
 	if (!abs_path)
 		return "";
-	std::string abs_path_str(abs_path);
+	std::filesystem::path absolute_path(abs_path, std::filesystem::path::format::native_format);
 	free(abs_path);
+
+	// remove any trailing delim before return
+	std::string abs_path_str = absolute_path.string();
+	std::string root_string = absolute_path.root_path().string();
+	while (abs_path_str.length() > root_string.length() && IsDirDelimiter(abs_path_str.back()))
+		abs_path_str.pop_back();
 	return abs_path_str;
 }
 
@@ -1017,73 +990,120 @@ bool safeWriteToFile(const std::string &path, std::string_view content)
 }
 
 #if CHECK_CLIENT_BUILD()
-bool extractZipFile(io::IFileSystem *fs, const char *filename, const std::string &destination)
+
+// Delete partially written files
+struct DestinationDeleter
 {
-	// Be careful here not to touch the global file hierarchy in Irrlicht
-	// since this function needs to be thread-safe!
+	std::string fullpath;
+	bool complete = false;
 
-	io::IArchiveLoader *zip_loader = nullptr;
-	for (u32 i = 0; i < fs->getArchiveLoaderCount(); i++) {
-		if (fs->getArchiveLoader(i)->isALoadableFileFormat(io::EFAT_ZIP)) {
-			zip_loader = fs->getArchiveLoader(i);
-			break;
+	DestinationDeleter(const std::string &path) :
+		fullpath(path)
+	{
+	}
+
+	~DestinationDeleter()
+	{
+		if (!complete)
+			unlink(fullpath.c_str());
+	}
+};
+
+bool extractZipFile(const char *filename, const std::string &destination)
+{
+	const std::string normalized_destination = fs::RemoveRelativePathComponents(destination);
+	if (normalized_destination.empty()) {
+		warningstream << "fs::extractZipFile(): failed, invalid destination received" << std::endl;
+		return false;
+	}
+
+	int error_num = 0;
+	std::unique_ptr<zip_t, decltype(&zip_discard)> archive(zip_open(filename, ZIP_RDONLY, &error_num), &zip_discard);
+	if (!archive) {
+		zip_error_t zip_error;
+		zip_error_init_with_code(&zip_error, error_num);
+		warningstream << "fs::extractZipFile(): unable to open archive: " << zip_error_strerror(&zip_error) << std::endl;
+		zip_error_fini(&zip_error);
+		return false;
+	}
+
+	const auto num_entries = zip_get_num_entries(archive.get(), 0);
+	if (num_entries < 0)
+		return false;
+
+	const auto zip_num_entries = static_cast<zip_uint64_t>(num_entries);
+	for (zip_uint64_t i = 0; i < zip_num_entries; ++i) {
+		zip_stat_t entry;
+		zip_stat_init(&entry);
+
+		if (zip_stat_index(archive.get(), i, 0, &entry) < 0) {
+			warningstream << "fs::extractZipFile(): failed to get metadata" << std::endl;
+			return false;
 		}
-	}
-	if (!zip_loader) {
-		warningstream << "fs::extractZipFile(): Irrlicht said it doesn't support ZIPs." << std::endl;
-		return false;
-	}
+		if (!(entry.valid & ZIP_STAT_NAME) || !entry.name || entry.name[0] == '\0') {
+			warningstream << "fs::extractZipFile(): entry has no valid name" << std::endl;
+			return false;
+		}
 
-	irr_ptr<io::IFileArchive> opened_zip(zip_loader->createArchive(filename, false, false));
-	if (!opened_zip)
-		return false;
-	const io::IFileList* files_in_zip = opened_zip->getFileList();
+		size_t name_length = std::strlen(entry.name);
+		if (entry.name[name_length - 1] == '/') {
+			// Is a directory
+			continue;
+		}
 
-	for (u32 i = 0; i < files_in_zip->getFileCount(); i++) {
-		if (files_in_zip->isDirectory(i))
-			continue; // ignore, we create dirs as necessary
-
-		const auto &filename = files_in_zip->getFullFileName(i);
-		std::string fullpath = destination + DIR_DELIM;
-		fullpath += filename.c_str();
+		if (!(entry.valid & ZIP_STAT_SIZE)) {
+			warningstream << "fs::extractZipFile(): entry size is invalid" << std::endl;
+			return false;
+		}
+		std::string fullpath = normalized_destination;
+		fullpath.append(DIR_DELIM).append(entry.name, name_length);
 
 		fullpath = fs::RemoveRelativePathComponents(fullpath);
-		if (!fs::PathStartsWith(fullpath, destination)) {
-			warningstream << "fs::extractZipFile(): refusing to extract file \""
-				<< filename.c_str() << "\"" << std::endl;
+		if (!fs::PathStartsWith(fullpath, normalized_destination)) {
+			warningstream << "fs::extractZipFile(): refusing to extract file: \"" << entry.name << "\"" << std::endl;
 			continue;
 		}
 
 		std::string fullpath_dir = fs::RemoveLastPathComponent(fullpath);
 
-		if (!fs::PathExists(fullpath_dir) && !fs::CreateAllDirs(fullpath_dir))
+		if (!fs::PathExists(fullpath_dir) && !fs::CreateAllDirs(fullpath_dir)) {
 			return false;
+		}
 
-		irr_ptr<io::IReadFile> toread(opened_zip->createAndOpenFile(i));
+		std::unique_ptr<zip_file_t, decltype(&zip_fclose)> zip_file (zip_fopen_index(archive.get(), i, 0), &zip_fclose);
+
+		if (!zip_file) {
+			zip_error_t *file_error = zip_get_error(archive.get());
+			warningstream << "fs::extractZipFile(): failed to open zip entry: " << zip_error_strerror(file_error) << std::endl;
+			return false;
+		}
+
+		DestinationDeleter write_check(fullpath);
 
 		auto os = open_ofstream(fullpath.c_str(), true);
-		if (!os.good())
+		if (os.fail())
 			return false;
-
 		char buffer[4096];
-		long total_read = 0;
 
-		while (total_read < toread->getSize()) {
-			long bytes_read = toread->read(buffer, sizeof(buffer));
-			bool error = true;
-			if (bytes_read != 0) {
-				os.write(buffer, bytes_read);
-				error = os.fail();
-			}
-			if (error) {
-				os.close();
-				remove(fullpath.c_str());
+		for (zip_uint64_t total_read = 0; total_read < entry.size;) {
+			zip_uint64_t requested_bytes = std::min<zip_uint64_t>(entry.size - total_read, sizeof(buffer));
+			zip_int64_t bytes_read = zip_fread(zip_file.get(), buffer, requested_bytes);
+			if (bytes_read <= 0) {
+				warningstream << "fs::extractZipFile(): failed to read: " << entry.name << std::endl;
 				return false;
 			}
-			total_read += bytes_read;
+			os.write(buffer, static_cast<std::streamsize>(bytes_read));
+			if (os.fail())
+				break;
+			total_read += static_cast<zip_uint64_t>(bytes_read);
 		}
+		os.close();
+		if (os.fail()) {
+			warningstream << "fs::extractZipFile(): failed to write \"" << entry.name << "\"" << std::endl;
+			return false;
+		}
+		write_check.complete = true;
 	}
-
 	return true;
 }
 #endif

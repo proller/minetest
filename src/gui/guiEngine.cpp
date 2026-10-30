@@ -283,6 +283,7 @@ Translations *GUIEngine::getContentTranslations(const std::string &path,
 
 	m_last_translations_key = key;
 	m_last_translations = {};
+	m_last_translations.setTargetLanguage(lang_code);
 
 	std::string data;
 	if (fs::ReadFile(trans_path, data)) {
@@ -648,7 +649,7 @@ bool GUIEngine::downloadFile(const std::string &url, const std::string &target)
 		(long)g_settings->getS32("curl_file_download_timeout"));
 	bool completed = httpfetch_sync_interruptible(fetch_request, fetch_result);
 
-	if (!completed || !fetch_result.succeeded) {
+	if (!completed || !fetch_result.good()) {
 		target_file.close();
 		fs::DeleteSingleFileOrEmptyDirectory(target, true);
 		return false;

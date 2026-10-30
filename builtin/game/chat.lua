@@ -1233,17 +1233,16 @@ core.register_chatcommand("kick", {
 })
 
 core.register_chatcommand("clearobjects", {
-	params = S("[full | quick]"),
+	-- intentionally not translated because it doesn't contain translatable strings
+	params = "full | quick",
 	description = S("Clear all objects in world"),
 	privs = {server=true},
 	func = function(name, param)
 		local options = {}
-		if param == "" or param == "quick" then
-			options.mode = "quick"
-		elseif param == "full" then
-			options.mode = "full"
+		if param == "quick" or param == "full" then
+			options.mode = param
 		else
-			return false, S("Invalid usage, see /help clearobjects.")
+			return false
 		end
 
 		core.log("action", name .. " clears objects ("

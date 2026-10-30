@@ -44,7 +44,12 @@ public:
 
 	struct SHWBufferLink_opengl : public SHWBufferLink
 	{
-		SHWBufferLink_opengl(const scene::HWBuffer *buf) : SHWBufferLink(buf), Vbo(OGLBufferObject::TARGET_VBO) {}
+		SHWBufferLink_opengl(const scene::HWBuffer *buf) :
+				SHWBufferLink(buf),
+				Vbo(buf->getBufferType() == scene::HWBuffer::Type::INDEX ?
+						OGLBufferObject::TARGET_IBO :
+						OGLBufferObject::TARGET_VBO)
+		{}
 
 		OGLBufferObject Vbo;
 	};
@@ -207,8 +212,7 @@ public:
 
 	void clearBuffers(u16 flag, SColor color = SColor(255, 0, 0, 0), f32 depth = 1.f, u8 stencil = 0) override;
 
-	//! Returns an image created from the last rendered frame.
-	IImage *createScreenShot(video::ECOLOR_FORMAT format = video::ECF_UNKNOWN, video::E_RENDER_TARGET target = video::ERT_FRAME_BUFFER) override;
+	IImage *createScreenShot() override;
 
 	//! checks if an OpenGL error has happened and prints it, use via TEST_GL_ERROR().
 	// Does *nothing* unless in debug mode.
@@ -353,7 +357,7 @@ private:
 
 	bool EnableErrorTest;
 
-	OGLBufferObject QuadIndexVBO = OGLBufferObject(OGLBufferObject::TARGET_VBO);
+	OGLBufferObject QuadIndexVBO = OGLBufferObject(OGLBufferObject::TARGET_IBO);
 	void initQuadsIndices(u32 max_vertex_count = 65536);
 
 	u16 MaxJointTransforms = 0;

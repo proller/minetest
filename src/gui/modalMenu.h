@@ -28,6 +28,8 @@ public:
 	// A GUIModalMenu calls these when this class is passed as a parameter
 	virtual void createdMenu(gui::IGUIElement *menu) = 0;
 	virtual void deletingMenu(gui::IGUIElement *menu) = 0;
+	/// Ignores all events of the specified key until (and including) it is released
+	virtual void inhibitKeyPress(EKEY_CODE key) = 0;
 };
 
 // Remember to drop() the menu after creating, so that it can
@@ -88,7 +90,7 @@ private:
 	/* If true, remap a click outside the formspec to ESC. This is so that, for
 	 * example, touchscreen users can close formspecs.
 	 * The default for this setting is true. Currently, it's set to false for
-	 * the mainmenu to prevent Minetest from closing unexpectedly.
+	 * the mainmenu to prevent Luanti from closing unexpectedly.
 	 */
 	bool m_remap_click_outside;
 	PointerAction m_last_click_outside{};

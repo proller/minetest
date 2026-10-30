@@ -1066,6 +1066,7 @@ int ObjectRef::l_set_observers(lua_State *L)
 
 	std::unordered_set<std::string> observer_names;
 	lua_pushnil(L);
+	luaL_checktype(L, 2, LUA_TTABLE);
 	while (lua_next(L, 2) != 0) {
 		std::string name = readParam<std::string>(L, -2);
 		if (!is_valid_player_name(name))
@@ -1301,7 +1302,7 @@ int ObjectRef::l_get_acceleration(lua_State *L)
 	return 1;
 }
 
-// set_rotation(self, rotation)
+// set_rotation(self, rotation, interpolate)
 int ObjectRef::l_set_rotation(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -1312,9 +1313,11 @@ int ObjectRef::l_set_rotation(lua_State *L)
 
 	v3f rotation = check_v3f(L, 2) * core::RADTODEG;
 
+	bool interpolate = readParam<bool>(L, 3, true);
+
 	// Note: These angles are inverted before being applied using setPitchYawRoll,
 	// hence we end up with a right-handed rotation
-	entitysao->setRotation(rotation);
+	entitysao->setRotation(rotation, interpolate);
 	return 0;
 }
 
@@ -2828,52 +2831,76 @@ int ObjectRef::l_set_lighting(lua_State *L)
 	if (player == nullptr)
 		return 0;
 
-	Lighting lighting;
+	if (lua_isnoneornil(L, 2)) {
+		// reset to default
+		getServer(L)->setLighting(player, {});
+		return 0;
+	}
+	luaL_checktype(L, 2, LUA_TTABLE);
 
-	if (!lua_isnoneornil(L, 2)) {
-		luaL_checktype(L, 2, LUA_TTABLE);
-		lighting = player->getLighting();
-		lua_getfield(L, 2, "shadows");
-		if (lua_istable(L, -1)) {
-			getfloatfield(L, -1, "intensity", lighting.shadow_intensity);
-			lua_getfield(L, -1, "tint");
-			read_color(L, -1, &lighting.shadow_tint);
-			lua_pop(L, 1); // tint
-			lua_getfield(L, -1, "direction");
-			if (!lua_isnil(L, -1))
-				lighting.shadow_direction = check_v3f(L, -1);
-			lua_pop(L, 1); // direction
+	Lighting lighting = player->getLighting();
+
+	lua_getfield(L, 2, "shadows");
+	if (lua_istable(L, -1)) {
+		getfloatfield(L, -1, "intensity", lighting.shadow_intensity);
+		lua_getfield(L, -1, "tint");
+		read_color(L, -1, &lighting.shadow_tint);
+		lua_pop(L, 1); // tint
+		lua_getfield(L, -1, "direction");
+		if (!lua_isnil(L, -1))
+			lighting.shadow_direction = check_v3f(L, -1);
+		lua_pop(L, 1); // direction
+	}
+	lua_pop(L, 1); // shadows
+
+	getfloatfield(L, -1, "saturation", lighting.saturation);
+
+	lua_getfield(L, 2, "exposure");
+	if (lua_istable(L, -1)) {
+		lighting.exposure.luminance_min       = getfloatfield_default(L, -1, "luminance_min",       lighting.exposure.luminance_min);
+		lighting.exposure.luminance_max       = getfloatfield_default(L, -1, "luminance_max",       lighting.exposure.luminance_max);
+		lighting.exposure.exposure_correction = getfloatfield_default(L, -1, "exposure_correction",      lighting.exposure.exposure_correction);
+		lighting.exposure.speed_dark_bright   = getfloatfield_default(L, -1, "speed_dark_bright",   lighting.exposure.speed_dark_bright);
+		lighting.exposure.speed_bright_dark   = getfloatfield_default(L, -1, "speed_bright_dark",   lighting.exposure.speed_bright_dark);
+		lighting.exposure.center_weight_power = getfloatfield_default(L, -1, "center_weight_power", lighting.exposure.center_weight_power);
+	}
+	lua_pop(L, 1); // exposure
+
+	lua_getfield(L, 2, "volumetric_light");
+	if (lua_istable(L, -1)) {
+		getfloatfield(L, -1, "strength", lighting.volumetric_light_strength);
+		lighting.volumetric_light_strength = rangelim(lighting.volumetric_light_strength, 0.0f, 1.0f);
+	}
+	lua_pop(L, 1); // volumetric_light
+
+	lua_getfield(L, 2, "bloom");
+	if (lua_istable(L, -1)) {
+		lighting.bloom_intensity       = getfloatfield_default(L, -1, "intensity",       lighting.bloom_intensity);
+		lighting.bloom_strength_factor = getfloatfield_default(L, -1, "strength_factor", lighting.bloom_strength_factor);
+		lighting.bloom_radius          = getfloatfield_default(L, -1, "radius",          lighting.bloom_radius);
+	}
+	lua_pop(L, 1); // bloom
+
+	lua_getfield(L, 2, "static");
+	if (lua_istable(L, -1)) {
+		auto &s = lighting.static_;
+		lua_getfield(L, -1, "light_curve");
+		if (!lua_isnil(L, -1)) {
+			luaL_checktype(L, -1, LUA_TTABLE);
+			bool any = false;
+			for (int i = 0; i < StaticLighting::LIGHT_CURVE_SIZE; i++) {
+				lua_rawgeti(L, -1, i + 1);
+				any |= !lua_isnoneornil(L, -1);
+				s.light_curve[i] = lua_tointeger(L, -1);
+				lua_pop(L, 1);
+			}
+			// empty table <=> unset
+			s.light_curve_set = any;
 		}
-		lua_pop(L, 1); // shadows
-
-		getfloatfield(L, -1, "saturation", lighting.saturation);
-
-		lua_getfield(L, 2, "exposure");
-		if (lua_istable(L, -1)) {
-			lighting.exposure.luminance_min       = getfloatfield_default(L, -1, "luminance_min",       lighting.exposure.luminance_min);
-			lighting.exposure.luminance_max       = getfloatfield_default(L, -1, "luminance_max",       lighting.exposure.luminance_max);
-			lighting.exposure.exposure_correction = getfloatfield_default(L, -1, "exposure_correction",      lighting.exposure.exposure_correction);
-			lighting.exposure.speed_dark_bright   = getfloatfield_default(L, -1, "speed_dark_bright",   lighting.exposure.speed_dark_bright);
-			lighting.exposure.speed_bright_dark   = getfloatfield_default(L, -1, "speed_bright_dark",   lighting.exposure.speed_bright_dark);
-			lighting.exposure.center_weight_power = getfloatfield_default(L, -1, "center_weight_power", lighting.exposure.center_weight_power);
-		}
-		lua_pop(L, 1); // exposure
-
-		lua_getfield(L, 2, "volumetric_light");
-		if (lua_istable(L, -1)) {
-			getfloatfield(L, -1, "strength", lighting.volumetric_light_strength);
-			lighting.volumetric_light_strength = rangelim(lighting.volumetric_light_strength, 0.0f, 1.0f);
-		}
-		lua_pop(L, 1); // volumetric_light
-
-		lua_getfield(L, 2, "bloom");
-		if (lua_istable(L, -1)) {
-			lighting.bloom_intensity       = getfloatfield_default(L, -1, "intensity",       lighting.bloom_intensity);
-			lighting.bloom_strength_factor = getfloatfield_default(L, -1, "strength_factor", lighting.bloom_strength_factor);
-			lighting.bloom_radius          = getfloatfield_default(L, -1, "radius",          lighting.bloom_radius);
-		}
-		lua_pop(L, 1); // bloom
-}
+		lua_pop(L, 1); // light_curve
+		getfloatfield(L, -1, "ao_gamma", s.ao_gamma);
+	}
+	lua_pop(L, 1); // static
 
 	getServer(L)->setLighting(player, lighting);
 	return 0;
@@ -2901,6 +2928,7 @@ int ObjectRef::l_get_lighting(lua_State *L)
 	lua_setfield(L, -2, "shadows");
 	lua_pushnumber(L, lighting.saturation);
 	lua_setfield(L, -2, "saturation");
+
 	lua_newtable(L); // "exposure"
 	lua_pushnumber(L, lighting.exposure.luminance_min);
 	lua_setfield(L, -2, "luminance_min");
@@ -2915,10 +2943,12 @@ int ObjectRef::l_get_lighting(lua_State *L)
 	lua_pushnumber(L, lighting.exposure.center_weight_power);
 	lua_setfield(L, -2, "center_weight_power");
 	lua_setfield(L, -2, "exposure");
+
 	lua_newtable(L); // "volumetric_light"
 	lua_pushnumber(L, lighting.volumetric_light_strength);
 	lua_setfield(L, -2, "strength");
 	lua_setfield(L, -2, "volumetric_light");
+
 	lua_newtable(L); // "bloom"
 	lua_pushnumber(L, lighting.bloom_intensity);
 	lua_setfield(L, -2, "intensity");
@@ -2927,6 +2957,22 @@ int ObjectRef::l_get_lighting(lua_State *L)
 	lua_pushnumber(L, lighting.bloom_radius);
 	lua_setfield(L, -2, "radius");
 	lua_setfield(L, -2, "bloom");
+
+	const auto &s = lighting.static_;
+	lua_newtable(L); // "static"
+	lua_newtable(L);
+	if (s.light_curve_set) {
+		int i = 0;
+		for (u8 n : s.light_curve) {
+			lua_pushinteger(L, n);
+			lua_rawseti(L, -2, ++i);
+		}
+	}
+	lua_setfield(L, -2, "light_curve");
+	lua_pushnumber(L, s.ao_gamma);
+	lua_setfield(L, -2, "ao_gamma");
+	lua_setfield(L, -2, "static");
+
 	return 1;
 }
 
@@ -2998,6 +3044,9 @@ void ObjectRef::set_null(lua_State *L, void *expect)
 {
 	ObjectRef *obj = checkObject<ObjectRef>(L, -1);
 	assert(obj);
+	// For every SAO, there is only one userdata object that holds its reference.
+	// We need to unset this one specific reference, because if we don't there will
+	// be an use-after-free.
 	FATAL_ERROR_IF(obj->m_object != expect, "ObjectRef table was messed with");
 	obj->m_object = nullptr;
 }

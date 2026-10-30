@@ -218,6 +218,27 @@ ClientMap::~ClientMap()
 		it.second.drop();
 }
 
+bool ClientMap::useLoopsCuller() const
+{
+	if (m_loops_occlusion_culler)
+		return true;
+
+	/*
+		The BFS culler becomes slow/unusable on high view ranges, so we automatically
+		switch back to loops for those cases.
+	*/
+	if (m_control.range_all)
+		return true;
+
+	// This value was empirically determined, see issue #13345.
+	// Note that it is "normalized" for a grid size of 1.
+	constexpr f32 VIEW_RANGE_PREFER_LOOPS = 500;
+
+	const MeshGrid mesh_grid = m_client->getMeshGrid();
+	assert(mesh_grid.cell_size > 0);
+	return m_control.wanted_range / mesh_grid.cell_size >= VIEW_RANGE_PREFER_LOOPS;
+}
+
 void ClientMap::updateCamera(v3opos_t pos, v3f dir, f32 fov, v3pos_t offset, video::SColor light_color)
 {
 	v3pos_t previous_camera_offset = m_camera_offset;
@@ -403,7 +424,7 @@ void ClientMap::updateDrawList()
 	bool occlusion_culling_enabled = mesh_grid.cell_size < 4;
 	if (m_control.allow_noclip) {
 		MapNode n = getNode(cam_pos_nodes);
-		if (n.getContent() == CONTENT_IGNORE || m_nodedef->get(n).visuals->solidness == 2)
+		if (n.getContent() == CONTENT_IGNORE || NDT_solidness[m_nodedef->get(n).drawtype] == 2)
 			occlusion_culling_enabled = false;
 	}
 
@@ -428,18 +449,13 @@ void ClientMap::updateDrawList()
 	// Set of mesh holding blocks, will be transferred to m_drawlist
 	std::set<v3bpos_t> shortlist;
 
-	/*
-	 When range_all is enabled, enumerate all blocks visible in the
-	 frustum and display them.
-	 */
-	if (m_control.range_all || m_loops_occlusion_culler) {
+	// Perform occlusion culling to determine visible blocks
+	if (useLoopsCuller()) {
 		// Number of blocks currently loaded by the client
 		u32 blocks_loaded = 0;
 		// Number of blocks in rendering range
 		u32 blocks_in_range = 0;
 		assert(m_keeplist.empty());
-
-		MapBlockVect sectorblocks;
 
 		for (auto &sector_it : m_sectors) {
 			const MapSector *sector = sector_it.second;
@@ -737,7 +753,7 @@ void ClientMap::touchMapBlocks()
 	// This function is only needed when using the BFS culler, since it does not
 	// look at all blocks in range.
 	// compare to ClientMap::updateDrawList()
-	if (m_control.range_all || m_loops_occlusion_culler)
+	if (useLoopsCuller())
 		return;
 
 	ScopeProfiler sp(g_profiler, "CM::touchMapBlocks()", SPT_AVG);
@@ -803,6 +819,35 @@ void ClientMap::touchMapBlocks()
 	g_profiler->avg("MapBlocks loaded [#]", blocks_loaded);
 }
 
+void ClientMap::getBlocksWithMeshes(std::vector<v3bpos_t> &out)
+{
+	auto cam_pos_nodes = floatToInt(m_camera_position, BS);
+
+	using MyPair = std::pair<v3bpos_t, u32>;
+	std::vector<MyPair> tmp;
+
+	for (const auto &sector_it : m_sectors) {
+		const MapSector *sector = sector_it.second;
+
+		for (const auto &entry : sector->getBlocks()) {
+			MapBlock *block = entry.second.get();
+
+			if (block->mesh) {
+				u32 d = cam_pos_nodes.getDistanceFromSQ(block->getPosRelative());
+				tmp.emplace_back(block->getPos(), d);
+			}
+		}
+	}
+
+	std::sort(tmp.begin(), tmp.end(), [] (const MyPair &l, const MyPair &r) {
+		return l.second < r.second;
+	});
+
+	out.resize(tmp.size());
+	for (size_t i = 0; i < tmp.size(); i++)
+		out[i] = tmp[i].first;
+}
+
 void MeshBufListMaps::addFromBlock(v3bpos_t block_pos, MapBlockMesh *block_mesh,
 	video::IVideoDriver *driver)
 {
@@ -865,9 +910,8 @@ static u32 transformBuffersToDrawOrder(
 	 * CPU work quickly eats up the benefits (though alleviated by a cache).
 	 * In MTG landscape scenes this was found to save around 20-40% of drawcalls.
 	 *
-	 * NOTE: if you attempt to test this with quicktune, it won't give you valid
-	 * results since HW buffers stick around and Irrlicht handles large amounts
-	 * inefficiently.
+	 * NOTE: if you attempt to test this with quicktune, note that it will take
+	 * a few seconds until old HW buffers expire
 	 */
 	const u32 target_min_vertices = g_settings->getU32("mesh_buffer_min_vertices");
 
@@ -1397,7 +1441,7 @@ void ClientMap::renderPostFx(CameraMode cam_mode)
 
 	// If the camera is in a solid node, make everything black.
 	// (first person mode only)
-	if (features.visuals->solidness == 2 && cam_mode == CAMERA_MODE_FIRST &&
+	if (NDT_solidness[features.drawtype] == 2 && cam_mode == CAMERA_MODE_FIRST &&
 			!m_control.allow_noclip) {
 		post_color = video::SColor(255, 0, 0, 0);
 	}

@@ -1593,12 +1593,16 @@ void GenericCAO::applyTrackAnimation(scene::TrackId &&track_id, scene::TrackAnim
 		updateAnimation(*track_nr);
 	} else {
 		const auto &local_anims = m_env->getLocalPlayer()->local_animations;
-		bool is_known = track_nr == 0 && std::any_of(local_anims.begin(), local_anims.end(),
-				[&](v2f range) {
+		// Check if the animation frame range is known as a local animation.
+		// If so, we assume it is due to a set_animation() broadcast to all clients.
+		// If the client is already playing its own local animation, it should not be interrupted.
+		// Local animations are always on track 0; a range of [0, 0] means no local animation.
+		// Thus an animation on any other track, or an animation with frame range [0, 0], is never local.
+		bool is_known = track_nr == 0 && (anim.min_frame != 0.0f || anim.max_frame != 0.0f) &&
+				std::any_of(local_anims.begin(), local_anims.end(), [&](v2f range) {
 					return anim.min_frame == range.X && anim.max_frame == range.Y;
 				});
-		// Apply the animation if it is not a known local animation
-		if (!is_known) {
+		if (!m_local_player_animation || !is_known) {
 			updateAnimation(*track_nr);
 		}
 	}
@@ -1673,6 +1677,7 @@ void GenericCAO::processMessage(const std::string &data)
 		bool do_interpolate = readU8(is);
 		bool is_end_position = readU8(is);
 		float update_interval = readF32(is);
+		bool do_interpolate_rotation = canRead(is) ? readU8(is) : true;
 
 		if(getParent() != NULL) // Just in case
 			return;
@@ -1684,7 +1689,10 @@ void GenericCAO::processMessage(const std::string &data)
 		} else {
 			pos_translator.init(m_position);
 		}
-		rot_translator.update(m_rotation, false, update_interval);
+		if (do_interpolate_rotation)
+			rot_translator.update(m_rotation, false, update_interval);
+		else
+			rot_translator.init(m_rotation);
 		updateNodePos();
 	} else if (cmd == AO_CMD_SET_TEXTURE_MOD) {
 		std::string mod = deSerializeString16(is);
