@@ -51,10 +51,22 @@ public:
 
 	void reloadKeybindings();
 
+	// Returns whole mouse wheel revolutions since the last call and resets it.
+	// Incomplete cycles are kept to not break high resolution mouse wheels.
 	s32 getMouseWheel()
 	{
-		s32 a = mouse_wheel;
-		mouse_wheel = 0;
+		s32 r = static_cast<s32>(mouse_wheel);
+		mouse_wheel -= r;
+		return r;
+	}
+
+	// Returns the mouse movement since the last call and resets it.
+	// Remains valid even when the cursor is hidden and locked to the
+	// center of the window.
+	v2s32 getMouseMovement()
+	{
+		v2s32 a = mouse_movement;
+		mouse_movement = v2s32(0, 0);
 		return a;
 	}
 
@@ -66,7 +78,8 @@ public:
 		keyWasPressed.reset();
 		keyWasReleased.reset();
 
-		mouse_wheel = 0;
+		mouse_wheel = 0.f;
+		mouse_movement = v2s32(0, 0);
 	}
 
 	void releaseAllKeys()
@@ -141,7 +154,7 @@ private:
 	// Repetition interval for joystick input
 	float repeat_joystick_button_time = 0.0f;
 
-	s32 mouse_wheel = 0;
+	f32 mouse_wheel = 0.f;
 
 	// The current state of physical keys.
 	std::map<KeyPress, PhysicalKeyState> physicalKeyDown;
@@ -168,6 +181,9 @@ private:
 	bool esc_down = false;
 
 	PointerType last_pointer_type = PointerType::Mouse;
+
+	// Relative mouse movement accumulated from mouse events
+	v2s32 mouse_movement;
 };
 
 class InputHandler
@@ -209,6 +225,8 @@ public:
 
 	virtual v2s32 getMousePos() = 0;
 	virtual void setMousePos(s32 x, s32 y) = 0;
+
+	virtual v2s32 getMouseMovement() = 0;
 
 	virtual s32 getMouseWheel() = 0;
 
@@ -274,6 +292,11 @@ public:
 	virtual v2s32 getMousePos();
 	virtual void setMousePos(s32 x, s32 y);
 
+	virtual v2s32 getMouseMovement()
+	{
+		return m_receiver->getMouseMovement();
+	}
+
 	virtual s32 getMouseWheel()
 	{
 		return m_receiver->getMouseWheel();
@@ -312,6 +335,13 @@ public:
 	virtual v2s32 getMousePos() { return mousepos; }
 	virtual void setMousePos(s32 x, s32 y) { mousepos = v2s32(x, y); }
 
+	virtual v2s32 getMouseMovement()
+	{
+		v2s32 a = mousemovement;
+		mousemovement = v2s32(0, 0);
+		return a;
+	}
+
 	virtual s32 getMouseWheel() { return 0; }
 
 	virtual void step(float dtime);
@@ -322,4 +352,5 @@ private:
 	std::bitset<GameKeyType::INTERNAL_ENUM_COUNT> keydown;
 	v2s32 mousepos;
 	v2s32 mousespeed;
+	v2s32 mousemovement;
 };

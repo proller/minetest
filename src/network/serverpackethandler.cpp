@@ -34,6 +34,8 @@
 
 #include <algorithm>
 
+static constexpr std::size_t MAX_CLIENT_MOD_CHANNELS = 128;
+
 void Server::handleCommand_Deprecated(NetworkPacket* pkt)
 {
 	auto &h = toServerCommandTable[pkt->getCommand()];
@@ -306,16 +308,6 @@ void Server::handleCommand_Init2(NetworkPacket* pkt)
 
 	// Keep client language for server translations
 	client->setLangCode(lang);
-
-	// Send active objects
-	{
-		PlayerSAO *sao = getPlayerSAO(peer_id);
-		if (sao)
-			SendActiveObjectRemoveAdd(client, sao);
-	}
-
-	// Send detached inventories
-	sendDetachedInventories(peer_id, false);
 
 	// Send player movement settings
 	SendMovement(peer_id);
@@ -887,15 +879,6 @@ static inline void getWieldedItem(const PlayerSAO *playersao, std::optional<Item
 
 void Server::handleCommand_Interact(NetworkPacket *pkt)
 {
-	/*
-		[0] u16 command
-		[2] u8 action
-		[3] u16 item
-		[5] u32 length of the next item (plen)
-		[9] serialized PointedThing
-		[9 + plen] player position information
-	*/
-
 	InteractAction action;
 	u16 item_i;
 
@@ -925,13 +908,7 @@ void Server::handleCommand_Interact(NetworkPacket *pkt)
 	if (playersao->isDead()) {
 		actionstream << "Server: " << player->getName()
 				<< " tried to interact while dead; ignoring." << std::endl;
-		if (pointed.type == POINTEDTHING_NODE) {
-			// Re-send block to revert change on client-side
-			RemoteClient *client = getClient(peer_id);
-			v3bpos_t blockpos = getNodeBlockPos(pointed.node_undersurface);
-			client->SetBlockNotSent(blockpos);
-		}
-		// Call callbacks
+		getClient(peer_id)->fixupNodePrediction(action, pointed, false);
 		m_script->on_cheat(playersao, "interacted_while_dead");
 		return;
 	}
@@ -972,22 +949,7 @@ void Server::handleCommand_Interact(NetworkPacket *pkt)
 	if (!checkPriv(player->getName(), "interact")) {
 		actionstream << player->getName() << " attempted to interact with " <<
 				pointed.dump() << " without 'interact' privilege" << std::endl;
-
-		if (pointed.type != POINTEDTHING_NODE)
-			return;
-
-		// Re-send block to revert change on client-side
-		RemoteClient *client = getClient(peer_id);
-		// Digging completed -> under
-		if (action == INTERACT_DIGGING_COMPLETED) {
-			v3bpos_t blockpos = getNodeBlockPos(pointed.node_undersurface);
-			client->SetBlockNotSent(blockpos);
-		}
-		// Placement -> above
-		else if (action == INTERACT_PLACE) {
-			v3bpos_t blockpos = getNodeBlockPos(pointed.node_abovesurface);
-			client->SetBlockNotSent(blockpos);
-		}
+		getClient(peer_id)->fixupNodePrediction(action, pointed, false);
 		return;
 	}
 
@@ -1015,12 +977,7 @@ void Server::handleCommand_Interact(NetworkPacket *pkt)
 		float d = playersao->getEyePosition().getDistanceFrom(target_pos);
 
 		if (!checkInteractDistance(player, d, pointed.dump())) {
-			if (pointed.type == POINTEDTHING_NODE) {
-				// Re-send block to revert change on client-side
-				RemoteClient *client = getClient(peer_id);
-				v3bpos_t blockpos = getNodeBlockPos(pointed.node_undersurface);
-				client->SetBlockNotSent(blockpos);
-			}
+			getClient(peer_id)->fixupNodePrediction(action, pointed, false);
 			return;
 		}
 	}
@@ -1173,14 +1130,12 @@ void Server::handleCommand_Interact(NetworkPacket *pkt)
 		if (is_valid_dig && n.getContent() != CONTENT_IGNORE)
 			m_script->node_on_dig(p_under, n, playersao);
 
-		v3bpos_t blockpos = getNodeBlockPos(p_under);
-		RemoteClient *client = getClient(peer_id);
-		// Send unusual result (that is, node not being removed)
-		if (m_env->getMap().getNode(p_under).getContent() != CONTENT_AIR)
-			// Re-send block to revert change on client-side
-			client->SetBlockNotSent(blockpos);
-		else
-			client->ResendBlockIfOnWire(blockpos);
+		// For whatever reason we assume that the client always predicts that a
+		// dug node is air irrespective of the node's node_dig_prediction
+		bool prediction_success =
+			m_env->getMap().getNode(p_under).getContent() == CONTENT_AIR;
+		getClient(peer_id)->fixupNodePrediction(action, pointed,
+			prediction_success);
 
 		return;
 	} // action == INTERACT_DIGGING_COMPLETED
@@ -1227,22 +1182,11 @@ void Server::handleCommand_Interact(NetworkPacket *pkt)
 			return;
 
 		getClient(peer_id)->m_time_from_building = 0;
-
-		// If item has node placement prediction, always send the
-		// blocks to make sure the client knows what exactly happened
-		RemoteClient *client = getClient(peer_id);
-		v3bpos_t blockpos = getNodeBlockPos(pointed.node_abovesurface);
-		v3bpos_t blockpos2 = getNodeBlockPos(pointed.node_undersurface);
-		if (had_prediction) {
-			client->SetBlockNotSent(blockpos);
-			if (blockpos2 != blockpos)
-				client->SetBlockNotSent(blockpos2);
-		} else {
-			client->ResendBlockIfOnWire(blockpos);
-			if (blockpos2 != blockpos)
-				client->ResendBlockIfOnWire(blockpos2);
-		}
-
+		// Since we do not known if the client has predicted the node at
+		// pointed.above or pointed.under,
+		// we assume that a prediction is always wrong.
+		getClient(peer_id)->fixupNodePrediction(action, pointed,
+			!had_prediction);
 		return;
 	} // action == INTERACT_PLACE
 
@@ -1358,6 +1302,18 @@ void Server::handleCommand_NodeMetaFields(NetworkPacket* pkt)
 			<< p << ", player=" << player->getName() << std::endl;
 		return;
 	}
+
+	if (!checkPriv(player->getName(), "interact")) {
+		actionstream << player->getName() << " attempted to interact with "
+				<< "node metadata at " << p << " without 'interact' privilege"
+				<< std::endl;
+		return;
+	}
+
+	auto node_pos = intToFloat(p, BS);
+	f32 d = playersao->getEyePosition().getDistanceFrom(node_pos);
+	if (!checkInteractDistance(player, d, "node metadata"))
+		return;
 
 	// If something goes wrong, this player is to blame
 	RollbackScopeActor rollback_scope(m_rollback,
@@ -1727,15 +1683,16 @@ void Server::handleCommand_ModChannelJoin(NetworkPacket *pkt)
 
 	// Send signal to client to notify join succeed or not
 	if (g_settings->getBool("enable_mod_channels") &&
-			m_modchannel_mgr->joinChannel(channel_name, peer_id)) {
+			m_modchannel_mgr->joinChannel(channel_name, peer_id,
+					MAX_CLIENT_MOD_CHANNELS)) {
 		resp_pkt << (u8) MODCHANNEL_SIGNAL_JOIN_OK;
 		infostream << "Peer " << peer_id << " joined channel " <<
 			channel_name << std::endl;
 	}
 	else {
 		resp_pkt << (u8)MODCHANNEL_SIGNAL_JOIN_FAILURE;
-		infostream << "Peer " << peer_id << " tried to join channel " <<
-			channel_name << ", but was already registered." << std::endl;
+		infostream << "Peer " << peer_id << " could not join channel " <<
+			channel_name << std::endl;
 	}
 	resp_pkt << channel_name;
 	Send(&resp_pkt);

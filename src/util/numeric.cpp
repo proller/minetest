@@ -5,6 +5,7 @@
 #include "numeric.h"
 
 #include "constants.h" // BS, MAP_BLOCKSIZE
+#include "irr_v3d.h"
 #include "noise.h" // PcgRandom
 #include <cstring>
 #include <cmath>
@@ -91,57 +92,64 @@ u64 murmur_hash_64_ua(const void *key, size_t len, unsigned int seed)
 	return h;
 }
 
-
-bool isBlockInSight(v3pos_t blockpos_b, v3opos_t camera_pos, v3f camera_dir,
-		f32 camera_fov, f32 range, f32 *distance_ptr)
+bool isBlockInSight(const v3bpos_t blockpos_b, v3opos_t camera_pos, v3f camera_dir,
+		const f32 camera_fov, const f32 range, f32 *distance_ptr)
 {
-	v3pos_t blockpos_nodes = blockpos_b * MAP_BLOCKSIZE;
+	return isBlockInSightEx(blockpos_b, camera_pos, camera_dir, getFovCosSq(camera_fov), getFovAdj(camera_fov), range, distance_ptr);
+}
 
-	// Block center position
-	v3opos_t blockpos = v3opos_t::from(blockpos_nodes + MAP_BLOCKSIZE / 2) * BS;
+bool isBlockInSightEx(const v3pos_t blockpos_b, v3opos_t camera_pos, v3f camera_dir,
+		const f32 target_cos_sq, const f32 adjdist, f32 range, f32 *distance_ptr)
+{
+	// Block center position relative to camera
+	const auto blockpos_relative =
+			intToFloat(blockpos_b * MAP_BLOCKSIZE + v3pos_t(MAP_BLOCKSIZE / 2), BS) -
+			camera_pos;
 
-	// Block position relative to camera
-	auto blockpos_relative = blockpos - camera_pos;
+	if (distance_ptr) {
+		*distance_ptr = 0.0f;
+	}
 
-	// Total distance
-	auto d = std::max(opos_t{}, blockpos_relative.getLength() - BLOCK_MAX_RADIUS);
-
-	if (distance_ptr)
-		*distance_ptr = d;
+	// Square distance
+	const f32 len_sq = blockpos_relative.getLengthSQ();
 
 	// If block is far away, it's not in sight
-	if (d > range)
+	const f32 max_reach = range + BLOCK_MAX_RADIUS;
+	if (len_sq > max_reach * max_reach)
 		return false;
 
 	// If block is (nearly) touching the camera, don't
 	// bother validating further (that is, render it anyway)
-	if (d == 0)
+	if (len_sq <= BLOCK_MAX_RADIUS * BLOCK_MAX_RADIUS) {
+		// this means distance in blocks is 0
 		return true;
+	}
 
-	// Adjust camera position, for purposes of computing the angle,
-	// such that a block that has any portion visible with the
-	// current camera position will have the center visible at the
-	// adjusted position
-	f32 adjdist = BLOCK_MAX_RADIUS / cos((M_PI - camera_fov) / 2);
-
-	// Block position relative to adjusted camera
-	auto blockpos_adj = blockpos - (camera_pos - v3fToOpos(camera_dir) * adjdist);
-
+	const auto dot = blockpos_relative.dotProduct(v3fToOpos(camera_dir));
 	// Distance in camera direction (+=front, -=back)
-	auto dforward = blockpos_adj.dotProduct(v3fToOpos(camera_dir));
+	const auto dforward = dot + adjdist;
 
-	// Cosine of the angle between the camera direction
-	// and the block direction (camera_dir is an unit vector)
-	f32 cosangle = dforward / blockpos_adj.getLength();
-
-	// If block is not in the field of view, skip it
-	// HOTFIX: use slightly increased angle (+10%) to fix too aggressive
-	// culling. Somebody has to find out what's wrong with the math here.
-	// Previous value: camera_fov / 2
-	if (cosangle < std::cos(camera_fov * 0.55f))
+	// If the block is behind the adjusted camera position, cull it instantly
+	if (dforward <= 0.0f)
 		return false;
 
+	// |A+B|^2 = |A|^2 + 2(A dot B) + |B|^2
+	const f32 len_adj_sq = len_sq + 2.0f * adjdist * dot + adjdist * adjdist;
+
+	// do angle check with squared values
+	// This is a transformation of the previous
+	//   dForward/blockpos_adj.getLength() < target_cos
+	// This is safe because of the (dforward <= 0.0f) check above
+	// (and the fact that fov <= 160 degrees)
+	if (dforward * dforward < target_cos_sq * len_adj_sq)
+		return false;
+
+	// calculate the actual distance only if the block is visible
+	if (distance_ptr) {
+		*distance_ptr = std::max(0.0f, std::sqrt(len_sq) - BLOCK_MAX_RADIUS);
+	}
 	return true;
+
 }
 
 

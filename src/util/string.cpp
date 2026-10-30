@@ -143,25 +143,28 @@ std::string wide_to_utf8(std::wstring_view input)
 
 std::wstring utf8_to_wide(std::string_view input)
 {
-	size_t outbuf_size = input.size() + 1;
-	wchar_t *outbuf = new wchar_t[outbuf_size];
-	memset(outbuf, 0, outbuf_size * sizeof(wchar_t));
-	MultiByteToWideChar(CP_UTF8, 0, input.data(), input.size(),
-		outbuf, outbuf_size);
-	std::wstring out(outbuf);
-	delete[] outbuf;
+	if (input.empty())
+		return L"";
+	std::wstring out(input.size(), L'\0');
+	int len = MultiByteToWideChar(CP_UTF8, 0, input.data(), input.size(),
+		out.data(), out.size());
+	if (len <= 0)
+		return L"";
+	out.resize(len);
 	return out;
 }
 
 std::string wide_to_utf8(std::wstring_view input)
 {
-	size_t outbuf_size = (input.size() + 1) * 6;
-	char *outbuf = new char[outbuf_size];
-	memset(outbuf, 0, outbuf_size);
-	WideCharToMultiByte(CP_UTF8, 0, input.data(), input.size(),
-		outbuf, outbuf_size, NULL, NULL);
-	std::string out(outbuf);
-	delete[] outbuf;
+	if (input.empty())
+		return "";
+	// 1 wchar can expand to at most 4 utf-8 bytes
+	std::string out(input.size() * 4, '\0');
+	int len = WideCharToMultiByte(CP_UTF8, 0, input.data(), input.size(),
+		out.data(), out.size(), NULL, NULL);
+	if (len <= 0)
+		return "";
+	out.resize(len);
 	return out;
 }
 
@@ -182,6 +185,26 @@ void wide_add_codepoint(std::wstring &result, char32_t codepoint)
 		}
 	}
 	result.push_back((wchar_t) codepoint);
+}
+
+size_t utf8_truncate_count(std::string_view input)
+{
+	// Iterate from end to find an UTF-8 start byte
+	for (size_t i = 1; i <= UTF8_MULTB_MAX; i++) {
+		if (i > input.size())
+			break;
+		char c = input[input.size() - i];
+		if (IS_UTF8_MULTB_START(c)) {
+			// Check if the sequence is complete
+			if (UTF8_MULTB_START_LEN(c) != i)
+				return i;
+			break;
+		} else if (!IS_UTF8_MULTB_INNER(c)) {
+			// Byte is ASCII or something else, bail out
+			break;
+		}
+	}
+	return 0;
 }
 
 std::string urlencode(std::string_view str)
@@ -588,7 +611,8 @@ std::string encodeHexColorString(video::SColor color)
 
 void str_replace(std::string &str, char from, char to)
 {
-	std::replace(str.begin(), str.end(), from, to);
+	if (from != to)
+		std::replace(str.begin(), str.end(), from, to);
 }
 
 std::string wrap_rows(std::string_view from, unsigned row_len, bool has_color_codes)
@@ -702,7 +726,7 @@ static void translate_string(std::wstring_view s, Translations *translations,
 			++i;
 			length = 1;
 		}
-		std::wstring escape_sequence(s, start_index, length);
+		std::wstring_view escape_sequence = s.substr(start_index, length);
 
 		// The escape sequence is now reconstructed.
 		std::vector<std::wstring> parts = split(escape_sequence, L'@');
@@ -795,6 +819,7 @@ static void translate_all(std::wstring_view s, size_t &i,
 		// We have an escape sequence: locate it and its data
 		// It is either a single character, or it begins with '('
 		// and extends up to the following ')', with '\' as an escape character.
+		// FIXME: de-duplicate this code
 		const size_t escape_start = i;
 		++i;
 		size_t start_index = i;
@@ -818,7 +843,7 @@ static void translate_all(std::wstring_view s, size_t &i,
 			++i;
 			length = 1;
 		}
-		std::wstring escape_sequence(s, start_index, length);
+		std::wstring_view escape_sequence = s.substr(start_index, length);
 
 		// The escape sequence is now reconstructed.
 		std::vector<std::wstring> parts = split(escape_sequence, L'@');
@@ -832,7 +857,7 @@ static void translate_all(std::wstring_view s, size_t &i,
 			unsigned long int number = 0;
 			if (parts.size() > 1)
 				textdomain = parts[1];
-			if (parts.size() > 2 && parts[2] != L"") {
+			if (parts.size() > 2 && !parts[2].empty()) {
 				// parts[2] should contain a number used for selecting
 				// the plural form.
 				// However, we can't blindly cast it to an unsigned long int,
@@ -991,7 +1016,7 @@ std::string sanitize_untrusted(std::string_view str, bool keep_escapes)
 		s.erase(std::remove(s.begin(), s.end(), '\x1b'), s.end());
 		return s;
 	}
-	// Note: Minetest escapes generally just look like \x1b# or \x1b(###)
+	// Note: Luanti escapes generally just look like \x1b# or \x1b(###)
 	// where # is a single character and ### any number of characters.
 	// Here we additionally assume that the first character in the sequence
 	// is [A-Za-z], to enable us to filter foreign types of escapes that might

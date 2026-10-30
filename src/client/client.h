@@ -9,6 +9,7 @@
 #include "gameparams.h" // ELoginRegister
 #include "inventorymanager.h"
 #include "irrlichttypes.h"
+#include "lighting.h"
 #include "network/address.h"
 #include "network/networkprotocol.h" // multiple enums
 #include "network/peerhandler.h"
@@ -399,11 +400,15 @@ public:
 		bool from_media_push = false);
 
 	// Send a request for conventional media transfer
-	void request_media(const std::vector<std::string> &file_requests);
+	void requestMedia(const std::vector<std::string> &file_requests);
 
-	LocalClientState getState() { return m_state; }
+	LocalClientState getState() const { return m_state; }
 
-	void makeScreenshot();
+	// Request a screenshot to be taken at the end of the frame.
+	void requestScreenshot() { m_take_screenshot = true; }
+
+	// Must be called right before endScene() to take requested screenshots.
+	void takeScreenshotIfRequested();
 
 	inline void pushToChatQueue(ChatMessage *cec)
 	{
@@ -442,9 +447,14 @@ public:
 
 	const std::string &getFormspecPrepend() const;
 
-	inline MeshGrid getMeshGrid()
+	inline MeshGrid getMeshGrid() const
 	{
 		return m_mesh_grid;
+	}
+
+	inline const StaticLighting &getCommittedStaticLighting() const
+	{
+		return m_committed_static_light;
 	}
 
 	bool inhibit_inventory_revert = false;
@@ -474,8 +484,6 @@ private:
 
 	void ReceiveAll();
 
-	void sendPlayerPos();
-
 	void deleteAuthData();
 	// helper method shared with clientpackethandler
 	static AuthMechanism choseAuthMech(const u32 mechs);
@@ -485,6 +493,9 @@ private:
 	void sendDeletedBlocks(std::vector<v3bpos_t> &blocks);
 	void sendGotBlocks(const std::vector<v3bpos_t> &blocks);
 	void sendRemovedSounds(const std::vector<s32> &soundList);
+	void sendPlayerPos();
+
+	bool updateStaticLighting(const StaticLighting &future);
 
 	bool canSendChatMessage() const;
 
@@ -503,7 +514,6 @@ private:
 	MtEventManager *m_event;
 	RenderingEngine *m_rendering_engine;
 	ItemVisualsManager *m_item_visuals_manager;
-
 
 	std::unique_ptr<MeshUpdateManager> m_mesh_update_manager;
 	ClientEnvironment m_env;
@@ -541,6 +551,12 @@ private:
 
 	// The seed returned by the server in TOCLIENT_AUTH_ACCEPT is stored here
 	u64 m_map_seed = 0;
+
+	// The number of blocks the client will combine for mesh generation.
+	MeshGrid m_mesh_grid;
+
+	// The static lighting currently in use
+	StaticLighting m_committed_static_light;
 
 	// Auth data
 	std::string m_playername;
@@ -608,13 +624,11 @@ private:
 	std::unique_ptr<SSCSMController> m_sscsm_controller;
 
 	bool m_shutdown = false;
+	bool m_take_screenshot = false;
 
 	// CSM restrictions byteflag
 	u64 m_csm_restriction_flags = CSMRestrictionFlags::CSM_RF_NONE;
 	u32 m_csm_restriction_noderange = 8;
 
 	std::unique_ptr<ModChannelMgr> m_modchannel_mgr;
-
-	// The number of blocks the client will combine for mesh generation.
-	MeshGrid m_mesh_grid;
 };

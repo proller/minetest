@@ -1,4 +1,4 @@
-// Minetest
+// Luanti
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include "translation.h"
@@ -31,6 +31,7 @@ TEST_CASE("test translations")
 		CHECK(Translations::getFileBaseName("blank.png") == "");
 
 		CHECK(Translations::getFileLanguage(TEST_PO_NAME) == "de");
+		CHECK(Translations::getFileLanguage("island.zh_Hant.tr") == "zh_TW");
 		CHECK(Translations::getFileLanguage("de.po") == "");
 		CHECK(Translations::getFileLanguage("blank.png") == "");
 
@@ -104,6 +105,7 @@ TEST_CASE("test translations")
 	SECTION("PO file parser")
 	{
 		Translations translations;
+		translations.setTargetLanguage("fr");
 		translations.loadTranslation(TEST_PO_NAME, read_translation_file(TEST_PO_NAME));
 
 		CHECK(translations.size() == 5);
@@ -122,6 +124,7 @@ TEST_CASE("test translations")
 	SECTION("MO file parser")
 	{
 		Translations translations;
+		translations.setTargetLanguage("fr");
 		translations.loadTranslation(TEST_MO_NAME, read_translation_file(TEST_MO_NAME));
 
 		CHECK(translations.size() == 2);

@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
+#include "debug.h"
 
 /*
 This implements a dynamic forest of static k-d-trees.
@@ -58,6 +59,7 @@ namespace k_d_tree
 {
 
 using Idx = uint16_t;
+constexpr size_t IDX_MAX = UINT16_MAX;
 
 // We use size_t for sizes (but not for indices)
 // to make sure there are no wraparounds when we approach the limit.
@@ -72,7 +74,10 @@ public:
 	//! Empty
 	Points() : n(0), coords(nullptr) {}
 	//! Allocating constructor; leaves coords uninitialized!
-	Points(size_t n) : n(n), coords(new Component[Dim * n]) {}
+	Points(size_t n) : n(n), coords(new Component[Dim * n])
+	{
+		assert(n <= IDX_MAX);
+	}
 	//! Copying constructor
 	Points(size_t n, const std::array<Component const *, Dim> &coords)
 		: Points(n)
@@ -131,7 +136,7 @@ public:
 		: indices(n)
 	{
 		for (uint8_t d = 0; d < Dim; ++d) {
-			for (Idx i = 0; i < n; ++i) {
+			for (size_t i = 0; i < n; ++i) {
 				indices.begin(d)[i] = i;
 			}
 		}
@@ -328,7 +333,7 @@ public:
 	template<class F>
 	void foreach(F cb) const
 	{
-		for (Idx i = 0; i < cap(); ++i) {
+		for (size_t i = 0; i < cap(); ++i) {
 			if (!deleted[i]) {
 				cb(i, items.points.getPoint(i), ids[i]);
 			}
@@ -417,10 +422,12 @@ public:
 
 	void remove(Id id)
 	{
-		const auto it = del_entries.find(id);
-		assert(it != del_entries.end());
-		trees.at(it->second.tree_idx).remove(it->second.in_tree);
-		del_entries.erase(it);
+		{
+			auto node = del_entries.extract(id);
+			sanity_check(node);
+			const auto &entry = node.mapped();
+			trees.at(entry.tree_idx).remove(entry.in_tree);
+		}
 		++deleted;
 		if (deleted >= (n_entries+1)/2) // "shift out" the last tree
 			shrink_to_half();

@@ -1,6 +1,6 @@
 // Luanti
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright (C) 2022 Minetest core developers & community
+// Copyright (C) 2022 Luanti core developers & community
 
 #pragma once
 
@@ -12,9 +12,9 @@
 class MockInventoryManager : public ServerInventoryManager
 {
 public:
-	MockInventoryManager(IGameDef *gamedef) :
-		p1(gamedef->getItemDefManager()),
-		p2(gamedef->getItemDefManager())
+	MockInventoryManager(IGameDef &gamedef) :
+		p1(gamedef.getItemDefManager()),
+		p2(gamedef.getItemDefManager())
 	{};
 
 	Inventory *getInventory(const InventoryLocation &loc) override

@@ -6,6 +6,7 @@
 
 #include "util/container.h"
 #include "util/thread.h"
+#include "util/string.h"
 #include "settings.h"
 #include "filesys.h"
 #include "porting.h"
@@ -98,7 +99,8 @@ std::vector<std::string> getTextureDirs()
 {
 	std::vector<std::string> ret = g_texturedirs_cache.get();
 	if (ret.empty()) {
-		ret = fs::GetRecursiveDirs(g_settings->get("texture_path"));
+		for (const std::string &pack_path : str_split(g_settings->get("texture_path"), PATH_DELIM[0]))
+			fs::GetRecursiveDirs(ret, pack_path);
 		g_texturedirs_cache.set(ret);
 	}
 	return ret;

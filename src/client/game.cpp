@@ -421,7 +421,7 @@ Game::~Game()
 bool Game::startup(volatile std::sig_atomic_t *kill,
 		InputHandler *input,
 		RenderingEngine *rendering_engine,
-		const GameStartData &start_data,
+		GameStartData &start_data,
 		GameErrorData &errordata,
 		ChatBackend *chat_backend)
 {
@@ -456,8 +456,7 @@ bool Game::startup(volatile std::sig_atomic_t *kill,
 
 	g_client_translations->clear();
 
-	if (!init(start_data.world_spec.path, start_data.address,
-			start_data.socket_port, start_data.game_spec))
+	if (!init(start_data))
 		return false;
 
 	if (!createClient(start_data))
@@ -489,8 +488,6 @@ void Game::run()
 	}
 
 	draw_times.reset();
-
-	set_light_curve(g_settings->getFloat("display_gamma"));
 
 	m_touch_simulate_aux1 = g_settings->getBool("fast_move")
 			&& client->checkPrivilege("fast");
@@ -683,11 +680,7 @@ void Game::shutdown()
  ****************************************************************************/
 /****************************************************************************/
 
-bool Game::init(
-		const std::string &map_dir,
-		const std::string &address,
-		u16 port,
-		const SubgameSpec &gamespec)
+bool Game::init(GameStartData &start_data)
 {
 	texture_src = createTextureSource();
 
@@ -711,8 +704,8 @@ bool Game::init(
 		return false;
 
 	// Create a server if not connecting to an existing one
-	if (address.empty()) {
-		if (!createServer(map_dir, gamespec, port))
+	if (start_data.address.empty()) {
+		if (!createServer(start_data))
 			return false;
 	}
 
@@ -744,8 +737,7 @@ bool Game::initSound()
 	return true;
 }
 
-bool Game::createServer(const std::string &map_dir,
-		const SubgameSpec &gamespec, u16 port)
+bool Game::createServer(GameStartData &start_data)
 {
 	showOverlayMessage(N_("Creating server..."), 0, 5);
 
@@ -758,7 +750,7 @@ bool Game::createServer(const std::string &map_dir,
 		bind_str = g_settings->get("bind_address");
 	}
 
-	Address bind_addr(0, 0, 0, 0, port);
+	Address bind_addr(0, 0, 0, 0, start_data.socket_port);
 
 	if (g_settings->getBool("ipv6_server"))
 		bind_addr.setAddress(static_cast<IPv6AddressBytes*>(nullptr));
@@ -775,8 +767,13 @@ bool Game::createServer(const std::string &map_dir,
 		return false;
 	}
 
-	server = new Server(map_dir, gamespec, simple_singleplayer_mode, bind_addr,
-			false, nullptr, &(errordata->message));
+	UDPSocket server_socket = UDPSocket::Create(bind_addr);
+	// in singleplayer mode the OS assigns us the port in bind
+	start_data.socket_port = server_socket.GetLocalAddress().getPort();
+
+	server = new Server(start_data.world_spec.path, start_data.game_spec,
+		simple_singleplayer_mode, std::move(server_socket),
+		false, nullptr, &(errordata->message));
 
 	auto start_thread = runInThread([=] {
 		server->start();
@@ -1493,7 +1490,7 @@ void Game::processKeyInput()
 	} else if (wasKeyDown(KeyType::CINEMATIC)) {
 		toggleCinematic();
 	} else if (wasKeyPressed(KeyType::SCREENSHOT)) {
-		client->makeScreenshot();
+		client->requestScreenshot();
 	} else if (wasKeyPressed(KeyType::TOGGLE_BLOCK_BOUNDS)) {
 		toggleBlockBounds();
 	} else if (wasKeyPressed(KeyType::TOGGLE_HUD)) {
@@ -1960,6 +1957,8 @@ void Game::updateCameraDirection(CameraOrientation *cam, float dtime)
 		if (m_first_loop_after_window_activation && !g_touchcontrols) {
 			m_first_loop_after_window_activation = false;
 
+			// Discard any movement that happened while the window was inactive
+			input->getMouseMovement();
 			input->setMousePos(driver->getScreenSize().Width / 2,
 				driver->getScreenSize().Height / 2);
 		} else {
@@ -2004,8 +2003,7 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		cam->camera_yaw   += g_touchcontrols->getYawChange()   * sens_scale;
 		cam->camera_pitch += g_touchcontrols->getPitchChange() * sens_scale;
 	} else {
-		v2s32 center(driver->getScreenSize().Width / 2, driver->getScreenSize().Height / 2);
-		v2s32 dist = input->getMousePos() - center;
+		v2s32 dist = input->getMouseMovement();
 
 		if (m_invert_mouse || camera->getCameraMode() == CAMERA_MODE_THIRD_FRONT) {
 			dist.Y = -dist.Y;
@@ -2014,8 +2012,12 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		cam->camera_yaw   -= dist.X * m_cache_mouse_sensitivity * sens_scale;
 		cam->camera_pitch += dist.Y * m_cache_mouse_sensitivity * sens_scale;
 
-		if (dist.X != 0 || dist.Y != 0)
+		// Keep the cursor centered so that it appears in the middle of
+		// the screen when a menu opens.
+		if (dist.X != 0 || dist.Y != 0) {
+			v2s32 center(driver->getScreenSize().Width / 2, driver->getScreenSize().Height / 2);
 			input->setMousePos(center.X, center.Y);
+		}
 	}
 
 	// Keyboard look
@@ -2055,8 +2057,15 @@ void Game::updatePlayerControl(const CameraOrientation &cam)
 
 	//TimeTaker tt("update player control", NULL, PRECISION_NANO);
 
+	float forward_value = getAxisValue(KeyType::FORWARD);
+	if (player->getPlayerSettings().continuous_forward &&
+			client->activeObjectsReceived() && !player->isDead()) {
+		// autoforward if set: move at maximum speed
+		forward_value = 1.0f;
+	}
+
 	PlayerControl control(
-		getAxisValue(KeyType::FORWARD),
+		forward_value,
 		getAxisValue(KeyType::BACKWARD),
 		getAxisValue(KeyType::LEFT),
 		getAxisValue(KeyType::RIGHT),
@@ -2070,15 +2079,6 @@ void Game::updatePlayerControl(const CameraOrientation &cam)
 		cam.camera_yaw
 	);
 	control.setMovementFromKeys();
-
-	// autoforward if set: move at maximum speed
-	if (player->getPlayerSettings().continuous_forward &&
-			client->activeObjectsReceived() && !player->isDead()) {
-		control.movement_speed = 1.0f;
-		// sideways movement only
-		float dx = std::sin(control.movement_direction);
-		control.movement_direction = std::atan2(dx, 1.0f);
-	}
 
 	/* For touch, simulate holding down AUX1 (fast move) if the user has
 	 * the fast_move setting toggled on. If there is an aux1 key defined for
@@ -2630,8 +2630,7 @@ void Game::updateCameraOffset()
 			shadow->getDirectionalLight().updateCameraOffset(camera);
 			// FIXME: I bet we can be smarter about this and don't need to redraw
 			// the shadow map at all, but this is for someone else to figure out.
-			if (!g_settings->getFlag("performance_tradeoffs"))
-				shadow->setForceUpdateShadowMap();
+			shadow->setForceUpdateShadowMap();
 		}
 
 		env.getClientMap().updateCamera(camera->getPosition(),
@@ -3180,14 +3179,24 @@ bool Game::nodePlacement(const ItemDefinition &selected_def,
 	try {
 		LocalPlayer *player = client->getEnv().getLocalPlayer();
 
+		bool build_where_you_stand = g_settings->getBool("enable_build_where_you_stand");
+		bool stands_inside = false;
+		if (!build_where_you_stand) {
+			// Check if attempting to place a node that player stands inside,
+			// depending on the player's height
+			aabb3f collisionbox = player->getCollisionbox();
+			int player_height = ceilf((collisionbox.MaxEdge.Y - collisionbox.MinEdge.Y) / BS);
+			player_height = MYMAX(player_height, 1);
+			auto diff = neighborpos - player->getStandingNodePos();
+			stands_inside = (diff.X == 0 && diff.Z == 0 && diff.Y >= 1 && diff.Y <= player_height);
+		}
+
 		// Don't place node when player would be inside new node
 		// NOTE: This is to be eventually implemented by a mod as client-side Lua
 		if (!predicted_f.walkable ||
-				g_settings->getBool("enable_build_where_you_stand") ||
+				build_where_you_stand ||
 				(client->checkPrivilege("noclip") && g_settings->getBool("noclip")) ||
-				(predicted_f.walkable &&
-					neighborpos != player->getStandingNodePos() + v3pos_t(0, 1, 0) &&
-					neighborpos != player->getStandingNodePos() + v3pos_t(0, 2, 0))) {
+				(predicted_f.walkable && !stands_inside)) {
 			// This triggers the required mesh update too
 			client->addNode(p, predicted_node);
 			// Report to server
@@ -3289,8 +3298,9 @@ void Game::handleDigging(const PointedThing &pointed, const v3pos_t &nodepos,
 		runData.dig_time_complete = 10000000.0;
 	} else {
 		runData.dig_time_complete = params.time;
-
-		client->getParticleManager()->addNodeParticle(player, nodepos, n);
+		if (g_settings->getBool("enable_dig_particles")) {
+			client->getParticleManager()->addNodeParticle(player, nodepos, n);
+		}
 	}
 
 	if (!runData.digging) {
@@ -3375,7 +3385,9 @@ void Game::handleDigging(const PointedThing &pointed, const v3pos_t &nodepos,
 
 		client->interact(INTERACT_DIGGING_COMPLETED, pointed);
 
-		client->getParticleManager()->addDiggingParticles(player, nodepos, n);
+		if (g_settings->getBool("enable_dig_particles")) {
+			client->getParticleManager()->addDiggingParticles(player, nodepos, n);
+		}
 
 		// Send event to trigger sound
 		client->getEventManager()->put(new NodeDugEvent(nodepos, n));
@@ -3527,17 +3539,19 @@ void Game::updateFrame(ProfilerGraph *graph, RunStats *stats, f32 dtime,
 
 	v3f camera_direction = camera->getDirection();
 
+	auto &client_map = client->getEnv().getClientMap();
+
 	// call only one of updateDrawList, touchMapBlocks, or updateShadow per frame
 	// (the else-ifs below are intentional)
 	if (runData.update_draw_list_timer >= update_draw_list_delta
-			|| runData.update_draw_list_last_cam_dir.getDistanceFrom(camera_direction) > 0.2
+			|| runData.update_draw_list_last_cam_dir.getDistanceFrom(camera_direction) > 0.2f
 			|| m_camera_offset_changed
-			|| client->getEnv().getClientMap().needsUpdateDrawList()) {
+			|| client_map.needsUpdateDrawList()) {
+		client_map.updateDrawList();
 		runData.update_draw_list_timer = 0;
-		client->getEnv().getClientMap().updateDrawList();
 		runData.update_draw_list_last_cam_dir = camera_direction;
 	} else if (runData.touch_blocks_timer > touch_mapblock_delta) {
-		client->getEnv().getClientMap().touchMapBlocks();
+		client_map.touchMapBlocks();
 		runData.touch_blocks_timer = 0;
 	} else if (RenderingEngine::get_shadow_renderer()) {
 		updateShadows();
@@ -3710,6 +3724,9 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 					NULL);
 	}
 
+	// Must be called immediately before endScene() to capture the rendered frame
+	this->client->takeScreenshotIfRequested();
+
 	this->driver->endScene();
 
 	stats->drawtime = tt_draw.stop(true);
@@ -3777,12 +3794,12 @@ void Game::readSettings()
 void the_game(volatile std::sig_atomic_t *kill,
 		InputHandler *input,
 		RenderingEngine *rendering_engine,
-		const GameStartData &start_data,
+		GameStartData &start_data,
 		GameErrorData &errordata,
 		ChatBackend &chat_backend)
 {
 	Game game;
-	std::string &error_message = errordata.message;
+	std::string error_message;
 
 	try {
 
@@ -3795,21 +3812,24 @@ void the_game(volatile std::sig_atomic_t *kill,
 		const std::string ver_err = fmtgettext("The server is probably running a different version of %s.", PROJECT_NAME_C);
 		error_message = strgettext("A serialization error occurred:") +"\n"
 				+ e.what() + "\n\n" + ver_err;
-		errorstream << error_message << std::endl;
 	} catch (ServerError &e) {
-		error_message = e.what();
-		errorstream << "ServerError: " << error_message << std::endl;
+		error_message = "ServerError: ";
+		error_message.append(e.what());
 	} catch (ModError &e) {
 		// DO NOT TRANSLATE the `ModError`, it's used by `ui.lua`
 		error_message = std::string("ModError: ") + e.what() +
 				strgettext("\nCheck debug.txt for details.");
-		errorstream << error_message << std::endl;
 	} catch (con::PeerNotFoundException &e) {
 		error_message = gettext("Connection error (timed out?)");
-		errorstream << error_message << std::endl;
 	} catch (ShaderException &e) {
 		error_message = e.what();
+	} catch (SocketException &e) {
+		error_message = e.what();
+	}
+
+	if (!error_message.empty()) {
 		errorstream << error_message << std::endl;
+		errordata.message = std::move(error_message);
 	}
 
 	game.shutdown();

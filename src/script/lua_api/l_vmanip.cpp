@@ -21,7 +21,7 @@ LuaVoxelManip *LuaVoxelManip::checkObjectValid(lua_State *L, int narg)
 	auto *o = checkObject<LuaVoxelManip>(L, narg);
 	if (!o->vm)
 		luaL_error(L, "LuaVoxelManip::checkObjectValid(): vm is null");
-	return o;
+	return o; 
 }
 
 // garbage collector

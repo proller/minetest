@@ -83,8 +83,9 @@ void Client::handleCommand_Hello(NetworkPacket* pkt)
 			<< ". Doing auth with mech " << chosen_auth_mechanism << std::endl;
 
 	if (!ser_ver_supported_read(serialization_ver)) {
-		infostream << "Client: TOCLIENT_HELLO: Server sent "
-				<< "unsupported ser_fmt_ver=" << (int)serialization_ver << std::endl;
+		warningstream << "Client: TOCLIENT_HELLO: Server sent "
+				<< "unsupported serialization_ver=" << (u32)serialization_ver
+				<< std::endl;
 		return;
 	}
 
@@ -143,12 +144,7 @@ void Client::handleCommand_AuthAccept(NetworkPacket* pkt)
 					<< m_recommended_send_interval<<std::endl;
 
 	// Reply to server
-	/* TRANSLATORS: DO NOT TRANSLATE THIS LITERALLY!
-	This is a special string which needs to contain the translation's
-	language code (e.g. "de" for German). */
-	std::string lang = gettext("LANG_CODE");
-	if (lang == "LANG_CODE")
-		lang.clear();
+	std::string lang = gettext_get_lang_code();
 
 	NetworkPacket resp_pkt(TOSERVER_INIT2, sizeof(u16) + lang.size());
 	resp_pkt << lang;
@@ -300,6 +296,12 @@ void Client::handleCommand_BlockData(NetworkPacket* pkt)
 
 	v3bpos_t p;
 	*pkt >> p;
+
+	if (blockpos_over_max_limit(p)) {
+		warningstream << "Client: Ignoring block data at invalid position "
+				<< p << std::endl;
+		return;
+	}
 
 	std::istringstream istr(std::string(pkt->getRemainingNoCopy()), std::ios_base::binary);
 
@@ -1781,7 +1783,8 @@ void Client::handleCommand_ModChannelMsg(NetworkPacket *pkt)
 		return;
 	}
 
-	m_script->on_modchannel_message(channel_name, sender, channel_msg);
+	if (modsLoaded())
+		m_script->on_modchannel_message(channel_name, sender, channel_msg);
 }
 
 void Client::handleCommand_ModChannelSignal(NetworkPacket *pkt)
@@ -1850,7 +1853,7 @@ void Client::handleCommand_ModChannelSignal(NetworkPacket *pkt)
 	}
 
 	// If signal is valid, forward it to client side mods
-	if (valid_signal)
+	if (valid_signal && modsLoaded())
 		m_script->on_modchannel_signal(channel, signal);
 }
 
@@ -1884,6 +1887,7 @@ void Client::handleCommand_MinimapModes(NetworkPacket *pkt)
 void Client::handleCommand_SetLighting(NetworkPacket *pkt)
 {
 	Lighting& lighting = m_env.getLocalPlayer()->getLighting();
+	auto &s = lighting.static_;
 
 	*pkt >> lighting.shadow_intensity;
 	do {
@@ -1917,5 +1921,12 @@ void Client::handleCommand_SetLighting(NetworkPacket *pkt)
 			break;
 		// >= 5.16.0-dev
 		*pkt >> lighting.shadow_direction;
+		if (!pkt->hasRemainingBytes())
+			break;
+		// >= 5.18.0-dev
+		*pkt >> s.light_curve_set;
+		if (s.light_curve_set)
+			pkt->readRawString(reinterpret_cast<char*>(s.light_curve), sizeof(s.light_curve));
+		*pkt >> s.ao_gamma;
 	} while (0);
 }

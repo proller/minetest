@@ -99,6 +99,9 @@ public:
 	/// @brief Calculate statistics about the map and keep the blocks alive
 	void touchMapBlocks();
 
+	/// @brief returns a distance-sorted list of all block mesh positions
+	void getBlocksWithMeshes(std::vector<v3bpos_t> &out);
+
 	void updateDrawListShadow(v3opos_t shadow_light_pos, v3opos_t shadow_light_dir, float radius, float length);
 	void clearDrawListShadow();
 
@@ -133,6 +136,8 @@ protected:
 	void reportMetrics(u64 save_time_us, u32 saved_blocks, u32 all_blocks) override;
 private:
 	bool isMeshOccluded(MapBlock *mesh_block, u16 mesh_size, v3pos_t cam_pos_nodes);
+
+	bool useLoopsCuller() const;
 
 	// update the vertex order in transparent mesh buffers
 	void updateTransparentMeshBuffers();

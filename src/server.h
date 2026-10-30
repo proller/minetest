@@ -10,6 +10,7 @@
 #include "gamedef.h"
 #include "content/subgames.h"
 #include "network/peerhandler.h"
+#include "network/socket.h"
 #include "util/thread.h"
 #include "util/basic_macros.h"
 #include "util/metricsbackend.h"
@@ -185,7 +186,7 @@ public:
 		const std::string &path_world,
 		const SubgameSpec &gamespec,
 		bool simple_singleplayer_mode,
-		Address bind_addr,
+		UDPSocket &&socket,
 		bool dedicated,
 		ChatInterface *iface = nullptr,
 		std::string *shutdown_errmsg = nullptr
@@ -427,7 +428,10 @@ public:
 			std::vector<MinimapMode> &modes,
 			size_t wanted_mode);
 
-	void sendDetachedInventories(session_t peer_id, bool incremental);
+	// Send detached inventories to one player (for init)
+	void sendDetachedInventories(session_t peer_id);
+	// Send detached inventory updates to everyone
+	void sendDetachedInventories();
 
 	bool joinModChannel(const std::string &channel) override;
 	bool leaveModChannel(const std::string &channel) override;

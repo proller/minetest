@@ -630,7 +630,7 @@ std::vector<v3pos_t> Pathfinder::getPath(v3pos_t source,
 	m_limits.MaxEdge.Y = max_y + searchdistance;
 	m_limits.MaxEdge.Z = max_z + searchdistance;
 
-	v3pos_t diff = m_limits.MaxEdge - m_limits.MinEdge;
+	v3pos_t diff = m_limits.MaxEdge - m_limits.MinEdge + v3pos_t(1);
 
 	m_max_index_x = diff.X;
 	m_max_index_y = diff.Y;

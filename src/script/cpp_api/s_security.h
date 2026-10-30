@@ -10,7 +10,7 @@
 #define CHECK_SECURE_PATH_INTERNAL(L, path, write_required, ptr) \
 	if (!ScriptApiSecurity::checkPath(L, path, write_required, ptr)) { \
 		throw LuaError(std::string("Mod security: Blocked attempted ") + \
-				(write_required ? "write to " : "read from ") + path); \
+				((write_required) ? "write to " : "read from ") + path); \
 	}
 
 #define CHECK_SECURE_PATH(L, path, write_required) \
@@ -27,7 +27,7 @@
 class ScriptApiSecurity : virtual public ScriptApiBase
 {
 public:
-	// Sets up security on the ScriptApi's Lua state
+	// Sets up security/sandboxing on the ScriptApi's Lua state
 	void initializeSecurity();
 #if CHECK_CLIENT_BUILD()
 	void initializeSecurityClient();
