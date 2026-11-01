@@ -3586,7 +3586,7 @@ void Game::updateClouds(float dtime)
 		this->clouds->setVisible(true);
 		this->clouds->step(dtime);
 		// this->camera->getPosition is not enough for third-person camera.
-		v3f camera_node_position = this->camera->getCameraNode()->getPosition();
+		v3opos_t camera_node_position = v3fToOpos(this->camera->getCameraNode()->getPosition());
 		v3pos_t camera_offset      = this->camera->getOffset();
 		camera_node_position.X   = camera_node_position.X + camera_offset.X * BS;
 		camera_node_position.Y   = camera_node_position.Y + camera_offset.Y * BS;

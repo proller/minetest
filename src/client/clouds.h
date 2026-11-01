@@ -65,7 +65,7 @@ public:
 
 	void step(float dtime);
 
-	void update(const v3f &camera_p, const video::SColorf &color);
+	void update(const v3opos_t &camera_p, const video::SColorf &color);
 
 	void updateCameraOffset(v3pos_t camera_offset)
 	{
@@ -134,11 +134,14 @@ private:
 		float height_bs    = m_params.height    * BS;
 		float thickness_bs = m_params.thickness * BS;
 		float far_bs       = 1000000.0f         * BS;
-		m_box = aabb3f(-far_bs, height_bs, -far_bs,
-			far_bs, height_bs + thickness_bs, far_bs);
-		m_box.MinEdge -= v3f::from(m_camera_offset) * BS;
-		m_box.MaxEdge -= v3f::from(m_camera_offset) * BS;
-	}
+        aabb3o double_box = {
+            v3opos_t{-far_bs, height_bs, -far_bs} -
+                intToFloat(m_camera_offset, BS),
+            v3opos_t{far_bs, height_bs + thickness_bs, far_bs} -
+                intToFloat(m_camera_offset, BS)};
+        m_box = aabb3f{oposToV3f(double_box.MinEdge),
+                       oposToV3f(double_box.MaxEdge)};
+        }
 
 	void updateMesh();
 	void invalidateMesh()
@@ -156,17 +159,19 @@ private:
 	video::SMaterial m_material;
 	irr_ptr<scene::SMeshBuffer> m_meshbuffer;
 	// Value of m_origin at the time the mesh was last updated
-	v2f m_mesh_origin;
+	v2opos_t m_mesh_origin;
+	// World-space center of the generated mesh, before cloud movement.
+	v2opos_t m_mesh_center;
 	// Value of center_of_drawing_in_noise_i at the time the mesh was last updated
 	v2pos_t m_last_noise_center;
 	// Was the mesh ever generated?
 	bool m_mesh_valid = false;
 
 	aabb3f m_box{{0.0f, 0.0f, 0.0f}};
-	v2f m_origin;
+	v2opos_t m_origin;
 	u16 m_cloud_radius_i;
 	u32 m_seed;
-	v3f m_camera_pos;
+	v3opos_t m_camera_pos;
 
 	v3pos_t m_camera_offset;
 	bool m_camera_inside_cloud = false;
