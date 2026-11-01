@@ -8,6 +8,7 @@
 #include "constants.h"
 #include "irr_ptr.h"
 #include "skyparams.h"
+#include "util/numeric.h"
 #include <ISceneNode.h>
 #include <SMaterial.h>
 #include <CMeshBuffer.h>
