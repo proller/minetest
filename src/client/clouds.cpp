@@ -82,11 +82,11 @@ void Clouds::updateMesh()
 {
 	// Clouds move from Z+ towards Z-
 
-	v2f camera_pos_2d(m_camera_pos.X, m_camera_pos.Z);
+	v2opos_t camera_pos_2d(m_camera_pos.X, m_camera_pos.Z);
 	// Position of cloud noise origin from the camera
-	v2f cloud_origin_from_camera_f = m_origin - camera_pos_2d;
+	const auto cloud_origin_from_camera_f = m_origin - camera_pos_2d;
 	// The center point of drawing in the noise
-	v2f center_of_drawing_in_noise_f = -cloud_origin_from_camera_f;
+	const auto center_of_drawing_in_noise_f = -cloud_origin_from_camera_f;
 	// The integer center point of drawing in the noise
 	v2pos_t center_of_drawing_in_noise_i(
 		std::floor(center_of_drawing_in_noise_f.X / cloud_size),
@@ -115,9 +115,9 @@ void Clouds::updateMesh()
 	const u32 num_faces_to_draw = is3D() ? 6 : 1;
 
 	// The world position of the integer center point of drawing in the noise
-	v2f world_center_of_drawing_in_noise_f = v2f(
-		center_of_drawing_in_noise_i.X * cloud_size,
-		center_of_drawing_in_noise_i.Y * cloud_size
+	m_mesh_center = v2opos_t(
+		static_cast<opos_t>(center_of_drawing_in_noise_i.X) * cloud_size,
+		static_cast<opos_t>(center_of_drawing_in_noise_i.Y) * cloud_size
 	) + m_origin;
 
 	// Colors with primitive shading
@@ -195,7 +195,7 @@ void Clouds::updateMesh()
 		if (!grid[i])
 			continue;
 
-		v2f p0 = v2f(xi,zi)*cloud_size + world_center_of_drawing_in_noise_f;
+		auto p0 = v2opos_t(xi, zi) * cloud_size;
 
 		video::S3DVertex v[4] = {
 			video::S3DVertex(0,0,0, 0,0,0, c_top, 0, 1),
@@ -328,10 +328,10 @@ void Clouds::updateMesh()
 				break;
 			}
 
-			v3f pos(p0.X, m_params.height * BS, p0.Y);
+			v3opos_t pos(p0.X, 0, p0.Y);
 
 			for (video::S3DVertex &vertex : v) {
-				vertex.Pos += pos;
+				vertex.Pos += v3f::from(pos);
 				vertices.push_back(vertex);
 			}
 		}
@@ -389,8 +389,8 @@ void Clouds::render()
 
 	// Update position
 	{
-		v2f off_origin = m_origin - m_mesh_origin;
-		v3opos_t rel(off_origin.X, 0, off_origin.Y);
+		const auto center = m_mesh_center + (m_origin - m_mesh_origin);
+		v3opos_t rel(center.X, m_params.height * BS, center.Y);
 		rel -= intToFloat(m_camera_offset, BS);
 		setPosition(oposToV3f(rel));
 		updateAbsolutePosition();
@@ -430,10 +430,10 @@ void Clouds::render()
 
 void Clouds::step(float dtime)
 {
-	m_origin = m_origin + dtime * BS * m_params.speed;
+	m_origin = m_origin + dtime * BS * v2opos_t::from(m_params.speed);
 }
 
-void Clouds::update(const v3f &camera_p, const video::SColorf &color_diffuse)
+void Clouds::update(const v3opos_t &camera_p, const video::SColorf &color_diffuse)
 {
 	video::SColorf ambient(m_params.color_ambient);
 	video::SColorf bright(m_params.color_bright);
@@ -449,7 +449,7 @@ void Clouds::update(const v3f &camera_p, const video::SColorf &color_diffuse)
 		float camera_height = camera_p.Y - BS * m_camera_offset.Y;
 		if (camera_height >= m_box.MinEdge.Y &&
 				camera_height <= m_box.MaxEdge.Y) {
-			v2f camera_in_noise;
+			v2opos_t camera_in_noise;
 			camera_in_noise.X = floorf((camera_p.X - m_origin.X) / cloud_size + 0.5f);
 			camera_in_noise.Y = floorf((camera_p.Z - m_origin.Y) / cloud_size + 0.5f);
 			bool filled = gridFilled(camera_in_noise.X, camera_in_noise.Y);
