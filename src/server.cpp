@@ -4157,15 +4157,15 @@ v3opos_t Server::findSpawnPos()
 
 	bool is_good = false;
 	// Limit spawn range to mapgen edges (determined by 'mapgen_limit')
-	s32 range_max = map.getMapgenParams()->getSpawnRangeMax();
+	auto range_max = map.getMapgenParams()->getSpawnRangeMax();
 
 	// Try to find a good place a few times
-	for (s32 i = 0; i < 4000 && !is_good; i++) {
-		s32 range = MYMIN(1 + i, range_max);
+	for (pos_t i = 0; i < 4000 && !is_good; i++) {
+		pos_t range = MYMIN(1 + i, range_max);
 		// We're going to try to throw the player to this position
 		v2pos_t nodepos2d = v2pos_t(
-			-range + myrand_range(0, range*2),
-			-range + myrand_range(0, range*2));
+			-range + myrand_range(pos_t{0}, range*2),
+			-range + myrand_range(pos_t{0}, range*2));
 		// Get spawn level at point
 		pos_t spawn_level = m_emerge->getSpawnLevelAtPoint(nodepos2d);
 		// Continue if MAX_MAP_GENERATION_LIMIT was returned by the mapgen to

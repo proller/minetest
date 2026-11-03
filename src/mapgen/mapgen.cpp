@@ -418,10 +418,10 @@ void Mapgen::setLighting(u8 light, v3pos_t nmin, v3pos_t nmax)
 	ScopeProfiler sp(g_profiler, "EmergeThread: update lighting", SPT_AVG);
 	VoxelArea a(nmin, nmax);
 
-	for (int z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++) {
-		for (int y = a.MinEdge.Y; y <= a.MaxEdge.Y; y++) {
+	for (s64 z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++) {
+		for (s64 y = a.MinEdge.Y; y <= a.MaxEdge.Y; y++) {
 			u32 i = vm->m_area.index(a.MinEdge.X, y, z);
-			for (int x = a.MinEdge.X; x <= a.MaxEdge.X; x++, i++)
+			for (s64 x = a.MinEdge.X; x <= a.MaxEdge.X; x++, i++)
 				vm->m_data[i].param1 = light;
 		}
 	}
@@ -485,8 +485,8 @@ void Mapgen::propagateSunlight(v3pos_t nmin, v3pos_t nmax, bool propagate_shadow
 	// NOTE: Direct access to the low 4 bits of param1 is okay here because,
 	// by definition, sunlight will never be in the night lightbank.
 
-	for (int z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++) {
-		for (int x = a.MinEdge.X; x <= a.MaxEdge.X; x++) {
+	for (s64 z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++) {
+		for (s64 x = a.MinEdge.X; x <= a.MaxEdge.X; x++) {
 			// see if we can get a light value from the overtop
 			u32 i = vm->m_area.index(x, a.MaxEdge.Y + 1, z);
 			if (vm->m_data[i].getContent() == CONTENT_IGNORE) {
@@ -498,7 +498,7 @@ void Mapgen::propagateSunlight(v3pos_t nmin, v3pos_t nmax, bool propagate_shadow
 			}
 			VoxelArea::add_y(em, i, -1);
 
-			for (int y = a.MaxEdge.Y; y >= a.MinEdge.Y; y--) {
+			for (s64 y = a.MaxEdge.Y; y >= a.MinEdge.Y; y--) {
 				MapNode &n = vm->m_data[i];
 				if (!ndef->getLightingFlags(n).sunlight_propagates)
 					break;
@@ -517,10 +517,10 @@ void Mapgen::spreadLight(const v3pos_t &nmin, const v3pos_t &nmax)
 	std::queue<std::pair<v3pos_t, u8>> queue;
 	VoxelArea a(nmin, nmax);
 
-	for (int z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++) {
-		for (int y = a.MinEdge.Y; y <= a.MaxEdge.Y; y++) {
+	for (s64 z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++) {
+		for (s64 y = a.MinEdge.Y; y <= a.MaxEdge.Y; y++) {
 			u32 i = vm->m_area.index(a.MinEdge.X, y, z);
-			for (int x = a.MinEdge.X; x <= a.MaxEdge.X; x++, i++) {
+			for (s64 x = a.MinEdge.X; x <= a.MaxEdge.X; x++, i++) {
 				MapNode &n = vm->m_data[i];
 				if (n.getContent() == CONTENT_IGNORE)
 					continue;
@@ -1123,11 +1123,11 @@ void MapgenParams::writeParams(Settings *settings) const
 }
 
 
-s32 MapgenParams::getSpawnRangeMax()
+pos_t MapgenParams::getSpawnRangeMax()
 {
 	auto [emin, emax] = get_mapgen_edges(mapgen_limit, chunksize);
-	s32 min_xz = std::max(emin.X, emin.Z), max_xz = std::min(emax.X, emax.Z);
-	return std::min(-min_xz, max_xz);
+	pos_t min_xz = std::max(emin.X, emin.Z), max_xz = std::min(emax.X, emax.Z);
+	return std::min<pos_t>(-min_xz, max_xz);
 }
 
 
@@ -1139,7 +1139,7 @@ std::pair<v3pos_t, v3pos_t> get_mapgen_edges(pos_t mapgen_limit, v3pos_t chunksi
 		0, MAX_MAP_GENERATION_LIMIT) / MAP_BLOCKSIZE;
 	// Effective mapgen limits, in nodes
 	pos_t mapgen_limit_min = -mapgen_limit_b * MAP_BLOCKSIZE;
-	pos_t mapgen_limit_max = (mapgen_limit_b + 1) * MAP_BLOCKSIZE - 1;
+	pos_t mapgen_limit_max = mapgen_limit_b * MAP_BLOCKSIZE + (MAP_BLOCKSIZE - 1);
 
 	const auto &calculate = [&] (pos_t cs) -> std::pair<pos_t, pos_t> {
 		// Central chunk offset, in blocks
@@ -1154,8 +1154,8 @@ std::pair<v3pos_t, v3pos_t> get_mapgen_edges(pos_t mapgen_limit, v3pos_t chunksi
 		pos_t ccfmax = ccmax + MAP_BLOCKSIZE;
 		// Number of complete chunks from central chunk fullminp/fullmaxp
 		// to effective mapgen limits.
-		pos_t numcmin = std::max((ccfmin - mapgen_limit_min) / csize_n, 0);
-		pos_t numcmax = std::max((mapgen_limit_max - ccfmax) / csize_n, 0);
+		pos_t numcmin = std::max<pos_t>((ccfmin - mapgen_limit_min) / csize_n, 0);
+		pos_t numcmax = std::max<pos_t>((mapgen_limit_max - ccfmax) / csize_n, 0);
 		return {ccmin - numcmin * csize_n, ccmax + numcmax * csize_n};
 	};
 

@@ -314,11 +314,11 @@ void ClientMap::getBlocksInViewRange(v3pos_t cam_pos_nodes,
 	// Define p_nodes_min/max as v3s32 because 'cam_pos_nodes -/+ box_nodes_d'
 	// can exceed the range of v3pos_t when a large view range is used near the
 	// world edges.
-	v3s32 p_nodes_min(
+	v3pos_t p_nodes_min(
 		cam_pos_nodes.X - box_nodes_d.X,
 		cam_pos_nodes.Y - box_nodes_d.Y,
 		cam_pos_nodes.Z - box_nodes_d.Z);
-	v3s32 p_nodes_max(
+	v3pos_t p_nodes_max(
 		cam_pos_nodes.X + box_nodes_d.X,
 		cam_pos_nodes.Y + box_nodes_d.Y,
 		cam_pos_nodes.Z + box_nodes_d.Z);

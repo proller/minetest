@@ -7,6 +7,8 @@
 #include "emerge.h"
 #include "mapgen/mapgen.h"
 #include "mapgen/mg_biome.h"
+#include "mapgen/mg_ore.h"
+#include "dummymap.h"
 #include "irrlicht_changes/printing.h"
 #include "mock_server.h"
 
@@ -20,6 +22,7 @@ public:
 
 	void testBiomeGen(IGameDef *gamedef);
 	void testMapgenEdges();
+	void testOrePositions(IGameDef *gamedef);
 };
 
 static TestMapgen g_test_instance;
@@ -40,6 +43,84 @@ void TestMapgen::runTests(IGameDef *gamedef)
 {
 	TEST(testBiomeGen, gamedef);
 	TEST(testMapgenEdges);
+	TEST(testOrePositions, gamedef);
+}
+
+void TestMapgen::testOrePositions(IGameDef *gamedef)
+{
+#if USE_POS32 == 64
+	DummyMap map(gamedef, v3bpos_t(0), v3bpos_t(0));
+	constexpr s64 far = 10000000000000000LL;
+	const NoiseParams flat_noise(1, 0, v3f(100, 100, 100), 9, 1, 0.5, 2);
+
+	const auto generate = [&](OreType type, v3pos_t min) {
+		std::unique_ptr<Ore> ore;
+		switch (type) {
+		case ORE_SCATTER: ore = std::make_unique<OreScatter>(); break;
+		case ORE_SHEET: {
+			auto p = std::make_unique<OreSheet>();
+			p->column_height_min = 1;
+			p->column_height_max = 1;
+			p->column_midpoint_factor = 0.5f;
+			ore = std::move(p);
+			break;
+		}
+		case ORE_PUFF: {
+			auto p = std::make_unique<OrePuff>();
+			p->np_puff_top = p->np_puff_bottom = flat_noise;
+			ore = std::move(p);
+			break;
+		}
+		case ORE_BLOB: ore = std::make_unique<OreBlob>(); break;
+		case ORE_VEIN: {
+			auto p = std::make_unique<OreVein>();
+			p->random_factor = 0;
+			ore = std::move(p);
+			break;
+		}
+		case ORE_STRATUM: ore = std::make_unique<OreStratum>(); break;
+		}
+		ore->c_ore = t_CONTENT_BRICK;
+		ore->c_wherein = {CONTENT_AIR};
+		ore->clust_scarcity = 1;
+		ore->clust_num_ores = 8;
+		ore->clust_size = 2;
+		ore->biomes.insert(42);
+		ore->nthresh = -10;
+		ore->np = flat_noise;
+
+		MMVManip vm(&map);
+		const v3pos_t max = min + v3pos_t(3);
+		vm.addArea(VoxelArea(min, max));
+		for (s64 z = min.Z; z <= max.Z; z++)
+		for (s64 y = min.Y; y <= max.Y; y++)
+		for (s64 x = min.X; x <= max.X; x++)
+			vm.setNode(v3pos_t(x, y, z), MapNode(CONTENT_AIR));
+		std::vector<biome_t> biomemap(16, 42);
+		ore->generate(&vm, 42, 12345, min, max, biomemap.data());
+
+		std::vector<content_t> result;
+		for (u32 i = 0; i < vm.m_area.getVolume(); i++)
+			result.push_back(vm.m_data[i].getContent());
+		return result;
+	};
+
+	for (OreType type : {ORE_SCATTER, ORE_SHEET, ORE_PUFF, ORE_BLOB,
+			ORE_VEIN, ORE_STRATUM}) {
+		const v3pos_t positions[][2] = {
+			{v3pos_t(100, -100, 100), v3pos_t(far, -far, far)},
+			{v3pos_t(-100, 100, -100), v3pos_t(-far, far, -far)},
+		};
+		for (const auto &pair : positions) {
+			auto near = generate(type, pair[0]);
+			UASSERT(std::count(near.begin(), near.end(), t_CONTENT_BRICK) > 0);
+			auto distant = generate(type, pair[1]);
+			if (distant != near)
+				errorstream << "Ore type " << (int)type << " differs at " << pair[1] << std::endl;
+			UASSERT(distant == near);
+		}
+	}
+#endif
 }
 
 void TestMapgen::testBiomeGen(IGameDef *gamedef)
@@ -137,4 +218,12 @@ void TestMapgen::testMapgenEdges()
 	std::tie(emin, emax) = get_mapgen_edges(502 * MAP_BLOCKSIZE, v3pos_t(1, 2, 1));
 	UASSERTEQ(auto, emin, v3pos_t(-8016));
 	UASSERTEQ(auto, emax, v3pos_t(8031, 8015, 8031));
+
+	MapgenParams params;
+	std::tie(emin, emax) = get_mapgen_edges(params.mapgen_limit, params.chunksize);
+	UASSERT(emin.X < 0 && emax.X > 0);
+	UASSERT(params.getSpawnRangeMax() > 0);
+#if USE_POS32 == 64
+	UASSERT(params.getSpawnRangeMax() > S32_MAX);
+#endif
 }

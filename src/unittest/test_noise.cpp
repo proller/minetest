@@ -5,6 +5,7 @@
 #include "test.h"
 
 #include <cmath>
+#include <limits>
 #include "exceptions.h"
 #include "noise.h"
 
@@ -26,6 +27,7 @@ public:
 	void testNoise3dPoint();
 	void testNoise3dBulk();
 	void testNoiseInvalidParams();
+	void testFarNoise();
 
 	static const float expected_2d_results[10 * 10];
 	static const float expected_3d_results[10 * 10 * 10];
@@ -46,9 +48,33 @@ void TestNoise::runTests(IGameDef *gamedef)
 	TEST(testNoise3dPoint);
 	TEST(testNoise3dBulk);
 	TEST(testNoiseInvalidParams);
+	TEST(testFarNoise);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+void TestNoise::testFarNoise()
+{
+#if USE_POS32 == 64
+	NoiseParams np(0, 1, v3f(1000, 1000, 1000), 9, 3, 0.6, 2.0);
+	const noise_coord_t far = std::numeric_limits<noise_coord_t>::digits >= 64 ?
+			static_cast<noise_coord_t>(10000000000000000LL) :
+			static_cast<noise_coord_t>(1000000000000LL);
+	Noise noise2(&np, 1337, 4, 4);
+	const float next2 = noise2.noiseMap2D(far, -far)[1];
+	const float shifted2 = noise2.noiseMap2D(far + 1, -far)[0];
+	UASSERT(std::isfinite(next2));
+	UASSERT(std::fabs(next2 - shifted2) < 0.001f);
+	UASSERT(std::fabs(shifted2 - NoiseFractal2D(&np, far + 1, -far, 1337)) < 0.001f);
+
+	Noise noise3(&np, 1337, 4, 4, 4);
+	const float next3 = noise3.noiseMap3D(far, -far, far)[1];
+	const float shifted3 = noise3.noiseMap3D(far + 1, -far, far)[0];
+	UASSERT(std::isfinite(next3));
+	UASSERT(std::fabs(next3 - shifted3) < 0.001f);
+	UASSERT(std::fabs(shifted3 - NoiseFractal3D(&np, far + 1, -far, far, 1337)) < 0.001f);
+#endif
+}
 
 void TestNoise::testNoise2dAtOriginWithZeroSeed()
 {

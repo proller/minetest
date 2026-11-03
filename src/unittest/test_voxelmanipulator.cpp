@@ -101,6 +101,22 @@ void TestVoxelManipulator::testEmerge(IGameDef *gamedef)
 	// clear
 	vm.clear();
 	UASSERT(vm.m_area.hasEmptyExtent());
+
+#if USE_POS32 == 64
+	// Exercise blocks and node coordinates beyond the signed 32-bit range.
+	const v3bpos_t far_block(6250000000LL, -6250000000LL, 6250000000LL);
+	const v3pos_t far_node = far_block * bs;
+	vm.initialEmerge(far_block, far_block, false);
+	UASSERT(vm.m_area.contains(far_node));
+	UASSERT(!vm.exists(far_node));
+	vm.setNode(far_node, MapNode(t_CONTENT_BRICK));
+	vm.initialEmerge(far_block, far_block + v3bpos_t(0, 1, 1), false);
+	UASSERTEQ(auto, vm.getNodeNoExNoEmerge(far_node).getContent(), t_CONTENT_BRICK);
+	vm.setFlags(vm.m_area, VOXELFLAG_NO_DATA);
+	UASSERT(!vm.exists(far_node));
+	vm.clearFlags(vm.m_area, VOXELFLAG_NO_DATA);
+	UASSERT(vm.exists(far_node));
+#endif
 }
 
 void TestVoxelManipulator::testBlitBack(IGameDef *gamedef)

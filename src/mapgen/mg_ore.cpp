@@ -18,6 +18,42 @@ const FlagDesc flagdesc_ore[] = {
 	{NULL,                        0}
 };
 
+// Ore ranges are bounded by a mapchunk; draw an offset so absolute world
+// coordinates do not have to fit in PcgRandom's signed 32-bit range.
+static pos_t randomPosition(PcgRandom &pr, pos_t min, pos_t max)
+{
+	if (max < min)
+		throw PrngException("Invalid range (max < min)");
+	u64 width = static_cast<u64>(max) - static_cast<u64>(min);
+	if (width > U32_MAX)
+		throw PrngException("Ore position range too large");
+	return static_cast<pos_t>(static_cast<s64>(min) + pr.range(static_cast<u32>(width + 1)));
+}
+
+// The two coordinates are close together, but their sum may overflow.
+static pos_t midpoint(pos_t a, pos_t b)
+{
+	s64 delta = static_cast<s64>(b) - static_cast<s64>(a);
+	s64 mid = static_cast<s64>(a) + delta / 2;
+	if (delta % 2 && delta > 0 && mid < 0)
+		++mid;
+	else if (delta % 2 && delta < 0 && mid > 0)
+		--mid;
+	return static_cast<pos_t>(mid);
+}
+
+static noise_coord_t addNoiseOffset(pos_t position, float offset)
+{
+	// Preserve existing float rounding in the ordinary coordinate range.
+#if USE_POS32 == 64
+	if (position >= -16777216 && position <= 16777216)
+		return static_cast<float>(position) + offset;
+	return static_cast<noise_coord_t>(position) + offset;
+#else
+	return static_cast<float>(position) + offset;
+#endif
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -84,8 +120,8 @@ size_t Ore::placeOre(Mapgen *mg, u32 blockseed, v3pos_t nmin, v3pos_t nmax)
 	if (nmin.Y > y_max || nmax.Y < y_min)
 		return 0;
 
-	int actual_ymin = MYMAX(nmin.Y, y_min);
-	int actual_ymax = MYMIN(nmax.Y, y_max);
+	pos_t actual_ymin = MYMAX(nmin.Y, y_min);
+	pos_t actual_ymax = MYMIN(nmax.Y, y_max);
 	if (clust_size >= actual_ymax - actual_ymin + 1)
 		return 0;
 
@@ -143,9 +179,9 @@ void OreScatter::generate(MMVManip *vm, int mapseed, u32 blockseed,
 	u32 nclusters = volume / clust_scarcity;
 
 	for (u32 i = 0; i != nclusters; i++) {
-		int x0 = pr.range(nmin.X, nmax.X - csize + 1);
-		int y0 = pr.range(nmin.Y, nmax.Y - csize + 1);
-		int z0 = pr.range(nmin.Z, nmax.Z - csize + 1);
+		pos_t x0 = randomPosition(pr, nmin.X, nmax.X - csize + 1);
+		pos_t y0 = randomPosition(pr, nmin.Y, nmax.Y - csize + 1);
+		pos_t z0 = randomPosition(pr, nmin.Z, nmax.Z - csize + 1);
 
 		if ((flags & OREFLAG_USE_NOISE) &&
 			(NoiseFractal3D(&np, x0, y0, z0, mapseed) < nthresh))
@@ -197,24 +233,24 @@ void OreSheet::generate(MMVManip *vm, int mapseed, u32 blockseed,
 	MapNode n_ore(c_ore, 0, ore_param2);
 
 	u16 max_height = column_height_max;
-	int y_start_min = nmin.Y + max_height;
-	int y_start_max = nmax.Y - max_height;
+	pos_t y_start_min = nmin.Y + max_height;
+	pos_t y_start_max = nmax.Y - max_height;
 
-	int y_start = y_start_min < y_start_max ?
-		pr.range(y_start_min, y_start_max) :
-		(y_start_min + y_start_max) / 2;
+	pos_t y_start = y_start_min < y_start_max ?
+		randomPosition(pr, y_start_min, y_start_max) :
+		midpoint(y_start_min, y_start_max);
 
 	if (!noise) {
 		int sx = nmax.X - nmin.X + 1;
 		int sz = nmax.Z - nmin.Z + 1;
 		noise = new Noise(&np, 0, sx, sz);
 	}
-	noise->seed = mapseed + y_start;
+	noise->seed = static_cast<s32>(static_cast<u32>(mapseed) + static_cast<u32>(y_start));
 	noise->noiseMap2D(nmin.X, nmin.Z);
 
 	size_t index = 0;
-	for (int z = nmin.Z; z <= nmax.Z; z++)
-	for (int x = nmin.X; x <= nmax.X; x++, index++) {
+	for (s64 z = nmin.Z; z <= nmax.Z; z++)
+	for (s64 x = nmin.X; x <= nmax.X; x++, index++) {
 		float noiseval = noise->result[index];
 		if (noiseval < nthresh)
 			continue;
@@ -226,11 +262,12 @@ void OreSheet::generate(MMVManip *vm, int mapseed, u32 blockseed,
 		}
 
 		u16 height = pr.range(column_height_min, column_height_max);
-		int ymidpoint = y_start + noiseval;
-		int y0 = MYMAX(nmin.Y, ymidpoint - height * (1 - column_midpoint_factor));
-		int y1 = MYMIN(nmax.Y, y0 + height - 1);
+		pos_t ymidpoint = addNoiseOffset(y_start, noiseval);
+		pos_t y0 = MYMAX(nmin.Y, addNoiseOffset(ymidpoint,
+				-height * (1 - column_midpoint_factor)));
+		pos_t y1 = MYMIN(nmax.Y, y0 + height - 1);
 
-		for (int y = y0; y <= y1; y++) {
+		for (s64 y = y0; y <= y1; y++) {
 			u32 i = vm->m_area.index(x, y, z);
 			if (!vm->m_area.contains(i))
 				continue;
@@ -273,7 +310,7 @@ void OrePuff::generate(MMVManip *vm, int mapseed, u32 blockseed,
 	PcgRandom pr(blockseed + 4234);
 	MapNode n_ore(c_ore, 0, ore_param2);
 
-	int y_start = pr.range(nmin.Y, nmax.Y);
+	pos_t y_start = randomPosition(pr, nmin.Y, nmax.Y);
 
 	if (!noise) {
 		int sx = nmax.X - nmin.X + 1;
@@ -283,13 +320,13 @@ void OrePuff::generate(MMVManip *vm, int mapseed, u32 blockseed,
 		noise_puff_bottom = new Noise(&np_puff_bottom, 0, sx, sz);
 	}
 
-	noise->seed = mapseed + y_start;
+	noise->seed = static_cast<s32>(static_cast<u32>(mapseed) + static_cast<u32>(y_start));
 	noise->noiseMap2D(nmin.X, nmin.Z);
 	bool noise_generated = false;
 
 	size_t index = 0;
-	for (int z = nmin.Z; z <= nmax.Z; z++)
-	for (int x = nmin.X; x <= nmax.X; x++, index++) {
+	for (s64 z = nmin.Z; z <= nmax.Z; z++)
+	for (s64 x = nmin.X; x <= nmax.X; x++, index++) {
 		float noiseval = noise->result[index];
 		if (noiseval < nthresh)
 			continue;
@@ -317,14 +354,14 @@ void OrePuff::generate(MMVManip *vm, int mapseed, u32 blockseed,
 			}
 		}
 
-		int ymid = y_start;
-		int y0 = ymid - nbottom;
-		int y1 = ymid + ntop;
+		pos_t ymid = y_start;
+		pos_t y0 = addNoiseOffset(ymid, -nbottom);
+		pos_t y1 = addNoiseOffset(ymid, ntop);
 
 		if ((flags & OREFLAG_PUFF_ADDITIVE) && (y0 > y1))
 			std::swap(y0, y1);
 
-		for (int y = y0; y <= y1; y++) {
+		for (s64 y = y0; y <= y1; y++) {
 			u32 i = vm->m_area.index(x, y, z);
 			if (!vm->m_area.contains(i))
 				continue;
@@ -365,9 +402,9 @@ void OreBlob::generate(MMVManip *vm, int mapseed, u32 blockseed,
 		noise = new Noise(&np, mapseed, csize, csize, csize);
 
 	for (u32 i = 0; i != nblobs; i++) {
-		int x0 = pr.range(nmin.X, nmax.X - csize + 1);
-		int y0 = pr.range(nmin.Y, nmax.Y - csize + 1);
-		int z0 = pr.range(nmin.Z, nmax.Z - csize + 1);
+		pos_t x0 = randomPosition(pr, nmin.X, nmax.X - csize + 1);
+		pos_t y0 = randomPosition(pr, nmin.Y, nmax.Y - csize + 1);
+		pos_t z0 = randomPosition(pr, nmin.Z, nmax.Z - csize + 1);
 
 		if (biomemap && !biomes.empty()) {
 			u32 bmapidx = sizex * (z0 - nmin.Z) + (x0 - nmin.X);
@@ -457,9 +494,9 @@ void OreVein::generate(MMVManip *vm, int mapseed, u32 blockseed,
 
 	bool noise_generated = false;
 	size_t index = 0;
-	for (int z = nmin.Z; z <= nmax.Z; z++)
-	for (int y = nmin.Y; y <= nmax.Y; y++)
-	for (int x = nmin.X; x <= nmax.X; x++, index++) {
+	for (s64 z = nmin.Z; z <= nmax.Z; z++)
+	for (s64 y = nmin.Y; y <= nmax.Y; y++)
+	for (s64 x = nmin.X; x <= nmax.X; x++, index++) {
 		u32 i = vm->m_area.index(x, y, z);
 		if (!vm->m_area.contains(i))
 			continue;
@@ -544,30 +581,34 @@ void OreStratum::generate(MMVManip *vm, int mapseed, u32 blockseed,
 
 	size_t index = 0;
 
-	for (int z = nmin.Z; z <= nmax.Z; z++)
-	for (int x = nmin.X; x <= nmax.X; x++, index++) {
+	for (s64 z = nmin.Z; z <= nmax.Z; z++)
+	for (s64 x = nmin.X; x <= nmax.X; x++, index++) {
 		if (biomemap && !biomes.empty()) {
 			auto it = biomes.find(biomemap[index]);
 			if (it == biomes.end())
 				continue;
 		}
 
-		int y0;
-		int y1;
+		pos_t y0;
+		pos_t y1;
 
 		if (flags & OREFLAG_USE_NOISE) {
 			float nhalfthick = ((flags & OREFLAG_USE_NOISE2) ?
 				noise_stratum_thickness->result[index] : (float)stratum_thickness) /
 				2.0f;
 			float nmid = noise->result[index];
-			y0 = MYMAX(nmin.Y, std::ceil(nmid - nhalfthick));
-			y1 = MYMIN(nmax.Y, nmid + nhalfthick);
+			const noise_coord_t low = std::ceil(nmid - nhalfthick);
+			const noise_coord_t high = std::trunc(nmid + nhalfthick);
+			if (low > nmax.Y || high < nmin.Y)
+				continue;
+			y0 = low < nmin.Y ? nmin.Y : static_cast<pos_t>(low);
+			y1 = high > nmax.Y ? nmax.Y : static_cast<pos_t>(high);
 		} else { // Simple horizontal stratum
 			y0 = nmin.Y;
 			y1 = nmax.Y;
 		}
 
-		for (int y = y0; y <= y1; y++) {
+		for (s64 y = y0; y <= y1; y++) {
 			if (pr.range(1, clust_scarcity) != 1)
 				continue;
 

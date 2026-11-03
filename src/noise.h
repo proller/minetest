@@ -143,6 +143,12 @@ struct NoiseParams {
 	}
 };
 
+#if USE_POS32 == 64
+using noise_coord_t = long double;
+#else
+using noise_coord_t = float;
+#endif
+
 class Noise {
 public:
 	NoiseParams np;
@@ -163,18 +169,18 @@ public:
 	void setOctaves(int octaves);
 
 	void valueMap2D(
-		float x, float y,
+		noise_coord_t x, noise_coord_t y,
 		float step_x, float step_y,
 		s32 seed);
 	void valueMap3D(
-		float x, float y, float z,
+		noise_coord_t x, noise_coord_t y, noise_coord_t z,
 		float step_x, float step_y, float step_z,
 		s32 seed);
 
-	float *noiseMap2D(float x, float y, float *persistence_map=NULL);
-	float *noiseMap3D(float x, float y, float z, float *persistence_map=NULL);
+	float *noiseMap2D(noise_coord_t x, noise_coord_t y, float *persistence_map=NULL);
+	float *noiseMap3D(noise_coord_t x, noise_coord_t y, noise_coord_t z, float *persistence_map=NULL);
 
-	inline float *noiseMap2D_PO(float x, float xoff, float y, float yoff,
+	inline float *noiseMap2D_PO(noise_coord_t x, float xoff, noise_coord_t y, float yoff,
 		float *persistence_map=NULL)
 	{
 		return noiseMap2D(
@@ -183,8 +189,8 @@ public:
 			persistence_map);
 	}
 
-	inline float *noiseMap3D_PO(float x, float xoff, float y, float yoff,
-		float z, float zoff, float *persistence_map=NULL)
+	inline float *noiseMap3D_PO(noise_coord_t x, float xoff, noise_coord_t y, float yoff,
+		noise_coord_t z, float zoff, float *persistence_map=NULL)
 	{
 		return noiseMap3D(
 			x + xoff * np.spread.X,
@@ -201,11 +207,12 @@ private:
 
 };
 
-float NoiseFractal2D(const NoiseParams *np, float x, float y, s32 seed);
-float NoiseFractal3D(const NoiseParams *np, float x, float y, float z, s32 seed);
+float NoiseFractal2D(const NoiseParams *np, noise_coord_t x, noise_coord_t y, s32 seed);
+float NoiseFractal3D(const NoiseParams *np, noise_coord_t x, noise_coord_t y,
+		noise_coord_t z, s32 seed);
 
-inline float NoiseFractal2D_PO(NoiseParams *np, float x, float xoff,
-	float y, float yoff, s32 seed)
+inline float NoiseFractal2D_PO(NoiseParams *np, noise_coord_t x, float xoff,
+	noise_coord_t y, float yoff, s32 seed)
 {
 	return NoiseFractal2D(np,
 		x + xoff * np->spread.X,
@@ -213,8 +220,8 @@ inline float NoiseFractal2D_PO(NoiseParams *np, float x, float xoff,
 		seed);
 }
 
-inline float NoiseFractal3D_PO(NoiseParams *np, float x, float xoff,
-	float y, float yoff, float z, float zoff, s32 seed)
+inline float NoiseFractal3D_PO(NoiseParams *np, noise_coord_t x, float xoff,
+	noise_coord_t y, float yoff, noise_coord_t z, float zoff, s32 seed)
 {
 	return NoiseFractal3D(np,
 		x + xoff * np->spread.X,
@@ -227,10 +234,10 @@ inline float NoiseFractal3D_PO(NoiseParams *np, float x, float xoff,
 float noise2d(int x, int y, s32 seed);
 float noise3d(int x, int y, int z, s32 seed);
 
-float noise2d_value(float x, float y, s32 seed, bool eased=true);
-float noise3d_value(float x, float y, float z, s32 seed, bool eased=false);
+float noise2d_value(noise_coord_t x, noise_coord_t y, s32 seed, bool eased=true);
+float noise3d_value(noise_coord_t x, noise_coord_t y, noise_coord_t z, s32 seed, bool eased=false);
 
-float noise2d_fractal(float x, float y, s32 seed,
+float noise2d_fractal(noise_coord_t x, noise_coord_t y, s32 seed,
 		int octaves, float persistence, bool eased=true);
 
 inline float easeCurve(float t)

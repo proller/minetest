@@ -828,9 +828,9 @@ void MMVManip::initialEmerge(v3bpos_t p_min, v3bpos_t p_max, bool load_if_inexis
 	const bool all_new = m_area.hasEmptyExtent();
 	addArea(block_area_nodes);
 
-	for(s32 z=p_min.Z; z<=p_max.Z; z++)
-	for(s32 y=p_min.Y; y<=p_max.Y; y++)
-	for(s32 x=p_min.X; x<=p_max.X; x++)
+	for(s64 z=p_min.Z; z<=p_max.Z; z++)
+	for(s64 y=p_min.Y; y<=p_max.Y; y++)
+	for(s64 x=p_min.X; x<=p_max.X; x++)
 	{
 		v3bpos_t p(x,y,z);
 		// if this block was already in the vmanip and it has data, skip

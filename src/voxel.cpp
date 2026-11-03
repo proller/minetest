@@ -150,8 +150,8 @@ void VoxelManipulator::addArea(const VoxelArea &area)
 
 	// Copy old data
 	u32 old_x_width = m_area.getExtent().X;
-	for(s32 z=m_area.MinEdge.Z; z<=m_area.MaxEdge.Z; z++)
-	for(s32 y=m_area.MinEdge.Y; y<=m_area.MaxEdge.Y; y++)
+	for(s64 z=m_area.MinEdge.Z; z<=m_area.MaxEdge.Z; z++)
+	for(s64 y=m_area.MinEdge.Y; y<=m_area.MaxEdge.Y; y++)
 	{
 		unsigned int old_index = m_area.index(m_area.MinEdge.X,y,z);
 		unsigned int new_index = new_area.index(m_area.MinEdge.X,y,z);
@@ -258,8 +258,8 @@ void VoxelManipulator::setFlags(const VoxelArea &a, u8 flags)
 	assert(m_area.contains(a));
 
 	const s32 stride = a.getExtent().X;
-	for (s32 z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++)
-	for (s32 y = a.MinEdge.Y; y <= a.MaxEdge.Y; y++)
+	for (s64 z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++)
+	for (s64 y = a.MinEdge.Y; y <= a.MaxEdge.Y; y++)
 	{
 		const s32 start = m_area.index(a.MinEdge.X, y, z);
 		for (s32 i = start; i < start + stride; i++)
@@ -275,8 +275,8 @@ void VoxelManipulator::clearFlags(const VoxelArea &a, u8 flags)
 	assert(m_area.contains(a));
 
 	const s32 stride = a.getExtent().X;
-	for (s32 z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++)
-	for (s32 y = a.MinEdge.Y; y <= a.MaxEdge.Y; y++)
+	for (s64 z = a.MinEdge.Z; z <= a.MaxEdge.Z; z++)
+	for (s64 y = a.MinEdge.Y; y <= a.MaxEdge.Y; y++)
 	{
 		const s32 start = m_area.index(a.MinEdge.X, y, z);
 		for (s32 i = start; i < start + stride; i++)

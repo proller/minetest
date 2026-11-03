@@ -129,7 +129,7 @@ struct MapgenParams {
 	// Default settings for g_settings such as flags
 	virtual void setDefaultSettings(Settings *settings) {};
 
-	s32 getSpawnRangeMax();
+	pos_t getSpawnRangeMax();
 
 	// Mostly arbitrary limit
 	constexpr static u32 MAX_CHUNK_VOLUME = 2000;

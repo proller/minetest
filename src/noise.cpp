@@ -32,13 +32,11 @@
 #include "util/string.h"
 #include "exceptions.h"
 
-#define NOISE_MAGIC_X    1619
-#define NOISE_MAGIC_Y    31337
-#define NOISE_MAGIC_Z    52591
+#define NOISE_MAGIC_X    1619U
+#define NOISE_MAGIC_Y    31337U
+#define NOISE_MAGIC_Z    52591U
 // Unsigned magic seed prevents undefined behavior.
 #define NOISE_MAGIC_SEED 1013U
-
-#define myfloor(x) ((x) < 0 ? (int)(x) - 1 : (int)(x))
 
 const FlagDesc flagdesc_noiseparams[] = {
 	{"defaults",    NOISE_FLAG_DEFAULTS},
@@ -237,43 +235,66 @@ inline float triLinearInterpolation(
 	return linearInterpolation(u, v, z);
 }
 
-float noise2d_value(float x, float y, s32 seed, bool eased)
+// The hash uses only 31 coordinate bits. Reduce before converting to s32.
+static s32 noiseLatticeCoord(noise_coord_t floored)
+{
+	constexpr noise_coord_t period = 2147483648.0L;
+	if (!std::isfinite(floored))
+		throw InvalidNoiseParamsException("Non-finite noise coordinate");
+	if (floored >= -period && floored < period)
+		return static_cast<s32>(floored);
+	return static_cast<s32>(std::fmod(floored, period));
+}
+
+static s32 nextNoiseLatticeCoord(s32 coord)
+{
+	return coord == S32_MAX ? 0 : coord + 1;
+}
+
+// Preserve the historical choice of the preceding cell at negative integers.
+static noise_coord_t noisePointFloor(noise_coord_t value)
+{
+	auto floored = std::floor(value);
+	return value < 0 && floored == value ? floored - 1 : floored;
+}
+
+float noise2d_value(noise_coord_t x, noise_coord_t y, s32 seed, bool eased)
 {
 	// Calculate the integer coordinates
-	int x0 = myfloor(x);
-	int y0 = myfloor(y);
+	const auto floor_x = noisePointFloor(x), floor_y = noisePointFloor(y);
+	const s32 x0 = noiseLatticeCoord(floor_x), y0 = noiseLatticeCoord(floor_y);
 	// Calculate the remaining part of the coordinates
-	float xl = x - (float)x0;
-	float yl = y - (float)y0;
+	float xl = x - floor_x;
+	float yl = y - floor_y;
 	// Get values for corners of square
 	float v00 = noise2d(x0, y0, seed);
-	float v10 = noise2d(x0+1, y0, seed);
-	float v01 = noise2d(x0, y0+1, seed);
-	float v11 = noise2d(x0+1, y0+1, seed);
+	float v10 = noise2d(nextNoiseLatticeCoord(x0), y0, seed);
+	float v01 = noise2d(x0, nextNoiseLatticeCoord(y0), seed);
+	float v11 = noise2d(nextNoiseLatticeCoord(x0), nextNoiseLatticeCoord(y0), seed);
 	// Interpolate
 	return biLinearInterpolation(v00, v10, v01, v11, xl, yl, eased);
 }
 
 
-float noise3d_value(float x, float y, float z, s32 seed, bool eased)
+float noise3d_value(noise_coord_t x, noise_coord_t y, noise_coord_t z, s32 seed, bool eased)
 {
 	// Calculate the integer coordinates
-	int x0 = myfloor(x);
-	int y0 = myfloor(y);
-	int z0 = myfloor(z);
+	const auto floor_x = noisePointFloor(x), floor_y = noisePointFloor(y), floor_z = noisePointFloor(z);
+	const s32 x0 = noiseLatticeCoord(floor_x), y0 = noiseLatticeCoord(floor_y), z0 = noiseLatticeCoord(floor_z);
+	const s32 x1 = nextNoiseLatticeCoord(x0), y1 = nextNoiseLatticeCoord(y0), z1 = nextNoiseLatticeCoord(z0);
 	// Calculate the remaining part of the coordinates
-	float xl = x - (float)x0;
-	float yl = y - (float)y0;
-	float zl = z - (float)z0;
+	float xl = x - floor_x;
+	float yl = y - floor_y;
+	float zl = z - floor_z;
 	// Get values for corners of cube
 	float v000 = noise3d(x0,     y0,     z0,     seed);
-	float v100 = noise3d(x0 + 1, y0,     z0,     seed);
-	float v010 = noise3d(x0,     y0 + 1, z0,     seed);
-	float v110 = noise3d(x0 + 1, y0 + 1, z0,     seed);
-	float v001 = noise3d(x0,     y0,     z0 + 1, seed);
-	float v101 = noise3d(x0 + 1, y0,     z0 + 1, seed);
-	float v011 = noise3d(x0,     y0 + 1, z0 + 1, seed);
-	float v111 = noise3d(x0 + 1, y0 + 1, z0 + 1, seed);
+	float v100 = noise3d(x1, y0, z0, seed);
+	float v010 = noise3d(x0, y1, z0, seed);
+	float v110 = noise3d(x1, y1, z0, seed);
+	float v001 = noise3d(x0, y0, z1, seed);
+	float v101 = noise3d(x1, y0, z1, seed);
+	float v011 = noise3d(x0, y1, z1, seed);
+	float v111 = noise3d(x1, y1, z1, seed);
 	// Interpolate
 	return triLinearInterpolation(
 		v000, v100, v010, v110,
@@ -283,15 +304,17 @@ float noise3d_value(float x, float y, float z, s32 seed, bool eased)
 }
 
 
-float noise2d_fractal(float x, float y, s32 seed,
+float noise2d_fractal(noise_coord_t x, noise_coord_t y, s32 seed,
 	int octaves, float persistence, bool eased)
 {
 	float a = 0;
 	float f = 1.0;
 	float g = 1.0;
+	const bool legacy = std::fabs(x) <= 16777216 && std::fabs(y) <= 16777216;
 	for (int i = 0; i < octaves; i++)
 	{
-		a += g * noise2d_value(x * f, y * f, seed + i, eased);
+		a += g * noise2d_value(legacy ? static_cast<float>(x) * f : x * f,
+				legacy ? static_cast<float>(y) * f : y * f, seed + i, eased);
 		f *= 2.0;
 		g *= persistence;
 	}
@@ -311,18 +334,25 @@ float contour(float v)
 ///////////////////////// [ Fractal value noise ] ////////////////////////////
 
 
-float NoiseFractal2D(const NoiseParams *np, float x, float y, s32 seed)
+float NoiseFractal2D(const NoiseParams *np, noise_coord_t x, noise_coord_t y, s32 seed)
 {
 	float a = 0;
 	float f = 1.0;
 	float g = 1.0;
 
-	x /= np->spread.X;
-	y /= np->spread.Y;
+	const bool legacy = std::fabs(x) <= 16777216 && std::fabs(y) <= 16777216;
+	if (legacy) {
+		x = static_cast<float>(x) / np->spread.X;
+		y = static_cast<float>(y) / np->spread.Y;
+	} else {
+		x /= np->spread.X;
+		y /= np->spread.Y;
+	}
 	seed += np->seed;
 
 	for (size_t i = 0; i < np->octaves; i++) {
-		float noiseval = noise2d_value(x * f, y * f, seed + i,
+		float noiseval = noise2d_value(legacy ? static_cast<float>(x) * f : x * f,
+			legacy ? static_cast<float>(y) * f : y * f, seed + i,
 			np->flags & (NOISE_FLAG_DEFAULTS | NOISE_FLAG_EASED));
 
 		if (np->flags & NOISE_FLAG_ABSVALUE)
@@ -337,19 +367,29 @@ float NoiseFractal2D(const NoiseParams *np, float x, float y, s32 seed)
 }
 
 
-float NoiseFractal3D(const NoiseParams *np, float x, float y, float z, s32 seed)
+float NoiseFractal3D(const NoiseParams *np, noise_coord_t x, noise_coord_t y, noise_coord_t z, s32 seed)
 {
 	float a = 0;
 	float f = 1.0;
 	float g = 1.0;
 
-	x /= np->spread.X;
-	y /= np->spread.Y;
-	z /= np->spread.Z;
+	const bool legacy = std::fabs(x) <= 16777216 && std::fabs(y) <= 16777216 &&
+			std::fabs(z) <= 16777216;
+	if (legacy) {
+		x = static_cast<float>(x) / np->spread.X;
+		y = static_cast<float>(y) / np->spread.Y;
+		z = static_cast<float>(z) / np->spread.Z;
+	} else {
+		x /= np->spread.X;
+		y /= np->spread.Y;
+		z /= np->spread.Z;
+	}
 	seed += np->seed;
 
 	for (size_t i = 0; i < np->octaves; i++) {
-		float noiseval = noise3d_value(x * f, y * f, z * f, seed + i,
+		float noiseval = noise3d_value(legacy ? static_cast<float>(x) * f : x * f,
+			legacy ? static_cast<float>(y) * f : y * f,
+			legacy ? static_cast<float>(z) * f : z * f, seed + i,
 			np->flags & NOISE_FLAG_EASED);
 
 		if (np->flags & NOISE_FLAG_ABSVALUE)
@@ -494,7 +534,7 @@ void Noise::resizeNoiseBuf(bool is3d)
  */
 #define idx(x, y) ((y) * nlx + (x))
 void Noise::valueMap2D(
-		float x, float y,
+		noise_coord_t x, noise_coord_t y,
 		float step_x, float step_y,
 		s32 seed)
 {
@@ -504,10 +544,12 @@ void Noise::valueMap2D(
 	s32 x0, y0;
 
 	bool eased = np.flags & (NOISE_FLAG_DEFAULTS | NOISE_FLAG_EASED);
-	x0 = std::floor(x);
-	y0 = std::floor(y);
-	u = x - (float)x0;
-	v = y - (float)y0;
+	const auto floor_x = std::floor(x);
+	const auto floor_y = std::floor(y);
+	x0 = noiseLatticeCoord(floor_x);
+	y0 = noiseLatticeCoord(floor_y);
+	u = x - floor_x;
+	v = y - floor_y;
 	orig_u = u;
 
 	//calculate noise point lattice
@@ -556,7 +598,7 @@ void Noise::valueMap2D(
 
 #define idx(x, y, z) ((z) * nly * nlx + (y) * nlx + (x))
 void Noise::valueMap3D(
-		float x, float y, float z,
+		noise_coord_t x, noise_coord_t y, noise_coord_t z,
 		float step_x, float step_y, float step_z,
 		s32 seed)
 {
@@ -569,12 +611,15 @@ void Noise::valueMap3D(
 
 	bool eased = np.flags & NOISE_FLAG_EASED;
 
-	x0 = std::floor(x);
-	y0 = std::floor(y);
-	z0 = std::floor(z);
-	u = x - (float)x0;
-	v = y - (float)y0;
-	w = z - (float)z0;
+	const auto floor_x = std::floor(x);
+	const auto floor_y = std::floor(y);
+	const auto floor_z = std::floor(z);
+	x0 = noiseLatticeCoord(floor_x);
+	y0 = noiseLatticeCoord(floor_y);
+	z0 = noiseLatticeCoord(floor_z);
+	u = x - floor_x;
+	v = y - floor_y;
+	w = z - floor_z;
 	orig_u = u;
 	orig_v = v;
 
@@ -646,13 +691,21 @@ void Noise::valueMap3D(
 #undef idx
 
 
-float *Noise::noiseMap2D(float x, float y, float *persistence_map)
+float *Noise::noiseMap2D(noise_coord_t x, noise_coord_t y, float *persistence_map)
 {
 	float f = 1.0, g = 1.0;
 	size_t bufsize = sx * sy;
 
-	x /= np.spread.X;
-	y /= np.spread.Y;
+	// Preserve the existing float arithmetic in the range where node
+	// coordinates are exactly representable as float.
+	const bool legacy = std::fabs(x) <= 16777216 && std::fabs(y) <= 16777216;
+	if (legacy) {
+		x = static_cast<float>(x) / np.spread.X;
+		y = static_cast<float>(y) / np.spread.Y;
+	} else {
+		x /= np.spread.X;
+		y /= np.spread.Y;
+	}
 
 	memset(result, 0, sizeof(float) * bufsize);
 
@@ -664,7 +717,8 @@ float *Noise::noiseMap2D(float x, float y, float *persistence_map)
 	}
 
 	for (size_t oct = 0; oct < np.octaves; oct++) {
-		valueMap2D(x * f, y * f,
+		valueMap2D(legacy ? static_cast<float>(x) * f : x * f,
+			legacy ? static_cast<float>(y) * f : y * f,
 			f / np.spread.X, f / np.spread.Y,
 			seed + np.seed + oct);
 
@@ -683,14 +737,22 @@ float *Noise::noiseMap2D(float x, float y, float *persistence_map)
 }
 
 
-float *Noise::noiseMap3D(float x, float y, float z, float *persistence_map)
+float *Noise::noiseMap3D(noise_coord_t x, noise_coord_t y, noise_coord_t z, float *persistence_map)
 {
 	float f = 1.0, g = 1.0;
 	size_t bufsize = sx * sy * sz;
 
-	x /= np.spread.X;
-	y /= np.spread.Y;
-	z /= np.spread.Z;
+	const bool legacy = std::fabs(x) <= 16777216 && std::fabs(y) <= 16777216 &&
+			std::fabs(z) <= 16777216;
+	if (legacy) {
+		x = static_cast<float>(x) / np.spread.X;
+		y = static_cast<float>(y) / np.spread.Y;
+		z = static_cast<float>(z) / np.spread.Z;
+	} else {
+		x /= np.spread.X;
+		y /= np.spread.Y;
+		z /= np.spread.Z;
+	}
 
 	memset(result, 0, sizeof(float) * bufsize);
 
@@ -702,7 +764,9 @@ float *Noise::noiseMap3D(float x, float y, float z, float *persistence_map)
 	}
 
 	for (size_t oct = 0; oct < np.octaves; oct++) {
-		valueMap3D(x * f, y * f, z * f,
+		valueMap3D(legacy ? static_cast<float>(x) * f : x * f,
+			legacy ? static_cast<float>(y) * f : y * f,
+			legacy ? static_cast<float>(z) * f : z * f,
 			f / np.spread.X, f / np.spread.Y, f / np.spread.Z,
 			seed + np.seed + oct);
 
