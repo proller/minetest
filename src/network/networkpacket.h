@@ -13,18 +13,13 @@
 #include <vector>
 
 
-inline size_t sizeof_v3opos(u16 proto_ver) {
-	return proto_ver >= PROTOCOL_VERSION_32BIT ? sizeof(v3opos_t) : sizeof(v3f);
-}
+inline size_t sizeof_v3opos(u8 size) { return 3 * size; }
 
-inline size_t sizeof_v3pos(u16 proto_ver) {
-	return proto_ver >= PROTOCOL_VERSION_32BIT ? sizeof(v3pos_t) : sizeof(v3s16);
-}
+inline size_t sizeof_v3pos(u8 size) { return 3 * size; }
 
 class NetworkPacket
 {
 public:
-	//NetworkPacket(u16 command, u32 datasize, session_t peer_id = 0, u16 proto_ver = 0);
 	NetworkPacket(u16 command, u32 preallocate, session_t peer_id, u16 proto_ver = 0) :
 		m_command(command), m_peer_id(peer_id)
 		, m_proto_ver(proto_ver)
@@ -42,6 +37,9 @@ public:
 
 	void setProtoVer(u16 proto_ver) { m_proto_ver = proto_ver; }
 	u16 getProtoVer() { return m_proto_ver; }
+	void setPositionSizes(u8 pos, u8 opos) { m_sizeof_pos = pos; m_sizeof_opos = opos; }
+	u8 getPositionSize() const { return m_sizeof_pos; }
+	u8 getObjectPositionSize() const { return m_sizeof_opos; }
 	void putRawPacket(const u8 *data, u32 datasize, session_t peer_id);
 	void clear();
 
@@ -154,7 +152,7 @@ public:
 	NetworkPacket &operator>>(double &dst);
 	NetworkPacket &operator<<(const double src);
 
-#if !USE_OPOS64
+#if USE_OPOS64 != 64
 	NetworkPacket &operator>>(v3d &dst);
 	NetworkPacket &operator<<(const v3d src);
 #endif
@@ -196,4 +194,6 @@ private:
 	u16 m_command = 0;
 	session_t m_peer_id = 0;
 	u16 m_proto_ver = 0;
+	u8 m_sizeof_pos = 2;
+	u8 m_sizeof_opos = 4;
 };

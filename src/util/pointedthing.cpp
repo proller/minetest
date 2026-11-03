@@ -33,17 +33,17 @@ std::string PointedThing::dump() const
 	return os.str();
 }
 
-void PointedThing::serialize(std::ostream &os, const u16 proto_ver) const
+void PointedThing::serialize(std::ostream &os, const u16 sizeof_pos) const
 {
-	const int version = proto_ver >= PROTOCOL_VERSION_32BIT  ? 1 : 0;
+	const int version = sizeof_pos == 8 ? 2 : sizeof_pos == 4 ? 1 : 0;
 	writeU8(os, version); // version
 	writeU8(os, (u8)type);
 	switch (type) {
 	case POINTEDTHING_NOTHING:
 		break;
 	case POINTEDTHING_NODE:
-		writeV3Pos(os, node_undersurface, proto_ver);
-		writeV3Pos(os, node_abovesurface, proto_ver);
+		writeV3Pos(os, node_undersurface, sizeof_pos);
+		writeV3Pos(os, node_abovesurface, sizeof_pos);
 		break;
 	case POINTEDTHING_OBJECT:
 		writeU16(os, object_id);
@@ -54,15 +54,15 @@ void PointedThing::serialize(std::ostream &os, const u16 proto_ver) const
 void PointedThing::deSerialize(std::istream &is)
 {
 	int version = readU8(is);
-	if (version != 0 && version != 1) throw SerializationError(
+	if (version > 2) throw SerializationError(
 			"unsupported PointedThing version");
 	type = static_cast<PointedThingType>(readU8(is));
 	switch (type) {
 	case POINTEDTHING_NOTHING:
 		break;
 	case POINTEDTHING_NODE:
-		node_undersurface = readV3Pos(is, version >= 1 ? PROTOCOL_VERSION_32BIT : PROTOCOL_VERSION_32BIT - 1);
-		node_abovesurface = readV3Pos(is, version >= 1 ? PROTOCOL_VERSION_32BIT : PROTOCOL_VERSION_32BIT - 1);
+		node_undersurface = readV3Pos(is, version == 2 ? 8 : version == 1 ? 4 : 2);
+		node_abovesurface = readV3Pos(is, version == 2 ? 8 : version == 1 ? 4 : 2);
 		break;
 	case POINTEDTHING_OBJECT:
 		object_id = readU16(is);

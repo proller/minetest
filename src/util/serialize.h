@@ -411,16 +411,16 @@ inline v3s64 readV3S64(const u8 *data)
 {
 	v3s64 p;
 	p.X = readS64(&data[0]);
-	p.Y = readS64(&data[4]);
-	p.Z = readS64(&data[8]);
+	p.Y = readS64(&data[8]);
+	p.Z = readS64(&data[16]);
 	return p;
 }
 
 inline void writeV3S64(u8 *data, v3s64 p)
 {
 	writeS64(&data[0], p.X);
-	writeS64(&data[4], p.Y);
-	writeS64(&data[8], p.Z);
+	writeS64(&data[8], p.Y);
+	writeS64(&data[16], p.Z);
 }
 
 inline long double readF128(const u8 *data)
@@ -530,88 +530,68 @@ MAKE_STREAM_WRITE_FXN(v3s64,  V3S64,  24);
 MAKE_STREAM_WRITE_FXN(v3d,    V3F64,  24);
 MAKE_STREAM_WRITE_FXN(v3f128, V3F128, 48);
 
-inline pos_t readPOS(std::istream &is, const u16 proto_ver = 0) {
-#if USE_POS32 == 64
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-		return readS64(is);
-	return readS16(is);
-#elif USE_POS32
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-		return readS32(is);
-	return readS16(is);
-#else
-	return readS16(is);
-#endif
+inline pos_t readPOS(std::istream &is, const u8 sizeof_pos = 2) {
+	switch (sizeof_pos) {
+	case 2: return readS16(is);
+	case 4: return readS32(is);
+	case 8: return readS64(is);
+	default: throw SerializationError("Unsupported position size");
+	}
 }
 
-inline void writePOS(std::ostream &os, pos_t i, const u16 proto_ver = 0) {
-#if USE_POS32 == 64
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-		return writeS64(os, i);
-	return writeS16(os, i);
-#elif USE_POS32
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-		return writeS32(os, i);
-	return writeS16(os, i);
-#else
-	return writeS16(os, i);
-#endif
+inline void writePOS(std::ostream &os, pos_t i, const u8 sizeof_pos = 2) {
+	switch (sizeof_pos) {
+	case 2: return writeS16(os, i);
+	case 4: return writeS32(os, i);
+	case 8: return writeS64(os, i);
+	default: throw SerializationError("Unsupported position size");
+	}
 }
 
-inline v3pos_t readV3Pos(std::istream &is, const u16 proto_ver = 0) {
-#if USE_POS32 == 64
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-	    return readV3S64(is);
-    return s16ToPos(readV3S16(is));
-#elif USE_POS32
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-	    return readV3S32(is);
-    return s16ToPos(readV3S16(is));
-#else
-    return readV3S16(is);
-#endif
+inline v3pos_t readV3Pos(std::istream &is, const u8 sizeof_pos = 2) {
+	const auto x = readPOS(is, sizeof_pos);
+	const auto y = readPOS(is, sizeof_pos);
+	const auto z = readPOS(is, sizeof_pos);
+	return v3pos_t(x, y, z);
 }
 
-inline void writeV3Pos(std::ostream &os, v3pos_t p, const u16 proto_ver = 0) {
-#if USE_POS32 == 64
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-        return writeV3S64(os, p);
-    return writeV3S16(os, posToS16(p));
-#elif USE_POS32
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-        return writeV3S32(os, p);
-    return writeV3S16(os, posToS16(p));
-#else
-    return writeV3S16(os, p);
-#endif
+inline void writeV3Pos(std::ostream &os, v3pos_t p, const u8 sizeof_pos = 2) {
+	writePOS(os, p.X, sizeof_pos);
+	writePOS(os, p.Y, sizeof_pos);
+	writePOS(os, p.Z, sizeof_pos);
 }
 
-inline v3opos_t readV3O(std::istream &is, const u16 proto_ver = 0) {
-#if USE_OPOS64 == 128
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-	    return readV3F128(is);
-    return v3fToOpos(readV3F32(is));
-#elif USE_OPOS64
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-	    return readV3F64(is);
-    return v3fToOpos(readV3F32(is));
-#else
-    return readV3F32(is);
-#endif
+inline v3opos_t readV3O(std::istream &is, const u8 sizeof_opos = 4) {
+	switch (sizeof_opos) {
+	case 4: {
+		const auto p = readV3F32(is);
+		return v3opos_t(p.X, p.Y, p.Z);
+	}
+	case 8: {
+		const auto p = readV3F64(is);
+		return v3opos_t(p.X, p.Y, p.Z);
+	}
+	case 16: {
+		if constexpr (sizeof(long double) == 16) {
+			const auto p = readV3F128(is);
+			return v3opos_t(p.X, p.Y, p.Z);
+		}
+		throw SerializationError("16-byte object positions require 16-byte long double");
+	}
+	default: throw SerializationError("Unsupported object position size");
+	}
 }
 
-inline void writeV3O(std::ostream &os, v3opos_t p, const u16 proto_ver = 0) {
-#if USE_OPOS64 == 128
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-	    return writeV3F128(os, p);
-    return writeV3F32(os, oposToV3f(p));
-#elif USE_OPOS64
-	if (proto_ver >= PROTOCOL_VERSION_32BIT)
-	    return writeV3F64(os, p);
-    return writeV3F32(os, oposToV3f(p));
-#else
-    return writeV3F32(os, p);
-#endif
+inline void writeV3O(std::ostream &os, v3opos_t p, const u8 sizeof_opos = 4) {
+	switch (sizeof_opos) {
+	case 4: return writeV3F32(os, v3f(p.X, p.Y, p.Z));
+	case 8: return writeV3F64(os, v3d(p.X, p.Y, p.Z));
+	case 16:
+		if constexpr (sizeof(long double) == 16)
+			return writeV3F128(os, v3f128(p.X, p.Y, p.Z));
+		throw SerializationError("16-byte object positions require 16-byte long double");
+	default: throw SerializationError("Unsupported object position size");
+	}
 }
 
 ////

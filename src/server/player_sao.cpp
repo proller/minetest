@@ -96,7 +96,7 @@ void PlayerSAO::removingFromEnvironment()
 	}
 }
 
-std::string PlayerSAO::getClientInitializationData(u16 protocol_version)
+std::string PlayerSAO::getClientInitializationData(u16 protocol_version, u8 sizeof_opos)
 {
 	std::ostringstream os(std::ios::binary);
 
@@ -105,7 +105,7 @@ std::string PlayerSAO::getClientInitializationData(u16 protocol_version)
 	os << serializeString16(m_player->getName()); // name
 	writeU8(os, 1); // is_player
 	writeS16(os, getId()); // id
-	writeV3O(os, getBasePosition(), protocol_version);
+	writeV3O(os, getBasePosition(), sizeof_opos);
 	writeV3F32(os, m_rotation);
 	writeU16(os, getHP());
 

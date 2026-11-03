@@ -72,6 +72,15 @@ void Client::handleCommand_Hello(NetworkPacket* pkt)
 	std::string unused;
 	*pkt >> serialization_ver >> unused_compression_mode >> proto_ver
 		>> auth_mechs >> unused;
+	if (pkt->getRemainingBytes() >= 2) {
+		u8 pos, opos;
+		*pkt >> pos >> opos;
+		if ((pos == 2 || pos == 4 || pos == 8) && pos <= sizeof(pos_t) &&
+				(opos == 4 || opos == 8 || opos == 16) && opos <= sizeof(opos_t)) {
+			sizeof_pos = pos;
+			sizeof_opos = opos;
+		}
+	}
 
 	// Chose an auth method we support
 	AuthMechanism chosen_auth_mechanism = choseAuthMech(auth_mechs);
@@ -291,7 +300,7 @@ void Client::handleCommand_NodemetaChanged(NetworkPacket *pkt)
 void Client::handleCommand_BlockData(NetworkPacket* pkt)
 {
 	// Ignore too small packet
-	if (pkt->getSize() < sizeof_v3pos(pkt->getProtoVer()))
+	if (pkt->getSize() < sizeof_v3pos(pkt->getPositionSize()))
 		return;
 
 	v3bpos_t p;
@@ -982,7 +991,7 @@ void Client::handleCommand_SpawnParticle(NetworkPacket* pkt)
 	std::istringstream is(std::string(pkt->getRemainingNoCopy()), std::ios_base::binary);
 
 	ParticleParameters p;
-	p.deSerialize(is, m_proto_ver);
+	p.deSerialize(is, m_proto_ver, sizeof_opos);
 
 	ClientEvent *event = new ClientEvent();
 	event->type           = CE_SPAWN_PARTICLE;
@@ -1003,7 +1012,7 @@ void Client::handleCommand_SpawnParticleBatch(NetworkPacket *pkt)
 		auto p = std::make_unique<ParticleParameters>();
 		{
 			std::istringstream particle_data(deSerializeString32(particle_batch_data), std::ios::binary);
-			p->deSerialize(particle_data, m_proto_ver);
+			p->deSerialize(particle_data, m_proto_ver, sizeof_opos);
 		}
 
 		ClientEvent *event = new ClientEvent();

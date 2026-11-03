@@ -334,6 +334,7 @@ public:
 
 	u16 getProtoVersion() const
 	{ return m_proto_ver; }
+	u8 getObjectPositionSize() const { return sizeof_opos; }
 
 	// Whether the server is in "simple singleplayer mode".
 	// This implies "m_internal_server = true".
@@ -530,6 +531,9 @@ private:
 	// Used version of the protocol with server
 	// If 0, server init hasn't been received yet.
 	u16 m_proto_ver = 0;
+
+	u8 sizeof_pos = 2;  // sizeof(pos_t);
+	u8 sizeof_opos = 4; // sizeof(opos_t);
 
 	bool m_update_wielded_item = false;
 	bool m_skip_next_wield_animation = false;

@@ -1345,6 +1345,7 @@ void Server::ProcessData(NetworkPacket *pkt)
 		RemoteClient * client = getClient(peer_id, CS_InitDone);
 		u8 peer_ser_ver = client->serialization_version;
 		pkt->setProtoVer(client->net_proto_version);
+		pkt->setPositionSizes(client->sizeof_pos, client->sizeof_opos);
 		if(peer_ser_ver == SER_FMT_VER_INVALID) {
 			errorstream << "Server: Peer serialization format invalid. "
 					"Skipping incoming command "
@@ -1668,7 +1669,7 @@ void Server::SendSpawnParticles(RemotePlayer *player,
 			continue; // out of range
 
 		std::ostringstream particle_data(std::ios_base::binary);
-		particle.serialize(particle_data, player->protocol_version);
+		particle.serialize(particle_data, player->protocol_version, getClient(player->getPeerId(), CS_Created)->sizeof_opos);
 		std::string particle_data_str = particle_data.str();
 		SANITY_CHECK(particle_data_str.size() < U32_MAX);
 		if (player->protocol_version < 50) {
@@ -1874,6 +1875,8 @@ void Server::SendHUDAdd(session_t peer_id, u32 id, HudElement *form)
 {
 	auto protocol_version = m_clients.getProtocolVersion(peer_id);
 	NetworkPacket pkt(TOCLIENT_HUDADD, 0 , peer_id, protocol_version);
+	auto *client = getClient(peer_id, CS_Created);
+	pkt.setPositionSizes(client->sizeof_pos, client->sizeof_opos);
 
 	pkt << id << (u8) form->type << form->pos << form->name << form->scale
 			<< form->text << form->number << form->item << form->dir
@@ -1903,6 +1906,8 @@ void Server::SendHUDRemove(session_t peer_id, u32 id)
 void Server::SendHUDChange(session_t peer_id, u32 id, HudElementStat stat, void *value)
 {
 	NetworkPacket pkt(TOCLIENT_HUDCHANGE, 0, peer_id);
+	auto *client = getClient(peer_id, CS_Created);
+	pkt.setPositionSizes(client->sizeof_pos, client->sizeof_opos);
 	pkt << id << (u8) stat;
 
 	switch (stat) {
@@ -1918,7 +1923,7 @@ void Server::SendHUDChange(session_t peer_id, u32 id, HudElementStat stat, void 
 			pkt << *(std::string *) value;
 			break;
 		case HUD_STAT_WORLD_POS:
-			pkt << *(v3f *) value;
+			pkt << *(v3opos_t *) value;
 			break;
 		case HUD_STAT_SIZE: {
 			v2f *v = (v2f *) value;
@@ -1960,6 +1965,8 @@ void Server::SendSetSky(session_t peer_id, const SkyboxParams &params)
 
 	auto protocol_version = m_clients.getProtocolVersion(peer_id);
 	NetworkPacket pkt(TOCLIENT_SET_SKY, 0, peer_id, protocol_version);
+	auto *client = getClient(peer_id, CS_Created);
+	pkt.setPositionSizes(client->sizeof_pos, client->sizeof_opos);
 
 	// Handle prior clients here
 	if (m_clients.getProtocolVersion(peer_id) < 39) {
@@ -2112,7 +2119,9 @@ void Server::SendMovePlayer(PlayerSAO *sao)
 		SendActiveObjectMessages(sao->getPeerID(), data);
 	}
 
-	NetworkPacket pkt(TOCLIENT_MOVE_PLAYER, sizeof_v3opos(sao->getPlayer()->protocol_version) + sizeof(f32) * 2, sao->getPeerID(), sao->getPlayer()->protocol_version);
+	NetworkPacket pkt(TOCLIENT_MOVE_PLAYER, sizeof_v3opos(getClient(sao->getPeerID(), CS_Created)->sizeof_opos) + sizeof(f32) * 2, sao->getPeerID(), sao->getPlayer()->protocol_version);
+	auto *client = getClient(sao->getPeerID(), CS_Created);
+	pkt.setPositionSizes(client->sizeof_pos, client->sizeof_opos);
 	pkt << sao->getBasePosition() << sao->getLookPitch() << sao->getRotation().Y;
 
 	{
@@ -2129,6 +2138,8 @@ void Server::SendMovePlayer(PlayerSAO *sao)
 void Server::SendMovePlayerRel(session_t peer_id, const v3opos_t &added_pos)
 {
 	NetworkPacket pkt(TOCLIENT_MOVE_PLAYER_REL, 0, peer_id);
+	auto *client = getClient(peer_id, CS_Created);
+	pkt.setPositionSizes(client->sizeof_pos, client->sizeof_opos);
 	pkt << added_pos;
 	Send(&pkt);
 }
@@ -2283,7 +2294,7 @@ void Server::SendActiveObjectRemoveAdd(RemoteClient *client, PlayerSAO *playersa
 		u8 type = obj->getSendType();
 
 		pkt << id << type;
-		pkt.putLongString(obj->getClientInitializationData(client->net_proto_version));
+		pkt.putLongString(obj->getClientInitializationData(client->net_proto_version, client->sizeof_opos));
 
 		// Add to known objects
 		client->m_known_objects.insert(id);
@@ -2488,13 +2499,15 @@ void Server::sendNodeChangePkt(u16 command, const MapNode& n, v3pos_t p_int, flo
 
 		if (command == TOCLIENT_ADDNODE) {
 			NetworkPacket pkt(TOCLIENT_ADDNODE,
-					sizeof_v3pos(player->protocol_version) + 2 + 1 + 1 + 1, 0,
+					sizeof_v3pos(client->sizeof_pos) + 2 + 1 + 1 + 1, 0,
 					player->protocol_version);
+			pkt.setPositionSizes(client->sizeof_pos, client->sizeof_opos);
 			pkt << p << n.param0 << n.param1 << n.param2 << (u8)(remove_metadata ? 0 : 1);
 			m_clients.send(client_id, &pkt);
 		} else if (command == TOCLIENT_REMOVENODE) {
-			NetworkPacket pkt(TOCLIENT_REMOVENODE, sizeof_v3pos(player->protocol_version),
+			NetworkPacket pkt(TOCLIENT_REMOVENODE, sizeof_v3pos(client->sizeof_pos),
 					0, player->protocol_version);
+			pkt.setPositionSizes(client->sizeof_pos, client->sizeof_opos);
 			pkt << p;
 			m_clients.send(client_id, &pkt);
 		}
@@ -2574,7 +2587,9 @@ void Server::SendBlockNoLock(session_t peer_id, MapBlock *block, u8 ver,
 		sptr = &s;
 	}
 
-	NetworkPacket pkt(TOCLIENT_BLOCKDATA, sizeof_v3pos(m_env->getPlayer(peer_id)->protocol_version) + sptr->size(), peer_id, m_env->getPlayer(peer_id)->protocol_version);
+	NetworkPacket pkt(TOCLIENT_BLOCKDATA, sizeof_v3pos(getClient(peer_id, CS_Created)->sizeof_pos) + sptr->size(), peer_id, m_env->getPlayer(peer_id)->protocol_version);
+	auto *client = getClient(peer_id, CS_Created);
+	pkt.setPositionSizes(client->sizeof_pos, client->sizeof_opos);
 	pkt << block->getPos();
 	pkt.putRawString(*sptr);
 	Send(&pkt);

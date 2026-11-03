@@ -222,6 +222,9 @@ public:
 	//
 	u16 net_proto_version = 0;
 
+	u8 sizeof_pos = 2;  // sizeof(pos_t);
+	u8 sizeof_opos = 4; // sizeof(opos_t);
+
 	/* Authentication information */
 	std::string enc_pwd = "";
 	bool create_player_on_auth_success = false;

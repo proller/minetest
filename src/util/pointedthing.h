@@ -108,7 +108,7 @@ struct PointedThing
 	{}
 
 	std::string dump() const;
-	void serialize(std::ostream &os, const u16 proto_ver) const;
+	void serialize(std::ostream &os, const u16 sizeof_pos) const;
 	void deSerialize(std::istream &is);
 
 	/*!

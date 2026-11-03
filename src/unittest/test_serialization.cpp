@@ -23,6 +23,8 @@ public:
 	void testDeSerializeLongString();
 	void testStreamRead();
 	void testStreamWrite();
+	void testPositionSizes();
+	void testObjectPositionSizes();
 	void testFloatFormat();
 
 	std::string teststring2;
@@ -45,10 +47,55 @@ void TestSerialization::runTests(IGameDef *gamedef)
 	TEST(testSerializeJsonString);
 	TEST(testStreamRead);
 	TEST(testStreamWrite);
+	TEST(testPositionSizes);
+	TEST(testObjectPositionSizes);
 	TEST(testFloatFormat);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+void TestSerialization::testPositionSizes()
+{
+	for (u8 size : {u8(2), u8(4), u8(8)}) {
+		std::ostringstream os(std::ios::binary);
+		writePOS(os, -123, size);
+		writeV3Pos(os, v3pos_t(123, -456, 789), size);
+		writeU8(os, 42);
+		UASSERTEQ(size_t, os.str().size(), 4 * size + 1);
+
+		std::istringstream is(os.str(), std::ios::binary);
+		UASSERTEQ(pos_t, readPOS(is, size), -123);
+		UASSERT(readV3Pos(is, size) == v3pos_t(123, -456, 789));
+		UASSERTEQ(u8, readU8(is), 42);
+	}
+
+	std::ostringstream os;
+	std::istringstream is;
+	EXCEPTION_CHECK(SerializationError, writePOS(os, 1, 3));
+	EXCEPTION_CHECK(SerializationError, readPOS(is, 3));
+}
+
+void TestSerialization::testObjectPositionSizes()
+{
+	for (u8 size : {u8(4), u8(8), u8(16)}) {
+		if (size == 16 && sizeof(long double) != 16)
+			continue;
+		const v3opos_t pos(1.5, -2.25, 3.75);
+		std::ostringstream os(std::ios::binary);
+		writeV3O(os, pos, size);
+		writeU8(os, 42);
+		UASSERTEQ(size_t, os.str().size(), 3 * size + 1);
+
+		std::istringstream is(os.str(), std::ios::binary);
+		UASSERT(readV3O(is, size) == pos);
+		UASSERTEQ(u8, readU8(is), 42);
+	}
+
+	std::ostringstream os;
+	std::istringstream is;
+	EXCEPTION_CHECK(SerializationError, writeV3O(os, v3opos_t(), 2));
+	EXCEPTION_CHECK(SerializationError, readV3O(is, 2));
+}
 
 // To be used like this:
 //   mkstr("Some\0string\0with\0embedded\0nuls")

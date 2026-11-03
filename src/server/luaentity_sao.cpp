@@ -251,7 +251,7 @@ void LuaEntitySAO::step(float dtime, bool send_recommended)
 	sendOutdatedData();
 }
 
-std::string LuaEntitySAO::getClientInitializationData(u16 protocol_version)
+std::string LuaEntitySAO::getClientInitializationData(u16 protocol_version, u8 sizeof_opos)
 {
 	std::ostringstream os(std::ios::binary);
 
@@ -260,7 +260,7 @@ std::string LuaEntitySAO::getClientInitializationData(u16 protocol_version)
 	os << serializeString16(m_init_name); // name
 	writeU8(os, 0); // is_player
 	writeU16(os, getId()); //id
-	writeV3O(os, getBasePosition(), protocol_version);
+	writeV3O(os, getBasePosition(), sizeof_opos);
 	writeV3F32(os, m_rotation);
 	writeU16(os, m_hp);
 

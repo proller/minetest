@@ -303,8 +303,8 @@ struct ParticleParameters : CommonParticleParams
 	ParticleParamTypes::f32Range bounce;
 	ParticleParamTypes::v3fRange jitter;
 
-	void serialize(std::ostream &os, u16 protocol_ver) const;
-	void deSerialize(std::istream &is, u16 protocol_ver);
+	void serialize(std::ostream &os, u16 protocol_ver, u8 sizeof_opos = 4) const;
+	void deSerialize(std::istream &is, u16 protocol_ver, u8 sizeof_opos = 4);
 };
 
 struct ParticleSpawnerParameters : CommonParticleParams

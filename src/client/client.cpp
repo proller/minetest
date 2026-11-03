@@ -1036,6 +1036,7 @@ void Client::ReceiveAll()
 			if (!m_con->TryReceive(&pkt))
 				break;
 			pkt.setProtoVer(m_proto_ver);
+			pkt.setPositionSizes(sizeof_pos, sizeof_opos);
 			ProcessData(&pkt);
 		} catch (const con::InvalidIncomingDataException &e) {
 			infostream << "Client::ReceiveAll(): "
@@ -1143,13 +1144,13 @@ void writePlayerPos(LocalPlayer *myplayer, ClientMap *clientMap, NetworkPacket *
 		[12+12+4+4+4+1+1+1+4] f32 movement_direction
 	*/
 	pkt->writeV3S32(position);
-	pkt->writeV3S32(speed); 
+	pkt->writeV3S32(speed);
 	*pkt << pitch << yaw << keyPressed;
 	*pkt << fov << wanted_range;
 	*pkt << camera_inverted;
 	*pkt << movement_speed << movement_dir;
 
-	if (pkt->getProtoVer() >= PROTOCOL_VERSION_32BIT) {
+	if (pkt->getObjectPositionSize() > 4) {
 		*pkt << myplayer->getPosition();
 	}
 }
@@ -1178,12 +1179,13 @@ void Client::interact(InteractAction action, const PointedThing& pointed)
 
 	NetworkPacket pkt(TOSERVER_INTERACT, 1 + 2 + 0);
 	pkt.setProtoVer(m_proto_ver);
+	pkt.setPositionSizes(sizeof_pos, sizeof_opos);
 
 	pkt << (u8)action;
 	pkt << myplayer->getWieldIndex();
 
 	std::ostringstream tmp_os(std::ios::binary);
-	pointed.serialize(tmp_os, m_proto_ver);
+	pointed.serialize(tmp_os, sizeof_pos);
 
 	pkt.putLongString(tmp_os.str());
 
@@ -1232,7 +1234,7 @@ void Client::sendInit(const std::string &playerName)
 
 	pkt << SER_FMT_VER_HIGHEST_READ << (u16) 0 /* unused */;
 	pkt << CLIENT_PROTOCOL_VERSION_MIN << LATEST_PROTOCOL_VERSION;
-	pkt << playerName;
+	pkt << playerName << (u8)sizeof(pos_t) << (u8)sizeof(opos_t);
 
 	Send(&pkt);
 }
@@ -1290,7 +1292,8 @@ void Client::startAuth(AuthMechanism chosen_auth_mechanism)
 
 void Client::sendDeletedBlocks(std::vector<v3bpos_t> &blocks)
 {
-	NetworkPacket pkt(TOSERVER_DELETEDBLOCKS, 1 + sizeof_v3pos(m_proto_ver) * blocks.size(), 0, m_proto_ver);
+	NetworkPacket pkt(TOSERVER_DELETEDBLOCKS, 1 + sizeof_v3pos(sizeof_pos) * blocks.size(), 0, m_proto_ver);
+	pkt.setPositionSizes(sizeof_pos, sizeof_opos);
 
 	pkt << (u8) blocks.size();
 
@@ -1303,7 +1306,8 @@ void Client::sendDeletedBlocks(std::vector<v3bpos_t> &blocks)
 
 void Client::sendGotBlocks(const std::vector<v3bpos_t> &blocks)
 {
-	NetworkPacket pkt(TOSERVER_GOTBLOCKS, 1 + sizeof_v3pos(m_proto_ver) * blocks.size(), 0, m_proto_ver);
+	NetworkPacket pkt(TOSERVER_GOTBLOCKS, 1 + sizeof_v3pos(sizeof_pos) * blocks.size(), 0, m_proto_ver);
+	pkt.setPositionSizes(sizeof_pos, sizeof_opos);
 	pkt << (u8) blocks.size();
 	for (const v3bpos_t &block : blocks)
 		pkt << block;
@@ -1334,6 +1338,7 @@ void Client::sendNodemetaFields(v3pos_t p, const std::string &formname,
 	FATAL_ERROR_IF(fields_size > 0xFFFF, "Unsupported number of nodemeta fields");
 
 	NetworkPacket pkt(TOSERVER_NODEMETA_FIELDS, 0);
+	pkt.setPositionSizes(sizeof_pos, sizeof_opos);
 
 	pkt << p << formname << (u16) (fields_size & 0xFFFF);
 
@@ -1526,6 +1531,7 @@ void Client::sendPlayerPos()
 
 	NetworkPacket pkt(TOSERVER_PLAYERPOS, 12 + 12 + 4 + 4 + 4 + 1 + 1 + 1 + 4 + 4);
 	pkt.setProtoVer(m_proto_ver);
+	pkt.setPositionSizes(sizeof_pos, sizeof_opos);
 
 	writePlayerPos(player, &map, &pkt, camera_inverted);
 

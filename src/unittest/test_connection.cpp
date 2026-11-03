@@ -8,6 +8,7 @@
 #include "porting.h"
 #include "settings.h"
 #include "util/serialize.h"
+#include "util/pointedthing.h"
 #include "network/peerhandler.h"
 #include "network/mtp/internal.h"
 #include "network/networkexceptions.h"
@@ -72,6 +73,103 @@ void TestConnection::testNetworkPacketSerialize()
 		0x00, 0x7b,
 		0x00, 0x02, 0xd8, 0x42, 0xdf, 0x9a
 	};
+
+	for (u8 sizeof_pos : {u8(2), u8(4), u8(8)}) {
+		if (sizeof(pos_t) == 2 && sizeof_pos != 2)
+			continue;
+		for (u8 sizeof_opos : {u8(4), u8(8), u8(16)}) {
+			if (sizeof_opos > sizeof(opos_t))
+				continue;
+			NetworkPacket pkt(123, 0);
+			pkt.setPositionSizes(sizeof_pos, sizeof_opos);
+			const pos_t x = sizeof_pos == 8 && sizeof(pos_t) == 8 ?
+					static_cast<pos_t>(s64(1) << 40) :
+					sizeof_pos > 2 ? static_cast<pos_t>(70000) : 123;
+			const v3pos_t pos(x, 456, -789);
+			const v3opos_t opos(sizeof_opos == 16 ? 1.0L + 0x1p-60L : 1.5L,
+					-2.25, 3.75);
+			pkt << pos << opos;
+			UASSERTEQ(u32, pkt.getSize(), 3 * (sizeof_pos + sizeof_opos));
+			auto raw = pkt.oldForgePacket();
+			NetworkPacket received;
+			received.putRawPacket(&raw[0], raw.getSize(), 0);
+			received.setPositionSizes(sizeof_pos, sizeof_opos);
+			v3pos_t decoded_pos;
+			v3opos_t decoded_opos;
+			received >> decoded_pos >> decoded_opos;
+			UASSERT(decoded_pos == pos);
+			UASSERT(decoded_opos == opos);
+			UASSERTEQ(u32, received.getRemainingBytes(), 0);
+		}
+	}
+
+	for (u8 size : {u8(2), u8(4), u8(8)}) {
+		NetworkPacket pkt(123, 0);
+		pkt.setPositionSizes(size, 4);
+		pkt.writePos(-123);
+		pkt << u8(42);
+		UASSERTEQ(u32, pkt.getSize(), size + 1);
+		auto raw = pkt.oldForgePacket();
+		NetworkPacket received;
+		received.putRawPacket(&raw[0], raw.getSize(), 0);
+		received.setPositionSizes(size, 4);
+		pos_t value;
+		u8 marker;
+		received.readPos(value);
+		received >> marker;
+		UASSERTEQ(pos_t, value, -123);
+		UASSERTEQ(u8, marker, 42);
+	}
+
+	{
+		NetworkPacket pkt(123, 0);
+		pkt << s64(-123456789) << u8(42);
+		auto raw = pkt.oldForgePacket();
+		NetworkPacket received;
+		received.putRawPacket(&raw[0], raw.getSize(), 0);
+		s64 value;
+		u8 marker;
+		received >> value >> marker;
+		UASSERTEQ(s64, value, -123456789);
+		UASSERTEQ(u8, marker, 42);
+		NetworkPacket short_packet;
+		short_packet.putRawPacket(&raw[0], 6, 0);
+		EXCEPTION_CHECK(PacketError, short_packet >> value);
+	}
+	{
+		NetworkPacket pkt(123, 0);
+		pkt.setPositionSizes(8, 4);
+		const v3s64 pos(s64(1) << 40, -(s64(1) << 41), s64(1) << 42);
+		pkt << pos << u8(42);
+		auto raw = pkt.oldForgePacket();
+		NetworkPacket received;
+		received.putRawPacket(&raw[0], raw.getSize(), 0);
+		received.setPositionSizes(8, 4);
+		v3s64 decoded;
+		u8 marker;
+		received >> decoded >> marker;
+		UASSERT(decoded == pos);
+		UASSERTEQ(u8, marker, 42);
+	}
+
+	{
+		PointedThing pointed;
+		pointed.type = POINTEDTHING_NODE;
+		pointed.node_undersurface = v3pos_t(123, -456, 789);
+		pointed.node_abovesurface = v3pos_t(-123, 456, -789);
+		for (u8 size : {u8(2), u8(4), u8(8)}) {
+			if (size == 8 && sizeof(pos_t) == 8)
+				pointed.node_undersurface.X = static_cast<pos_t>(s64(1) << 40);
+			std::ostringstream os(std::ios::binary);
+			pointed.serialize(os, size);
+			UASSERTEQ(size_t, os.str().size(), 2 + 6 * size);
+			std::istringstream is(os.str(), std::ios::binary);
+			PointedThing decoded;
+			decoded.deSerialize(is);
+			UASSERT(decoded.node_undersurface == pointed.node_undersurface);
+			UASSERT(decoded.node_abovesurface == pointed.node_abovesurface);
+		}
+	}
 
 	if (sizeof(wchar_t) == 2)
 		warningstream << __FUNCTION__ << " may fail on this platform." << std::endl;

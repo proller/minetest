@@ -88,6 +88,15 @@ void Server::handleCommand_Init(NetworkPacket* pkt)
 	*pkt >> max_ser_ver >> unused
 			>> min_net_proto_version >> max_net_proto_version
 			>> playerName;
+	if (pkt->getRemainingBytes() >= 2) {
+		u8 pos, opos;
+		*pkt >> pos >> opos;
+		if ((pos == 2 || pos == 4 || pos == 8) &&
+				(opos == 4 || opos == 8 || opos == 16)) {
+			client->sizeof_pos = std::min<u8>(pos, sizeof(pos_t));
+			client->sizeof_opos = std::min<u8>(opos, sizeof(opos_t));
+		}
+	}
 
 	// Use the highest version supported by both
 	const u8 serialization_ver = std::min(max_ser_ver, SER_FMT_VER_HIGHEST_WRITE);
@@ -260,7 +269,8 @@ void Server::handleCommand_Init(NetworkPacket* pkt)
 
 	resp_pkt << serialization_ver << u16(0) /* unused */
 		<< net_proto_version
-		<< auth_mechs << std::string_view() /* unused */;
+		<< auth_mechs << std::string_view() /* unused */
+		<< client->sizeof_pos << client->sizeof_opos;
 
 	Send(&resp_pkt);
 
@@ -437,8 +447,8 @@ void Server::process_PlayerPos(RemotePlayer *player, PlayerSAO *playersao,
 	s32 f32pitch, f32yaw;
 	u8 f32fov;
 
-    ps = pkt->readV3S32();
-    ss = pkt->readV3S32();
+	ps = pkt->readV3S32();
+	ss = pkt->readV3S32();
 	*pkt >> f32pitch;
 	*pkt >> f32yaw;
 
@@ -483,7 +493,7 @@ void Server::process_PlayerPos(RemotePlayer *player, PlayerSAO *playersao,
 	}
 
 	v3opos_t position((opos_t)ps.X / 100.0f, (opos_t)ps.Y / 100.0f, (opos_t)ps.Z / 100.0f);
-	if (pkt->getRemainingBytes() >= 24 && pkt->getProtoVer() >= PROTOCOL_VERSION_32BIT) {
+	if (pkt->getObjectPositionSize() > 4 && pkt->getRemainingBytes() >= sizeof_v3opos(pkt->getObjectPositionSize())) {
 		*pkt >> position;
 	}
 	v3f speed((f32)ss.X / 100.0f, (f32)ss.Y / 100.0f, (f32)ss.Z / 100.0f);

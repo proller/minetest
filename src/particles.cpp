@@ -227,9 +227,9 @@ void ServerParticleTexture::deSerialize(std::istream &is, u16 protocol_ver,
 		animation.deSerialize(is, protocol_ver);
 }
 
-void ParticleParameters::serialize(std::ostream &os, u16 protocol_ver) const
+void ParticleParameters::serialize(std::ostream &os, u16 protocol_ver, u8 sizeof_opos) const
 {
-	writeV3O(os, pos, protocol_ver);
+	writeV3O(os, pos, sizeof_opos);
 	writeV3F32(os, vel);
 	writeV3F32(os, acc);
 	writeF32(os, expirationtime);
@@ -250,9 +250,9 @@ void ParticleParameters::serialize(std::ostream &os, u16 protocol_ver) const
 	texture.serialize(os, protocol_ver, true, true);
 }
 
-void ParticleParameters::deSerialize(std::istream &is, u16 protocol_ver)
+void ParticleParameters::deSerialize(std::istream &is, u16 protocol_ver, u8 sizeof_opos)
 {
-	pos                = readV3O(is, protocol_ver);
+	pos                = readV3O(is, sizeof_opos);
 	vel                = readV3F32(is);
 	acc                = readV3F32(is);
 	expirationtime     = readF32(is);

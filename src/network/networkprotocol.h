@@ -7,7 +7,6 @@
 #include "irrlichttypes.h"
 
 extern const u16 LATEST_PROTOCOL_VERSION;
-extern const u16 PROTOCOL_VERSION_32BIT;
 
 // Server's supported network protocol range
 constexpr u16 SERVER_PROTOCOL_VERSION_MIN = 37;
@@ -38,6 +37,8 @@ enum ToClientCommand : u16
 		u16 deployed protocol version
 		u32 supported auth methods
 		std::string unused (used to be username)
+		u8 selected position size (optional)
+		u8 selected object position size (optional)
 	*/
 
 	TOCLIENT_AUTH_ACCEPT = 0x03,
@@ -728,6 +729,8 @@ enum ToServerCommand : u16
 		u16 minimum supported network protocol version
 		u16 maximum supported network protocol version
 		std::string player name
+		u8 supported position size (optional)
+		u8 supported object position size (optional)
 	*/
 
 	TOSERVER_INIT2 = 0x11,

@@ -23,7 +23,7 @@ public:
 	ActiveObjectType getSendType() const { return ACTIVEOBJECT_TYPE_GENERIC; }
 	virtual void addedToEnvironment(u32 dtime_s);
 	void step(float dtime, bool send_recommended);
-	std::string getClientInitializationData(u16 protocol_version);
+	std::string getClientInitializationData(u16 protocol_version, u8 sizeof_opos = 4);
 
 	bool isStaticAllowed() const { return m_prop.static_save; }
 	bool shouldUnload() const { return true; }

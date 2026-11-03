@@ -451,44 +451,33 @@ v3s32 NetworkPacket::readV3S32()
 
 NetworkPacket& NetworkPacket::readPos(pos_t& dst)
 {
-	if (m_proto_ver < PROTOCOL_VERSION_32BIT) {
-		s16 tmp;
-		*this >> tmp;
-		dst = tmp;
-		return *this;
+	switch (m_sizeof_pos) {
+	case 2: { s16 value; *this >> value; dst = value; break; }
+	case 4: { s32 value; *this >> value; dst = value; break; }
+	case 8: { s64 value; *this >> value; dst = value; break; }
+	default: throw PacketError("Unsupported position size");
 	}
-
-	*this >> dst;
 	return *this;
 }
 
 NetworkPacket& NetworkPacket::writePos(pos_t src)
 {
-	if (m_proto_ver < PROTOCOL_VERSION_32BIT) {
-		*this << (u16) src;
-		return *this;
+	switch (m_sizeof_pos) {
+	case 2: *this << (s16)src; break;
+	case 4: *this << (s32)src; break;
+	case 8: *this << (s64)src; break;
+	default: throw PacketError("Unsupported position size");
 	}
-
-	*this << src;
 	return *this;
 }
 
-#if USE_POS32
+#if USE_POS32 == 32
 
 NetworkPacket& NetworkPacket::operator>>(v3pos_t& dst)
 {
-	if (m_proto_ver < PROTOCOL_VERSION_32BIT) {
-		v3s16 tmp;
-		*this >> tmp;
-		dst = s16ToPos(tmp);
-		return *this;
-	}
-
-	checkReadOffset(m_read_offset, 12);
-
-	dst = ::readV3S32(&m_data[m_read_offset]);
-
-	m_read_offset += 12;
+	readPos(dst.X);
+	readPos(dst.Y);
+	readPos(dst.Z);
 	return *this;
 }
 #endif
@@ -523,17 +512,12 @@ NetworkPacket& NetworkPacket::operator<<(v2s32 src)
 	return *this;
 }
 
-#if USE_POS32
+#if USE_POS32 == 32
 NetworkPacket& NetworkPacket::operator<<(v3pos_t src)
 {
-	if (m_proto_ver < PROTOCOL_VERSION_32BIT) {
-        *this << posToS16(src);
-		return *this;
-	}
-
-	*this << (s32) src.X;
-	*this << (s32) src.Y;
-	*this << (s32) src.Z;
+	writePos(src.X);
+	writePos(src.Y);
+	writePos(src.Z);
 	return *this;
 }
 #endif
@@ -584,11 +568,11 @@ Buffer<u8> NetworkPacket::oldForgePacket()
 
 NetworkPacket& NetworkPacket::operator>>(s64& dst)
 {
-	checkReadOffset(m_read_offset, 4);
+	checkReadOffset(m_read_offset, 8);
 
 	dst = readS64(&m_data[m_read_offset]);
 
-	m_read_offset += 4;
+	m_read_offset += 8;
 	return *this;
 }
 
@@ -600,19 +584,31 @@ NetworkPacket& NetworkPacket::operator<<(s64 src)
 
 NetworkPacket& NetworkPacket::operator>>(v3s64& dst)
 {
+#if USE_POS32 == 64
+	readPos(dst.X);
+	readPos(dst.Y);
+	readPos(dst.Z);
+#else
 	checkReadOffset(m_read_offset, 24);
 
 	dst = readV3S64(&m_data[m_read_offset]);
 
 	m_read_offset += 24;
+#endif
 	return *this;
 }
 
 NetworkPacket& NetworkPacket::operator<<(v3s64 src)
 {
+#if USE_POS32 == 64
+	writePos(src.X);
+	writePos(src.Y);
+	writePos(src.Z);
+#else
 	*this << (s64) src.X;
 	*this << (s64) src.Y;
 	*this << (s64) src.Z;
+#endif
 	return *this;
 }
 
@@ -637,7 +633,7 @@ NetworkPacket& NetworkPacket::operator>>(double& dst)
 	return *this;
 }
 
-#if !USE_OPOS64
+#if USE_OPOS64 != 64
 NetworkPacket& NetworkPacket::operator>>(v3d& dst)
 {
 	checkReadOffset(m_read_offset, sizeof(dst));
@@ -660,7 +656,7 @@ NetworkPacket& NetworkPacket::operator<<(const v3d src)
 #if USE_OPOS64 == 64
 NetworkPacket& NetworkPacket::operator>>(v3opos_t& dst)
 {
-	if (m_proto_ver < PROTOCOL_VERSION_32BIT) {
+	if (m_sizeof_opos == 4) {
 		v3f tmp;
 		*this >> tmp;
 		dst = v3fToOpos(tmp);
@@ -700,7 +696,7 @@ NetworkPacket& NetworkPacket::operator>>(long double& dst)
 #if USE_OPOS64 == 64
 NetworkPacket& NetworkPacket::operator<<(v3opos_t src)
 {
-	if (m_proto_ver < PROTOCOL_VERSION_32BIT) {
+	if (m_sizeof_opos == 4) {
 		*this << oposToV3f(src);
 		return *this;
 	}
@@ -714,6 +710,22 @@ NetworkPacket& NetworkPacket::operator<<(v3opos_t src)
 
 NetworkPacket& NetworkPacket::operator>>(v3f128& dst)
 {
+#if USE_OPOS64 == 128
+	if (m_sizeof_opos == 4) {
+		v3f tmp;
+		*this >> tmp;
+		dst = v3f128(tmp.X, tmp.Y, tmp.Z);
+		return *this;
+	}
+	if (m_sizeof_opos == 8) {
+		v3d tmp;
+		*this >> tmp;
+		dst = v3f128(tmp.X, tmp.Y, tmp.Z);
+		return *this;
+	}
+	if (m_sizeof_opos != 16 || sizeof(long double) != 16)
+		throw PacketError("Unsupported object position size");
+#endif
 	checkReadOffset(m_read_offset, sizeof(dst));
 
 	dst = readV3F128(&m_data[m_read_offset]);
@@ -724,6 +736,14 @@ NetworkPacket& NetworkPacket::operator>>(v3f128& dst)
 
 NetworkPacket& NetworkPacket::operator<<(const v3f128 src)
 {
+#if USE_OPOS64 == 128
+	if (m_sizeof_opos == 4)
+		return *this << v3f(src.X, src.Y, src.Z);
+	if (m_sizeof_opos == 8)
+		return *this << v3d(src.X, src.Y, src.Z);
+	if (m_sizeof_opos != 16 || sizeof(long double) != 16)
+		throw PacketError("Unsupported object position size");
+#endif
 	*this << (long double)src.X;
 	*this << (long double)src.Y;
 	*this << (long double)src.Z;
