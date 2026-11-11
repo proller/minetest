@@ -58,11 +58,10 @@ std::string MapDatabase::getBlockAsStringCompatible(const v3bpos_t &pos) const
 
 v3bpos_t MapDatabase::getStringAsBlock(const std::string &i) const
 {
-#if USE_POS32	
 	std::istringstream is(i);
 	v3bpos_t pos;
 	char c;
-	if (i[0] == 'a') {
+	if (!i.empty() && i[0] == 'a') {
 		is >> c; // 'a'
 		is >> pos.X;
 		is >> c; // ','
@@ -73,7 +72,4 @@ v3bpos_t MapDatabase::getStringAsBlock(const std::string &i) const
 		return getIntegerAsBlock(stoi64(i));
 	}
 	return pos;
-#else
-	return getIntegerAsBlock(stoi64(i));
-#endif
 }
