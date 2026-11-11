@@ -1154,8 +1154,8 @@ std::pair<v3pos_t, v3pos_t> get_mapgen_edges(pos_t mapgen_limit, v3pos_t chunksi
 		pos_t ccfmax = ccmax + MAP_BLOCKSIZE;
 		// Number of complete chunks from central chunk fullminp/fullmaxp
 		// to effective mapgen limits.
-		pos_t numcmin = std::max((ccfmin - mapgen_limit_min) / csize_n, 0);
-		pos_t numcmax = std::max((mapgen_limit_max - ccfmax) / csize_n, 0);
+		pos_t numcmin = std::max<pos_t>((ccfmin - mapgen_limit_min) / csize_n, 0);
+		pos_t numcmax = std::max<pos_t>((mapgen_limit_max - ccfmax) / csize_n, 0);
 		return {ccmin - numcmin * csize_n, ccmax + numcmax * csize_n};
 	};
 

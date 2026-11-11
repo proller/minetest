@@ -292,7 +292,7 @@ void SpatialAreaStore::getOverlappingAreas(std::vector<Area *> *result,
 }
 
 void SpatialAreaStore::getContainingAreas(std::vector<Area *> *result,
-		const v3s16 minedge, const v3s16 maxedge)
+		const v3pos_t minedge, const v3pos_t maxedge)
 {
 	VectorResultVisitor visitor(result, this);
 	m_tree->containsWhatQuery(get_spatial_region(minedge, maxedge), visitor);

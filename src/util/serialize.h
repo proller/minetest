@@ -409,16 +409,16 @@ inline v3s64 readV3S64(const u8 *data)
 {
 	v3s64 p;
 	p.X = readS64(&data[0]);
-	p.Y = readS64(&data[4]);
-	p.Z = readS64(&data[8]);
+	p.Y = readS64(&data[8]);
+	p.Z = readS64(&data[16]);
 	return p;
 }
 
 inline void writeV3S64(u8 *data, v3s64 p)
 {
 	writeS64(&data[0], p.X);
-	writeS64(&data[4], p.Y);
-	writeS64(&data[8], p.Z);
+	writeS64(&data[8], p.Y);
+	writeS64(&data[16], p.Z);
 }
 
 inline long double readF128(const u8 *data)
