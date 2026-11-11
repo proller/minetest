@@ -126,10 +126,20 @@ void TestAreaStore::testSerialization()
 	store.serialize(os);
 	std::string str = os.str();
 
-#if USE_POS32
+#if USE_POS32 == 64
+	std::string str_wanted("\x00\x00\x02"
+			"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01"
+			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02"
+			"\x00\x07" "Area AA"
+			"\x00\x00\x00\x00\x00\x00\x00\x7B\x00\x00\x00\x00\x00\x00\x00\x64\x00\x00\x00\x00\x00\x00\x00\x0A"
+			"\x00\x00\x00\x00\x00\x00\x7D\x00\x00\x00\x00\x00\x00\x00\x01\xC8\x00\x00\x00\x00\x00\x00\x03\x15"
+			"\x00\x07" "Area BB"
+			"\x00\x00\x00\x00\x00\x00\x00\x01",
+			1 + 2 + (24 + 24 + 2 + 7) * 2 + 2 * 4);
+#elif USE_POS32
 	std::string str_wanted("\x00"  // Version
 			"\x00\x02"  // Count
-			"\x00\x00\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x01"  // Area A min edge
+			"\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x01"  // Area A min edge
 			"\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x02"  // Area A max edge
 			"\x00\x07"  // Area A data length
 			"Area AA"   // Area A data
@@ -161,6 +171,17 @@ void TestAreaStore::testSerialization()
 #endif
 
 	UASSERTEQ(const std::string &, str, str_wanted);
+
+	std::istringstream fresh_stream(str, std::ios_base::binary);
+	VectorAreaStore restored;
+	restored.deserialize(fresh_stream);
+	const Area *restored_a = restored.getArea(0);
+	const Area *restored_b = restored.getArea(1);
+	UASSERT(restored_a && restored_b);
+	UASSERT(restored_a->minedge == v3pos_t(-1, 0, 1));
+	UASSERT(restored_a->maxedge == v3pos_t(0, 1, 2));
+	UASSERT(restored_b->minedge == v3pos_t(123, 100, 10));
+	UASSERT(restored_b->maxedge == v3pos_t(32000, 456, 789));
 
 	std::istringstream is(str, std::ios_base::binary);
 	store.deserialize(is);

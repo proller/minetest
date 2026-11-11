@@ -19,6 +19,8 @@ with this program; if not, see <https://www.gnu.org/licenses/>.
 #include "test.h"
 
 #include <cstdio>
+#include <cmath>
+#include <limits>
 #include <unordered_set>
 #include <unordered_map>
 #include "mapblock.h"
@@ -57,16 +59,12 @@ void TestMap::testMaxMapgenLimit()
 
 	// objectpos_over_limit should do exactly this except the last node
 	// actually spans from LIMIT-0.5 to LIMIT+0.5
-	float limit_times_bs = MAX_MAP_GENERATION_LIMITF * BS;
-	UASSERT(objectpos_over_limit(v3f(limit_times_bs-BS/2)) == false);
-	UASSERT(objectpos_over_limit(v3f(limit_times_bs)) == false);
-	UASSERT(objectpos_over_limit(v3f(limit_times_bs+BS/2)) == false);
-	UASSERT(objectpos_over_limit(v3f(limit_times_bs+BS)) == true);
-
-	UASSERT(objectpos_over_limit(v3f(-limit_times_bs+BS/2)) == false);
-	UASSERT(objectpos_over_limit(v3f(-limit_times_bs)) == false);
-	UASSERT(objectpos_over_limit(v3f(-limit_times_bs-BS/2)) == false);
-	UASSERT(objectpos_over_limit(v3f(-limit_times_bs-BS)) == true);
+	const float limit = (MAX_MAP_GENERATION_LIMITF + 0.5f) * BS;
+	const float outside = std::nextafter(limit, std::numeric_limits<float>::infinity());
+	UASSERT(!objectpos_over_limit(v3f(limit)));
+	UASSERT(objectpos_over_limit(v3f(outside)));
+	UASSERT(!objectpos_over_limit(v3f(-limit)));
+	UASSERT(objectpos_over_limit(v3f(-outside)));
 
 	// blockpos_over_max_limit
 	pos_t limit_block = MAX_MAP_GENERATION_LIMIT / MAP_BLOCKSIZE;
