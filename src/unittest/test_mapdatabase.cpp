@@ -223,4 +223,11 @@ void TestMapDatabase::testPositionEncoding()
 	UASSERT(db->getIntegerAsBlock(0x7FF7FF7FF) == v3bpos_t(2047, 2047, 2047))
 	UASSERT(db->getIntegerAsBlock(-0x800800800) == v3bpos_t(-2048, -2048, -2048))
 	UASSERT(db->getIntegerAsBlock(-0x314e3807b) == v3bpos_t(-123, 456, -789))
+
+	// Both formats can occur regardless of the configured position width.
+	const v3bpos_t pos(1, 2, 3);
+	UASSERT(db->getStringAsBlock(db->getBlockAsString(pos)) == pos)
+	UASSERT(db->getStringAsBlock(db->getBlockAsStringCompatible(pos)) == pos)
+	UASSERT(db->getStringAsBlock(std::to_string(db->getBlockAsInteger(pos))) == pos)
+	UASSERT(db->getStringAsBlock("a-123,456,-789") == v3bpos_t(-123, 456, -789))
 }
